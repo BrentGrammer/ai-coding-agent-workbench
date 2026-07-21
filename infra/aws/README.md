@@ -1,4 +1,4 @@
-# AgentCore workbench
+# AgentCore Stack CDK Deployment
 
 This CDK stack deploys the Herdr and Hunk workbench to Amazon Bedrock AgentCore.
 
