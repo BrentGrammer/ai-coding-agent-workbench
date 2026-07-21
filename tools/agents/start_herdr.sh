@@ -8,9 +8,9 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
-configureLocalWorkspace "${1:-$PWD}"
 
-WORKBENCH_AGENT="${2:-claude}"
+WORKBENCH_AGENT="${2:-${WORKBENCH_AGENT:-claude}}"
+export WORKBENCH_AGENT
 case "$WORKBENCH_AGENT" in
   claude|codex|opencode)
     ;;
@@ -19,6 +19,8 @@ case "$WORKBENCH_AGENT" in
     exit 1
     ;;
 esac
+
+configureLocalWorkspace "${1:-$PWD}"
 
 SANDBOX_NAME="herdr-$SANDBOX_WORKSPACE_NAME"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"

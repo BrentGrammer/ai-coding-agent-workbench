@@ -26,6 +26,16 @@ For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest
 npm install -g @aws/agentcore@latest
 ```
 
+## Add the commands to your PATH
+
+Add this line to your shell profile, using the path where you cloned this repository:
+
+```shell
+export PATH="/path/to/agent-workbench/bin:$PATH"
+```
+
+Restart the terminal after saving the profile.
+
 ## Configure the environment
 
 Before starting, copy the environment template from the project root:
@@ -45,16 +55,16 @@ GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME=/coding-agent-workbench/github/private-key
 
 The two Parameter Store names must match exactly in `.env`, AWS Systems Manager Parameter Store, and `infra/aws/lib/workbench-runtime-stack.ts`. If you change the CDK constants, redeploy the stack.
 
-To use AgentCore with another repository, change only `GITHUB_REPOSITORY_URL` in `.env`, then run `start-agentcore.sh` normally. The GitHub App must be installed for the new repository.
+To use AgentCore with another repository, change only `GITHUB_REPOSITORY_URL` in `.env`, then run `start-agentcore` normally. The GitHub App must be installed for the new repository.
 
 ## Start AgentCore
 
-From the project root, choose the primary agent:
+Choose the primary agent:
 
 ```shell
-./start-agentcore.sh claude
-./start-agentcore.sh codex
-./start-agentcore.sh opencode
+start-agentcore claude
+start-agentcore codex
+start-agentcore opencode
 ```
 
 The argument selects the agent that starts automatically. All three agents and their Herdr integrations are available in the environment.
@@ -79,45 +89,59 @@ To exit cleanly:
 
 ## Local setup
 
-Start the complete Herdr and Hunk workbench:
-
-```shell
-./tools/agents/start_herdr.sh /path/to/local-project-folder
-```
-
-Pass a second argument to start with a preferred harness:
-
-```shell
-./tools/agents/start_herdr.sh /path/to/local-project-folder codex
-```
-
-You can also run the launcher from the project folder without passing a path:
+(Make sure you've added the bin folder to the PATH)
+Run from the project you want to work on. Claude starts by default:
 
 ```shell
 cd /path/to/local-project-folder
-/path/to/agent-workbench/tools/agents/start_herdr.sh
+start-herdr
 ```
 
-The launchers under `tools/agents` use the current directory by default. Pass a path to use another workspace:
+Choose another primary agent or project:
 
 ```shell
-./tools/agents/start_claude.sh
-./tools/agents/start_codex.sh /path/to/local-project-folder
-./tools/agents/start_opencode.sh /path/to/local-project-folder
-# or:
-cd /path/to/local-project-folder
-/path/to/agent-workbench/tools/agents/start_herdr.sh
+start-herdr codex
+start-herdr claude /path/to/another-project
 ```
 
-These scripts run the project inside a Docker `sbx` sandbox and are designed for locked-down mode. They add the network policies required by each agent and its setup tools. Before running them, review the `allow_*_network` functions in the selected launcher and [sandbox_bootstrap.sh](tools/agents/sandbox_bootstrap.sh), and remove any connections you do not want to permit.
+Run one agent without Herdr:
+
+```shell
+start-claude
+start-codex /path/to/another-project
+start-opencode
+```
+
+Other available launchers:
+
+```shell
+start-antigravity
+start-cline
+start-commandcode
+start-cursor
+start-gemini
+start-grok
+start-kilo
+start-pi
+```
+
+Each command uses the current directory unless a project path is passed. Sandboxes are reused by project so logins persist.
+
+Ghostty opens automatically when installed. Override the terminal with `WORKSPACE_TERMINAL=wezterm`, `kitty`, `alacritty`, or `current`:
+
+```shell
+WORKSPACE_TERMINAL=current start-herdr
+```
+
+The launchers use Docker `sbx` in locked-down mode and add required network policies. Review the `allow_*_network` functions and [sandbox_bootstrap.sh](tools/agents/sandbox_bootstrap.sh), and remove connections you do not want to permit.
 
 Set `WORKSPACE_IDE_COMMAND` to another IDE command. If that command is unavailable, the workspace opens without an IDE.
 
 The default IDE command is `code`, the Visual Studio Code command-line launcher. Set another installed command for a different IDE, or use `OPEN_WORKSPACE_IN_IDE=0` to open no IDE:
 
 ```shell
-WORKSPACE_IDE_COMMAND=cursor ./tools/agents/start_claude.sh
-OPEN_WORKSPACE_IN_IDE=0 ./tools/agents/start_claude.sh
+WORKSPACE_IDE_COMMAND=cursor start-claude
+OPEN_WORKSPACE_IN_IDE=0 start-claude
 ```
 
 Each agent stores its login inside the reused local sandbox. For OpenCode with OpenRouter, run `/connect`, select OpenRouter, paste the API key, then choose a model with `/models`.
@@ -149,9 +173,9 @@ The app generates repository-limited installation tokens when Git needs them. To
 
 Create these parameters in AWS Systems Manager Parameter Store in the same region as the AgentCore runtime:
 
-| Parameter | Type | Value |
-| --- | --- | --- |
-| `/coding-agent-workbench/github/app-id` | `String` | GitHub App ID |
+| Parameter                                    | Type           | Value                    |
+| -------------------------------------------- | -------------- | ------------------------ |
+| `/coding-agent-workbench/github/app-id`      | `String`       | GitHub App ID            |
 | `/coding-agent-workbench/github/private-key` | `SecureString` | Complete PEM private key |
 
 The AWS console is the simplest way to store the multiline private key. Do not commit it, put it in an environment file, or paste it into logs.
@@ -184,13 +208,13 @@ If the deploying identity will not open workbench sessions, attach the `AgentCor
 Use the lower-level command to select a repository, branch, or persistent session at launch:
 
 ```shell
-./bin/workbench aws https://github.com/owner/repo.git --agent codex
+workbench aws https://github.com/owner/repo.git --agent codex
 ```
 
 `--keep NAME` preserves the checkout and agent home for later use:
 
 ```shell
-./bin/workbench aws https://github.com/owner/repo.git \
+workbench aws https://github.com/owner/repo.git \
   --ref main \
   --agent claude \
   --keep repo-claude
@@ -199,9 +223,9 @@ Use the lower-level command to select a repository, branch, or persistent sessio
 Reconnect, stop, or check active AgentCore runtime sessions:
 
 ```shell
-./bin/workbench aws reconnect repo-claude
-./bin/workbench aws stop repo-claude
-./bin/workbench aws status
+workbench aws reconnect repo-claude
+workbench aws stop repo-claude
+workbench aws status
 ```
 
 Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session.

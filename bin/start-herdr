@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAUNCHER="$SCRIPT_DIR/../tools/agents/start_herdr.sh"
+
+if [ "$#" -gt 2 ]; then
+  echo "Usage: start-herdr [claude|codex|opencode] [WORKSPACE_PATH]" >&2
+  echo "   or: start-herdr [WORKSPACE_PATH] [claude|codex|opencode]" >&2
+  exit 1
+fi
+
+case "${1:-}" in
+  claude|codex|opencode)
+    exec "$LAUNCHER" "${2:-$PWD}" "$1"
+    ;;
+  "")
+    exec "$LAUNCHER" "$PWD" claude
+    ;;
+  *)
+    exec "$LAUNCHER" "$@"
+    ;;
+esac
