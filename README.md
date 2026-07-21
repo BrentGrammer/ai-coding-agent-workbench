@@ -1,6 +1,6 @@
 # AI Coding Agent Workbench
 
-This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/) beside [Hunk](https://www.hunk.dev/). It supports running coding agents locally with `sbx` Docker sandbox MicroVMs and in the Cloud using [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html).
+This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/). It supports running coding agents locally with `sbx` Docker sandbox MicroVMs and in the Cloud using [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html).
 
 It bootstraps an isolated multi-agent coding workbench, with options for running a variety of coding agents locally in Docker sandboxes.
 
