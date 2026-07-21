@@ -1,6 +1,6 @@
 # AgentCore workbench
 
-This stack runs the generic Herdr and Hunk workbench on Bedrock AgentCore.
+This CDK stack deploys the Herdr and Hunk workbench to Amazon Bedrock AgentCore.
 
 Install or update the AgentCore CLI before opening a session:
 
