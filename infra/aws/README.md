@@ -6,7 +6,7 @@ This CDK stack deploys the Herdr and Hunk workbench to Amazon Bedrock AgentCore.
 >
 > Review the [cost controls and billing caveat](./README.md#cost-controls) before deployment.
 
-## Prerquisites
+## Prerequisites
 
 ### Create the GitHub App
 
