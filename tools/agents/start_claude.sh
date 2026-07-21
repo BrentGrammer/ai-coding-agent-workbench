@@ -23,6 +23,7 @@ allow_network() {
   allow_system_update_network
   
   sbx policy allow network --sandbox "$SANDBOX_NAME" claude.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" downloads.claude.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.anthropic.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" console.anthropic.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" claude.ai:443
