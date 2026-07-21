@@ -157,19 +157,16 @@ WORKSPACE_TERMINAL=current start-herdr
 
 The launchers use Docker `sbx` in locked-down mode and add required network policies. Review the `allow_*_network` functions and [sandbox_bootstrap.sh](tools/agents/sandbox_bootstrap.sh), and remove connections you do not want to permit.
 
-Set `WORKSPACE_IDE_COMMAND` to another IDE command. If that command is unavailable, the workspace opens without an IDE.
+Optionally set `WORKSPACE_IDE_COMMAND` to tell what command to run to open a local IDE.
 
-The default IDE command is `code`, the Visual Studio Code command-line launcher. Set another installed command for a different IDE, or use `OPEN_WORKSPACE_IN_IDE=0` to open no IDE:
+The default IDE command is `code`, to open Visual Studio Code. Set another installed command for a different IDE:
 
 ```shell
 WORKSPACE_IDE_COMMAND=cursor start-claude
+# or without opening:
 OPEN_WORKSPACE_IN_IDE=0 start-claude
 ```
 
-Each agent stores its login inside the reused local sandbox. For OpenCode with OpenRouter, run `/connect`, select OpenRouter, paste the API key, then choose a model with `/models`.
+Each agent stores its login inside the reused local sandbox. For OpenCode with a provider, run `/connect`, select a provider (e.g. OpenRouter), paste the API key, then choose a model with `/models`.
 
-Hunk runs without `--watch`. Press `r` in Hunk to reload the current changes, or run this from the agent pane:
-
-```shell
-hunk session reload --repo . -- diff
-```
+Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current changes.
