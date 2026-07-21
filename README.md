@@ -39,7 +39,7 @@ For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest
 
 ### Deploy the CDK Stack for AgentCore (if using the Herdr setup in the Cloud)
 
-AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](#deploy-agentcore) before the first cloud launch.
+AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](./infra/aws/README.md) before the first cloud launch.
 
 ### Install AWS Bedrock AgentCore locally
 
@@ -212,58 +212,9 @@ These parameters are required before the first repository launch, but not before
 
 ## Deploy AgentCore
 
-```shell
-cd infra/aws
-npm install
-```
-
-If this account and region have not been bootstrapped for CDK, run this once before deployment:
-
-```shell
-npx cdk bootstrap
-```
-
-Deploy the stack:
-
-```shell
-npm run deploy
-```
-
-The deploy command:
-
-- Builds and publishes the ARM64 runtime image.
-- Deploys the AgentCore runtime.
-
-If the deploying identity will not open workbench sessions, attach the `AgentCoreShellCallerPolicyArn` stack output to the trusted IAM user or role that will.
-
-## Manage AgentCore sessions
-
-Use the lower-level command to select a repository, branch, or persistent session at launch:
-
-```shell
-workbench aws https://github.com/owner/repo.git --agent codex
-```
-
-`--keep NAME` preserves the checkout and agent home for later use:
-
-```shell
-workbench aws https://github.com/owner/repo.git \
-  --ref main \
-  --agent claude \
-  --keep repo-claude
-```
-
-Reconnect, stop, or check active AgentCore runtime sessions:
-
-```shell
-workbench aws reconnect repo-claude
-workbench aws stop repo-claude
-workbench aws status
-```
-
-Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session.
-
-The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. AgentCore shuts down idle compute after 15 minutes and caps each compute lifetime at eight hours. Persistent files remain available to the same named session.
+> **IMPORTANT: This setup incurs AWS charges.**
+>
+> Review the [cost controls and billing caveat](../../README.md#cost-controls) before deployment.
 
 ## Cost controls
 

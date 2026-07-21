@@ -2,76 +2,64 @@
 
 This CDK stack deploys the Herdr and Hunk workbench to Amazon Bedrock AgentCore.
 
-Install or update the AgentCore CLI before opening a session:
+## Prerquisites
+
+1. Follow the GitHub App setup in the main [README](../../README.md)
+1. Install or update the AgentCore CLI before opening a session:
 
 ```shell
 npm install -g @aws/agentcore@latest
 ```
-
-## GitHub access
-
-Create one GitHub App for the workbench with repository `Contents` read and write permission. Install it on your personal account and each organization whose repositories the workbench should use. Choose `All repositories` for automatic access to current and future repositories, or maintain a selected list in the app installation.
-
-Store the app ID as a String parameter:
-
-```text
-/coding-agent-workbench/github/app-id
-```
-
-Generate a private key for the app and store the complete PEM value as a SecureString parameter:
-
-```text
-/coding-agent-workbench/github/private-key
-```
-
-The parameters are required before the first repository launch, but they do not need to exist before stack deployment.
-
-The runtime does not store repository tokens. Its Git credential helper creates a repository-limited installation token whenever Git needs one. GitHub expires each token after one hour, but later Git operations automatically receive a new token.
-
-## Deploy
-
-> **IMPORTANT: This setup incurs AWS charges.**
->
-> Review the [cost controls and billing caveat](../../README.md#cost-controls) before deployment.
 
 ```shell
 cd infra/aws
 npm install
 ```
 
-If this AWS account and region have not been bootstrapped for CDK, run this once:
+If this account and region have not been bootstrapped for CDK, run this once before deployment:
 
 ```shell
 npx cdk bootstrap
 ```
 
-Deploy the stack:
+## Deploy the stack:
 
 ```shell
 npm run deploy
 ```
 
-Attach the `AgentCoreShellCallerPolicyArn` stack output to the trusted IAM user or role that opens workbench sessions.
+The deploy command:
 
-## Launch
+- Builds and publishes the ARM64 runtime image.
+- Deploys the AgentCore runtime.
 
-Install the launcher commands and configure `.env` as described in the [project README](../../README.md), then choose the primary agent:
+If the deploying identity will not open workbench sessions, attach the `AgentCoreShellCallerPolicyArn` stack output to the trusted IAM user or role that will.
+
+## Manage AgentCore sessions
+
+Use the lower-level command to select a repository, branch, or persistent session at launch:
 
 ```shell
-start-agentcore claude
-start-agentcore codex
-start-agentcore opencode
+workbench aws https://github.com/owner/repo.git --agent codex
 ```
 
-For named sessions, repository overrides, and session management, use the lower-level `workbench` command:
+`--keep NAME` preserves the checkout and agent home for later use:
 
 ```shell
-workbench aws https://github.com/owner/repo.git --ref main --agent claude --keep repo-claude
+workbench aws https://github.com/owner/repo.git \
+  --ref main \
+  --agent claude \
+  --keep repo-claude
+```
+
+Reconnect, stop, or check active AgentCore runtime sessions:
+
+```shell
 workbench aws reconnect repo-claude
 workbench aws stop repo-claude
 workbench aws status
 ```
 
-Named sessions keep the checkout and agent home in AgentCore managed session storage across idle compute shutdowns. The first interactive login for Claude, Codex, or OpenCode is retained within that named session.
+Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session.
 
-`workbench aws` requires AgentCore CLI 0.24.1 or newer. The CLI automatically reconnects the same shell across AgentCore's one-hour WebSocket cutoff and transient network interruptions.
+The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. AgentCore shuts down idle compute after 15 minutes and caps each compute lifetime at eight hours. Persistent files remain available to the same named session.
