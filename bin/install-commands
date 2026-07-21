@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+PROFILE_PATH=""
+
+showUsage() {
+  echo "Usage: ./bin/install-commands [--profile PATH]"
+}
+
+chooseProfile() {
+  if [ -n "$PROFILE_PATH" ]; then
+    return
+  fi
+
+  case "$(basename "${SHELL:-}")" in
+    zsh)
+      PROFILE_PATH="${ZDOTDIR:-$HOME}/.zshrc"
+      ;;
+    bash)
+      if [ "$(uname -s)" = "Darwin" ]; then
+        PROFILE_PATH="$HOME/.bash_profile"
+      else
+        PROFILE_PATH="$HOME/.bashrc"
+      fi
+      ;;
+    *)
+      echo "ERROR: Could not select a profile for ${SHELL:-the current shell}. Use --profile PATH." >&2
+      exit 1
+      ;;
+  esac
+}
+
+confirmChange() {
+  local prompt="$1"
+  local answer
+
+  printf '%s [y/N] ' "$prompt"
+  read -r answer
+  case "$answer" in
+    y|Y|yes|YES)
+      ;;
+    *)
+      echo "No changes made."
+      exit 0
+      ;;
+  esac
+}
+
+backupProfile() {
+  if [ ! -f "$PROFILE_PATH" ]; then
+    return
+  fi
+
+  BACKUP_PATH="$PROFILE_PATH.agent-workbench.$(date +%Y%m%d%H%M%S).$$.bak"
+  cp -p "$PROFILE_PATH" "$BACKUP_PATH"
+  echo "Backup created at $BACKUP_PATH"
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --profile)
+      if [ "$#" -lt 2 ]; then
+        echo "ERROR: --profile requires a path." >&2
+        exit 1
+      fi
+      PROFILE_PATH="$2"
+      shift 2
+      ;;
+    -h|--help)
+      showUsage
+      exit 0
+      ;;
+    *)
+      showUsage >&2
+      exit 1
+      ;;
+  esac
+done
+
+chooseProfile
+echo "Shell profile: $PROFILE_PATH"
+
+PROFILE_DIRECTORY="$(dirname "$PROFILE_PATH")"
+if [ ! -d "$PROFILE_DIRECTORY" ]; then
+  echo "ERROR: Profile directory does not exist: $PROFILE_DIRECTORY" >&2
+  exit 1
+fi
+
+printf -v ESCAPED_BIN_DIR '%q' "$SCRIPT_DIR"
+PATH_LINE="export PATH=\"\$PATH\":$ESCAPED_BIN_DIR"
+
+if [ -f "$PROFILE_PATH" ] && grep -Fq "$SCRIPT_DIR" "$PROFILE_PATH"; then
+  echo "The workbench bin directory is already referenced in $PROFILE_PATH."
+  exit 0
+fi
+
+"$SCRIPT_DIR/check-command-collisions"
+echo "Line: $PATH_LINE"
+confirmChange "Add the workbench commands to this profile?"
+backupProfile
+touch "$PROFILE_PATH"
+printf '\n%s\n' "$PATH_LINE" >> "$PROFILE_PATH"
+echo "Commands installed. Restart the terminal or run: source \"$PROFILE_PATH\""

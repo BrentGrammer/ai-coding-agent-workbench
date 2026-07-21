@@ -30,6 +30,10 @@ The runtime does not store repository tokens. Its Git credential helper creates 
 
 ## Deploy
 
+> **IMPORTANT: This setup incurs AWS charges.**
+>
+> Review the [cost controls and billing caveat](../../README.md#cost-controls) before deployment.
+
 ```shell
 cd infra/aws
 npm install
@@ -59,7 +63,5 @@ Named persistent session:
 Named sessions keep the checkout and agent home in AgentCore managed session storage across idle compute shutdowns. The first interactive login for Claude, Codex, or OpenCode is retained within that named session.
 
 `workbench aws` requires AgentCore CLI 0.24.1 or newer. The CLI automatically reconnects the same shell across AgentCore's one-hour WebSocket cutoff and transient network interruptions.
-
-Following the working AgentCore example, deployment and session exit apply one-day retention after AgentCore creates its CloudWatch log group. Every successful deployment also keeps the currently deployed workbench image and removes previously tracked workbench images. Image cleanup remains a script because CDK Docker assets share the bootstrap repository with other projects, so a repository lifecycle rule would not be safely scoped to this workbench.
 
 CloudFormation does not currently accept AgentCore's required `MetadataConfiguration` property. After CDK deploys the runtime, the deploy wrapper enables MMDSv2 through the AgentCore control API and fails if that update does not succeed.

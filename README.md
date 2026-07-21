@@ -27,28 +27,31 @@ For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest
 - AWS CLI with credentials for the target account and region.
 - Node.js and npm.
 - AgentCore CLI 0.24.1 or newer.
+- A GitHub App installed for the target repository with **Contents: Read and write** permission.
+- The GitHub App ID and private key stored in AWS Systems Manager Parameter Store.
+
+AWS CDK is installed locally by `npm install` in `infra/aws`. Complete [Deploy AgentCore](#deploy-agentcore) before the first cloud launch.
 
 ```shell
 npm install -g @aws/agentcore@latest
 ```
 
-## Add the commands to PATH
+## Add the agent launcher commands to PATH
 
-To run the local launchers which run coding agents on your machine in Docker Sandbox instead of in the Cloud, convenience commands are included with this project in the bin folder.
+To run the launchers which bootstrap coding agents on your machine in Docker Sandbox instead of in the Cloud, convenience commands are included with this project in the bin folder.
 
-Check for existing commands with the same names:
-
-```shell
-./bin/check-command-collisions
-```
-
-Add this line to your shell profile, using the path where this repository was cloned:
+Run the installer once to add the commands to PATH:
 
 ```shell
-export PATH="$PATH:/path/to/agent-workbench/bin"
+./bin/install-commands
 ```
 
-Restart the terminal after saving the profile.
+It checks for command collisions, confirms the profile change, and creates a backup. To select another profile:
+
+```shell
+# Optional: override auto detection of profile:
+./bin/install-commands --profile /path/to/profile
+```
 
 ## Configure the environment
 
@@ -201,13 +204,18 @@ These parameters are required before the first repository launch, but not before
 ```shell
 cd infra/aws
 npm install
-npm run deploy
 ```
 
 If this account and region have not been bootstrapped for CDK, run this once before deployment:
 
 ```shell
 npx cdk bootstrap
+```
+
+Deploy the stack:
+
+```shell
+npm run deploy
 ```
 
 The deploy command:
@@ -248,7 +256,7 @@ The AgentCore CLI reconnects the same shell automatically across the one-hour We
 
 ## Cost controls
 
-This section is a convenience checklist, not authoritative billing guidance. Verify current pricing, limits, and billable resources in the official AWS documentation and the AWS billing console before relying on it.
+This section is a convenience checklist, not authoritative billing guidance and could contain incorrect information. Verify current pricing, limits, and billable resources in the official AWS documentation and the AWS billing console before relying on it.
 
 - No Lambda microVM, VPC, NAT gateway, load balancer, EFS, database, AgentCore Memory, Gateway, alarm, or dashboard is created.
 - AgentCore runtime billing is usage-based.
