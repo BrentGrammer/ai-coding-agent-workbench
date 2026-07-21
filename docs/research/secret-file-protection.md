@@ -202,6 +202,64 @@ everything the agent can do.
 
 ---
 
+## Other harnesses (Codex, OpenCode, Cline, Cursor)
+
+Everything above is Claude Code. The workbench also runs other agents, and the
+protection story for each is different. Researched against each tool's own docs
+and source, 2026-07-21.
+
+The key finding: **only 2 of 5 harnesses have a dependable config-level read
+block.** For the other 3, config-level "protection" is best-effort or buggy, and
+the only reliable control is not mounting the secret (`--clone`). This is the
+strongest argument for `--clone`: it protects every harness at once, regardless
+of what each one's config can enforce.
+
+| Harness | Config read block | Verdict |
+| --- | --- | --- |
+| Claude | hook + deny rules + bubblewrap | ✅ real, verified end-to-end |
+| OpenCode | `permission.read` deny globs | ✅ real, enforced (no subagent bypass) |
+| Codex | `[permissions.*.filesystem] = "none"` | ⚠️ real mechanism, but new + open no-op bugs |
+| Cline | `.clineignore` | ❌ best-effort; Cline's docs say "not a security boundary", being deprecated |
+| Cursor | `.cursorignore` | ❌ best-effort; Cursor's docs say "not guaranteed", live bypasses |
+
+### OpenCode — real, implemented
+
+`permission.read` is a genuine enforced deny-list of globs (matched last-wins);
+`.env` is denied by OpenCode's own defaults. It blocks the `read` tool with no
+subagent bypass. `permission.bash` can also deny shell patterns (`cat *.env*`),
+but that is best-effort (evadable via `c""at`, `xxd`, `python -c`, etc.).
+`watcher.ignore` does NOT block reads — only watching/indexing. A plugin
+`tool.execute.before` hook can also throw to block, but has a known
+subagent-bypass bug (sst/opencode #5894), so `permission.read` is the real
+boundary. Implemented in `tools/agents/opencode.json`.
+
+### Codex — mechanism exists but is not dependable
+
+`sandbox_mode` (`read-only` / `workspace-write` / `danger-full-access`) does NOT
+restrict reads — all modes bind-mount `/` readable and gate only writes, network,
+and exec. The only read-deny is the newer permission profile
+`[permissions.NAME.filesystem]` with paths set to `"none"` (older builds: some
+use `"deny"` — schema is version-sensitive). When it works it is real OS-level
+masking (`/dev/null` mounted over the file in bubblewrap). But there are multiple
+OPEN bugs where it silently no-ops (#22179 v0.130.0 returns `.env` contents,
+#11316 legacy Landlock never enforces reads, #31265 broken on Windows). Codex
+also has a `PreToolUse` hook (`codex_hooks = true`) but it fires for the shell
+tool only, not the native read/apply_patch tools. Net: treat Codex config as
+defense-in-depth, not a guarantee. Not mounting the secret is the real control.
+
+### Cline and Cursor — best-effort only, not enforcement
+
+Both IDE extensions' ignore files are explicitly documented by their own vendors
+as non-enforcing. Cline: "`.clineignore` ... is not a security or access-control
+boundary — ignored files can still be read via explicit `@` mentions or shell
+commands", and it is being deprecated. Cursor: "`.cursorignore` is best-effort
+... we do not guarantee that files ... are blocked", with live bypasses (its Grep
+tool reads ignored files, `git show HEAD:path` reads tracked-but-ignored files,
+terminal shell-outs, and model self-circumvention). Both `.clineignore` and
+`.cursorignore` were broadened to cover keys/credentials as defense-in-depth,
+but neither is a wall. For these two, the reliable control is not mounting the
+secret, or making it unreadable at the OS layer (different owner + `chmod 600`).
+
 ## How to verify (reusable test procedure)
 
 Inside the agent's sandbox, with two decoys in the workspace:

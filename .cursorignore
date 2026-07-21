@@ -5,7 +5,26 @@ build/
 coverage/
 *.log
 *.map
+
+# Secrets and credentials. Cursor treats .cursorignore as best-effort, not a
+# security boundary. Documented bypasses exist (Grep tool, git show on tracked
+# files, terminal shell-outs). The reliable control is not mounting the secret.
 .env*
+!.env.template
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+.ssh/
+.aws/
+.gnupg/
+.netrc
+.git-credentials
+**/credentials*
+**/*secret*
 
 # macOS
 .DS_Store

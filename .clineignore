@@ -5,7 +5,26 @@ build/
 coverage/
 *.log
 *.map
+
+# Secrets and credentials. Cline's own docs state .clineignore is not a security
+# or access-control boundary (bypassable via @-mentions and shell commands) and
+# is being deprecated. The reliable control is not mounting the secret.
 .env*
+!.env.template
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+.ssh/
+.aws/
+.gnupg/
+.netrc
+.git-credentials
+**/credentials*
+**/*secret*
 
 # macOS
 .DS_Store
