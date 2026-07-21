@@ -129,7 +129,7 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 
 See [Deploy AgentCore](./infra/aws/README.md) for GitHub App setup, Parameter Store, and stack deployment.
 
-### Deploy the CDK stack
+### Deploy AWS Resources for Bedrock AgentCore Use
 
 AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](./infra/aws/README.md) before the first cloud launch.
 
