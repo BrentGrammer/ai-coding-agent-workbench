@@ -4,6 +4,12 @@ This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/
 
 It bootstraps an isolated multi-agent coding workbench, with options for running a variety of coding agents locally in Docker sandboxes.
 
+## Platform support
+
+- macOS is supported and tested.
+- Linux and WSL2 are not yet verified.
+- Native Windows is not currently supported.
+
 ## Prerequisites
 
 For local Docker sandboxes:
@@ -26,9 +32,9 @@ For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest
 npm install -g @aws/agentcore@latest
 ```
 
-## Add the commands to your PATH
+## Add the commands to PATH
 
-Add this line to your shell profile, using the path where you cloned this repository:
+Add this line to your shell profile, using the path where this repository was cloned:
 
 ```shell
 export PATH="/path/to/agent-workbench/bin:$PATH"
