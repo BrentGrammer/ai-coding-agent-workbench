@@ -7,6 +7,8 @@ It bootstraps an isolated multi-agent coding workbench running in the Cloud, wit
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
 The agents also come baked in with [Matt Pocock's skills](https://github.com/mattpocock/skills) (remove their installation in the scripts if not desired).
 
+The project supports running a variety of harnesses individually locally inside a Docker Sandbox, or using Herdr with 3 harnesses baked in (Claude Code, Codex and OpenCode).
+
 ## Platform support
 
 - macOS is supported.
@@ -43,7 +45,7 @@ AWS CDK is installed locally from the project's `/infra/aws` folder with `npm in
 npm install -g @aws/agentcore@latest
 ```
 
-## Add the agent launcher commands to PATH
+## Add the agent launcher commands to PATH (Recommended)
 
 To run the launchers which bootstrap coding agents on your machine in Docker Sandbox instead of in the Cloud, convenience commands are included with this project in the bin folder.
 
