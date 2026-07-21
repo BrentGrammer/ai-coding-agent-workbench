@@ -231,6 +231,7 @@ of what each one's config can enforce.
 | Codex | `[permissions.*.filesystem] = "none"` | ⚠️ real mechanism, but new + open no-op bugs |
 | Cline | `.clineignore` | ❌ best-effort; Cline's docs say "not a security boundary", being deprecated |
 | Cursor | `.cursorignore` | ❌ best-effort; Cursor's docs say "not guaranteed", live bypasses |
+| Antigravity | `.geminiignore` + permission deny | ❌ native reader blocked, but shell `cat .env` bypasses it (Google: "intended behavior") |
 
 ### OpenCode — real, implemented
 
@@ -256,6 +257,25 @@ OPEN bugs where it silently no-ops (#22179 v0.130.0 returns `.env` contents,
 also has a `PreToolUse` hook (`codex_hooks = true`) but it fires for the shell
 tool only, not the native read/apply_patch tools. Net: treat Codex config as
 defense-in-depth, not a guarantee. Not mounting the secret is the real control.
+
+### Antigravity — native reader blocked, shell tool bypasses it
+
+Google's Antigravity (`agy` CLI, Gemini-backed, config under `~/.gemini/`). Its
+native file-reader honors `.gitignore` / `.geminiignore` when the "Agent
+Gitignore Access" setting is off — real read enforcement for that tool,
+confirmed by the agent's own captured trace hitting "a dead end due to gitignore
+restrictions." It also has a `permissions` deny (`read_file(**/.env)`) in
+`~/.gemini/antigravity-cli/settings.json`. BUT: (1) the agent bypasses the block
+by running `cat .env` through its shell tool — a `command()` action a
+`read_file` deny does not cover — which Google initially closed as "Won't Fix
+(Intended Behavior)"; (2) a reported bug reads in-workspace `.env` despite a deny
+rule; (3) its own terminal sandbox (`enableTerminalSandbox`, nsjail) is off by
+default and has documented escapes. The only config that catches the shell
+bypass is Strict Mode + Request Review — human-in-the-loop, unsuitable for an
+unattended sandbox. `.geminiignore` was broadened as defense-in-depth (it does
+block the native reader), but this is best-effort. Also protect the whole
+`~/.gemini/` tree — it holds the OAuth token and app data. Not adding an
+unverifiable `settings.json` deny (schema thin, shell bypass defeats it anyway).
 
 ### Cline and Cursor — best-effort only, not enforcement
 

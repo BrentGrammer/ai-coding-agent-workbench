@@ -5,7 +5,28 @@ build/
 coverage/
 *.log
 *.map
+
+# Secrets and credentials. Used by both Gemini CLI and Antigravity. It blocks
+# the native file reader (with Agent Gitignore Access off) but NOT terminal
+# reads like `cat .env` — the agent's shell tool bypasses it, which Google has
+# called intended behavior. Defense-in-depth only. The reliable control is not
+# mounting the secret.
 .env*
+!.env.template
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+.ssh/
+.aws/
+.gnupg/
+.netrc
+.git-credentials
+**/credentials*
+**/*secret*
 
 # macOS
 .DS_Store
