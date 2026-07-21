@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "uv",
+      "args": [
+        "tool",
+        "run",
+        "--python",
+        "3.13",
+        "--from",
+        "serena-agent@latest",
+        "--prerelease=allow",
+        "serena",
+        "start-mcp-server",
+        "--project-from-cwd",
+        "--context=ide",
+        "--open-web-dashboard=false"
+      ]
+    },
+    "exa": { "url": "https://mcp.exa.ai/mcp" }
+  }
+}

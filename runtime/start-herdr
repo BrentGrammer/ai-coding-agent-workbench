@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${WORKSPACE_DIR:?WORKSPACE_DIR is required}"
+: "${WORKBENCH_SESSION:?WORKBENCH_SESSION is required}"
+: "${WORKBENCH_AGENT:?WORKBENCH_AGENT is required}"
+
+if [ ! -d "$WORKSPACE_DIR" ]; then
+  echo "ERROR: Workspace directory does not exist: $WORKSPACE_DIR"
+  exit 1
+fi
+
+for command_name in herdr hunk "$WORKBENCH_AGENT"; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "ERROR: Required command is not installed: $command_name"
+    exit 1
+  fi
+done
+
+cd "$WORKSPACE_DIR"
+HERDR_LOCAL_DIR="/tmp/agent-workbench/herdr-$WORKBENCH_SESSION"
+mkdir -p "$HERDR_LOCAL_DIR/config" "$HERDR_LOCAL_DIR/state"
+XDG_CONFIG_HOME="$HERDR_LOCAL_DIR/config" \
+XDG_STATE_HOME="$HERDR_LOCAL_DIR/state" \
+  exec herdr --no-session

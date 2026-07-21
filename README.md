@@ -1,0 +1,199 @@
+# AI Coding Agent Workbench
+
+This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/) beside [Hunk](https://www.hunk.dev/). It supports a local `sbx` sandbox and [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html).
+
+It bootstraps an isolated multi-agent coding workbench, with options for running a variety of coding agents locally in Docker sandboxes or in the Cloud.
+
+## Prerequisites
+
+For local Docker sandboxes:
+
+- [Docker Desktop](https://docs.docker.com/desktop/) running locally.
+- [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode.
+- A terminal with OSC 52 clipboard support, such as Ghostty.
+- Login credentials or an API key for the coding agent you plan to use.
+
+Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional.
+
+For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html):
+
+- [Docker Desktop](https://docs.docker.com/desktop/) running locally.
+- AWS CLI with credentials for the target account and region.
+- Node.js and npm.
+- AgentCore CLI 0.24.1 or newer.
+
+```shell
+npm install -g @aws/agentcore@latest
+```
+
+## Configure the environment
+
+Before starting, copy the environment template from the project root:
+
+```shell
+cp .env.template .env
+```
+
+Edit `.env` and fill in every value:
+
+```shell
+GITHUB_REPOSITORY_URL=https://github.com/owner/repository.git
+AWS_REGION=YOUR_AWS_REGION
+GITHUB_APP_ID_PARAMETER_NAME=/coding-agent-workbench/github/app-id
+GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME=/coding-agent-workbench/github/private-key
+```
+
+The two Parameter Store names must match exactly in `.env`, AWS Systems Manager Parameter Store, and `infra/aws/lib/workbench-runtime-stack.ts`. If you change the CDK constants, redeploy the stack.
+
+## Start AgentCore
+
+From the project root, choose the primary agent:
+
+```shell
+./start-agentcore.sh claude
+./start-agentcore.sh codex
+./start-agentcore.sh opencode
+```
+
+The argument selects the agent that starts automatically. All three agents and their Herdr integrations are available in the environment.
+
+At the AgentCore shell prompt, run:
+
+```shell
+start-herdr
+```
+
+This opens the primary agent full-screen with Hunk in a hidden pane. To add another agent:
+
+1. Press `Ctrl+B`, then `z` to show all panes.
+2. Press `Ctrl+B`, then `v` to create a pane.
+3. Run `claude`, `codex`, or `opencode` in the new pane.
+
+To exit cleanly:
+
+1. Exit the coding agent with `/exit` or `Ctrl+D`.
+2. Exit Herdr with `Ctrl+B`, then `q`.
+3. Run `exit` at the AgentCore shell to stop the temporary environment and return to the local terminal.
+
+## Local setup
+
+The launchers under `tools/agents` use the current directory by default. Pass a path to use another workspace:
+
+```shell
+./tools/agents/start_claude.sh
+./tools/agents/start_codex.sh /path/to/local-project-folder
+./tools/agents/start_opencode.sh /path/to/local-project-folder
+```
+
+These scripts run the project inside a Docker `sbx` sandbox and are designed for locked-down mode. They add the network policies required by each agent and its setup tools. Before running them, review the `allow_*_network` functions in the selected launcher and [sandbox_bootstrap.sh](tools/agents/sandbox_bootstrap.sh), and remove any connections you do not want to permit.
+
+Set `WORKSPACE_IDE_COMMAND` to another IDE command. If that command is unavailable, the workspace opens without an IDE.
+
+The default IDE command is `code`, the Visual Studio Code command-line launcher. Set another installed command for a different IDE, or use `OPEN_WORKSPACE_IN_IDE=0` to open no IDE:
+
+```shell
+WORKSPACE_IDE_COMMAND=cursor ./tools/agents/start_claude.sh
+OPEN_WORKSPACE_IN_IDE=0 ./tools/agents/start_claude.sh
+```
+
+Each agent stores its login inside the reused local sandbox. For OpenCode with OpenRouter, run `/connect`, select OpenRouter, paste the API key, then choose a model with `/models`.
+
+Hunk runs without `--watch`. Press `r` in Hunk to reload the current changes, or run this from the agent pane:
+
+```shell
+hunk session reload --repo . -- diff
+```
+
+## Create the GitHub App
+
+One GitHub App provides scalable repository access without maintaining a permanent token for each repository.
+
+1. Open GitHub **Settings → Developer settings → GitHub Apps → New GitHub App**.
+2. Give the app a unique name and use an appropriate GitHub page as its homepage URL.
+3. Disable **Active** under Webhook because this workbench does not receive webhooks.
+4. Under Repository permissions, set **Contents** to **Read and write**.
+5. Leave callback URLs, user authorization, device flow, post-installation setup, and the IP allow list unset.
+6. Create the app and note its **App ID**.
+7. Generate and download a private key. Do not generate or store a client secret because this workbench does not use OAuth.
+8. If macOS offers to import the PEM file into Keychain, cancel the import.
+9. Choose **Install App** and install it on the personal account or organizations containing the target repositories.
+10. Choose **All repositories** for current and future repositories, or maintain an explicit selected list.
+
+The app generates repository-limited installation tokens when Git needs them. Tokens expire after one hour and refresh automatically on later Git operations.
+
+## Store the GitHub App configuration
+
+Create these parameters in AWS Systems Manager Parameter Store in the same region as the AgentCore runtime:
+
+| Parameter | Type | Value |
+| --- | --- | --- |
+| `/coding-agent-workbench/github/app-id` | `String` | GitHub App ID |
+| `/coding-agent-workbench/github/private-key` | `SecureString` | Complete PEM private key |
+
+The AWS console is the simplest way to store the multiline private key. Do not commit it, put it in an environment file, or paste it into logs.
+
+These parameters are required before the first repository launch, but not before stack deployment.
+
+## Deploy AgentCore
+
+```shell
+cd infra/aws
+npm install
+npm run deploy
+```
+
+If this account and region have not been bootstrapped for CDK, run this once before deployment:
+
+```shell
+npx cdk bootstrap
+```
+
+The deploy command:
+
+- Builds and publishes the ARM64 runtime image.
+- Deploys the AgentCore runtime.
+
+If the deploying identity will not open workbench sessions, attach the `AgentCoreShellCallerPolicyArn` stack output to the trusted IAM user or role that will.
+
+## Manage AgentCore sessions
+
+Use the lower-level command to select a repository, branch, or persistent session at launch:
+
+```shell
+./bin/workbench aws https://github.com/owner/repo.git --agent codex
+```
+
+`--keep NAME` preserves the checkout and agent home for later use:
+
+```shell
+./bin/workbench aws https://github.com/owner/repo.git \
+  --ref main \
+  --agent claude \
+  --keep repo-claude
+```
+
+Reconnect, stop, or check active AgentCore runtime sessions:
+
+```shell
+./bin/workbench aws reconnect repo-claude
+./bin/workbench aws stop repo-claude
+./bin/workbench aws status
+```
+
+Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session.
+
+The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. AgentCore shuts down idle compute after 15 minutes and caps each compute lifetime at eight hours. Persistent files remain available to the same named session.
+
+## Cost controls
+
+This section is a convenience checklist, not authoritative billing guidance. Verify current pricing, limits, and billable resources in the official AWS documentation and your AWS billing console before relying on it.
+
+- No Lambda microVM, VPC, NAT gateway, load balancer, EFS, database, AgentCore Memory, Gateway, alarm, or dashboard is created.
+- AgentCore runtime billing is usage-based.
+- Idle runtime compute stops after 15 minutes.
+- Runtime compute has an eight-hour maximum lifetime.
+- CloudWatch logs retain one day.
+- Deployment keeps one tracked workbench image and removes older tracked images.
+- `workbench aws status` checks whether AgentCore reports active runtime sessions.
+
+AWS implementation details are in [infra/aws/README.md](infra/aws/README.md).

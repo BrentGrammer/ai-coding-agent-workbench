@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+show_usage() {
+  echo "Usage:"
+  echo "  $0 aws REPO_URL [--ref REF] [--agent codex|claude|opencode] [--keep NAME]"
+  echo "  $0 aws reconnect NAME"
+  echo "  $0 aws stop NAME"
+  echo "  $0 aws status"
+}
+
+case "${1:-}" in
+  aws)
+    shift
+    exec node "$REPO_ROOT/infra/aws/scripts/workbench.mjs" "$@"
+    ;;
+  *)
+    show_usage
+    exit 1
+    ;;
+esac

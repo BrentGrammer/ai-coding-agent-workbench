@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.template
+
+.DS_Store
+__pycache__/
+*.py[cod]
+infra/aws/cdk.out/
+infra/aws/dist/
+infra/aws/node_modules/

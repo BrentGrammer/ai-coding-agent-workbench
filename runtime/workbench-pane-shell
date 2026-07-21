@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${WORKSPACE_DIR:?WORKSPACE_DIR is required}"
+: "${WORKBENCH_SESSION:?WORKBENCH_SESSION is required}"
+: "${WORKBENCH_AGENT:?WORKBENCH_AGENT is required}"
+
+cd "$WORKSPACE_DIR"
+
+if [ -z "${HERDR_WORKSPACE_ID:-}" ]; then
+  exec "${SHELL:-/bin/bash}"
+fi
+
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}/agent-workbench/$WORKBENCH_SESSION"
+SOCKET_ID="$(stat -Lc '%i' "${HERDR_SOCKET_PATH:-}" 2>/dev/null || printf 'current')"
+WORKSPACE_MARKER="$RUNTIME_DIR/$SOCKET_ID-$HERDR_WORKSPACE_ID"
+
+mkdir -p "$RUNTIME_DIR"
+unset XDG_CONFIG_HOME XDG_STATE_HOME
+
+if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
+  case "$WORKBENCH_AGENT" in
+    codex)
+      AGENT_COMMAND=(
+        codex
+        --sandbox danger-full-access
+        --cd "$WORKSPACE_DIR"
+        -c analytics.enabled=false
+        -c feedback.enabled=false
+        -c 'otel.exporter="none"'
+        -c 'otel.metrics_exporter="none"'
+        -c 'otel.trace_exporter="none"'
+        -c otel.log_user_prompt=false
+      )
+      ;;
+    claude)
+      AGENT_COMMAND=(claude)
+      ;;
+    opencode)
+      AGENT_COMMAND=(opencode "$WORKSPACE_DIR")
+      ;;
+    *)
+      echo "ERROR: Unsupported agent: $WORKBENCH_AGENT"
+      rmdir "$WORKSPACE_MARKER"
+      exit 1
+      ;;
+  esac
+
+  if ! herdr agent start primary \
+    --cwd "$WORKSPACE_DIR" \
+    --workspace "$HERDR_WORKSPACE_ID" \
+    --split right \
+    --focus \
+    -- "${AGENT_COMMAND[@]}"; then
+    rmdir "$WORKSPACE_MARKER"
+    exit 1
+  fi
+
+  herdr pane zoom --on >/dev/null
+  exec hunk diff
+fi
+
+exec "${SHELL:-/bin/bash}"

@@ -1,0 +1,37 @@
+# The AgentCore image is built from the repository root so it can copy the
+# frontend lockfile. Include only the image files and those lockfiles; this
+# keeps build contexts small and prevents local files from entering the image.
+*
+!frontend/
+frontend/*
+!frontend/package.json
+!frontend/package-lock.json
+!infra/
+infra/*
+!infra/aws/
+infra/aws/*
+!infra/aws/microvms/
+infra/aws/microvms/*
+!infra/aws/microvms/claude-code-agentcore/
+infra/aws/microvms/claude-code-agentcore/*
+!infra/aws/microvms/claude-code-agentcore/Dockerfile
+!infra/aws/microvms/claude-code-agentcore/agentcore-server.mjs
+!infra/aws/microvms/claude-code-agentcore/bootstrap-repo.sh
+!infra/aws/microvms/claude-code-agentcore/output-styles/
+infra/aws/microvms/claude-code-agentcore/output-styles/*
+!infra/aws/microvms/claude-code-agentcore/output-styles/Concise.md
+!infra/aws/microvms/claude-code-agentcore/profile.d/
+infra/aws/microvms/claude-code-agentcore/profile.d/*
+!infra/aws/microvms/claude-code-agentcore/profile.d/agentcore-claude.sh
+!infra/aws/runtime/
+infra/aws/runtime/*
+!infra/aws/runtime/Dockerfile
+!infra/aws/runtime/agentcore-server.mjs
+!infra/aws/runtime/bootstrap-repo.sh
+!infra/aws/runtime/git-credential-github-app.mjs
+!infra/aws/runtime/workbench-profile.sh
+!runtime/
+runtime/*
+!runtime/herdr-config.toml
+!runtime/workbench-pane-shell
+!runtime/start-herdr

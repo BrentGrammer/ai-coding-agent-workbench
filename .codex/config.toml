@@ -1,0 +1,7 @@
+model_verbosity = "low"
+
+[analytics]
+enabled = false
+
+[tui]
+status_line = ["model-with-reasoning", "current-dir", "context-remaining", "five-hour-limit", "weekly-limit"]
