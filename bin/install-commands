@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# This script updates the profile and PATH with the convenience launcher commands in the bin folder of this project.
+# It also makes a backup of your current profile to restore if needed.
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
