@@ -35,8 +35,7 @@ START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 # One-time setup per sandbox name - enter your API key for BYOK usage:
 #   Ex: sbx secret set <sandbox_name> openai
@@ -84,7 +83,7 @@ set -euo pipefail
 npm install -g opencode-ai@latest
 
 opencode --version
-' || true
+'
 }
 
 install_skills() {
@@ -100,6 +99,17 @@ install_skills() {
       --global \
       --yes \
       --copy
+  "
+}
+
+update_skills() {
+  echo "Updating Matt Pocock skills..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc "
+    set -euo pipefail
+    cd '$REPO_ROOT'
+
+    npx --yes skills@latest update -g -y
   "
 }
 
@@ -151,14 +161,14 @@ echo "Project dir: $PROJECT_DIR"
 echo "Auth mode: OpenAI Codex (ChatGPT Plus/Pro OAuth)"
 
 # Reuse existing sandbox if it already exists
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
   echo "Reconnecting..."
 
   allow_opencode_network
   configure_sandbox_env
   update_opencode
-  install_skills
+  update_skills
 
   allow_codex_oauth_network
   install_codex_auth_plugin

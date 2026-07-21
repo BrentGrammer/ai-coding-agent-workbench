@@ -14,8 +14,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -49,9 +48,9 @@ install_grok_build() {
 
 		# Common installer locations; make available for this shell and future shells.
 		for d in "$HOME/.local/bin" "$HOME/.grok/bin" "$HOME/.cargo/bin"; do
-			if [ -d "$d" ] && ! echo "$PATH" | tr ":" "\n" | grepx "$d"; then
+			if [ -d "$d" ] && ! echo "$PATH" | tr ":" "\n" | grep -Fxq "$d"; then
 				export PATH="$d:$PATH"
-				if ! grep "$d" "$HOME/.bashrc" 2>/dev/null; then
+				if ! grep -Fq "$d" "$HOME/.bashrc" 2>/dev/null; then
 					echo "export PATH=\"$d:\$PATH\"" >> "$HOME/.bashrc"
 				fi
 			fi
@@ -78,18 +77,34 @@ sync_files_to_sandbox() {
 # Create or reuse sandbox
 ###############################################################################
 
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
 	echo "✅ Existing sandbox found: $SANDBOX_NAME"
 	allow_grok_network
 	configure_sandbox_env
 	sync_files_to_sandbox
 
-	# Automate grok startup when the sandbox starts up
 	sbx exec "$SANDBOX_NAME" bash -c '
-		if ! grep "grok" ~/.bashrc >/dev/null; then
-			echo -e "\n# Automate grok startup\nif command -v grok >/dev/null; then\n  grok\nfi" >> ~/.bashrc
-		fi
-	'
+set -euo pipefail
+if [ -f "$HOME/.bashrc" ]; then
+	python3 -c "
+import pathlib
+rc = pathlib.Path.home() / \".bashrc\"
+if rc.exists():
+    content = rc.read_text()
+    bad_blocks = [
+        \"\n# Automate grok startup\nif command -v grok >/dev/null; then\n  grok\nfi\",
+        \"# Automate grok startup\nif command -v grok >/dev/null; then\n  grok\nfi\",
+    ]
+    modified = False
+    for bad in bad_blocks:
+        if bad in content:
+            content = content.replace(bad, \"\")
+            modified = True
+    if modified:
+        rc.write_text(content)
+"
+fi
+'
 else
 	echo "🆕 Creating new sandbox: $SANDBOX_NAME"
 

@@ -151,3 +151,8 @@ openLocalWorkspace() {
 
   "$ide_command" "$WORKSPACE_ROOT_DIR" || true
 }
+
+sandboxExists() {
+  local sandbox_name="$1"
+  sbx ls 2>/dev/null | awk '{print $1}' | grep -Fxq -- "$sandbox_name"
+}
