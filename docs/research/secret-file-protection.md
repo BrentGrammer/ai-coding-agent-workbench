@@ -186,12 +186,15 @@ everything the agent can do.
 ## Remaining work
 
 1. **Structural fix (defense-in-depth, no longer urgent):** stop mounting
-   secrets into sbx — exclude `.env*`, `*.pem`, `.ssh`, etc. from the mount, or
-   bind `/dev/null` over them. Now that the agent is confined (cannot escalate,
-   cannot defeat the sandbox), this is belt-and-suspenders rather than the only
-   wall. Still worth doing: it removes the file so even a future sandbox
-   regression exposes nothing. Pending confirmation of what path exclusion
-   `sbx create shell` supports — get `sbx create shell --help`.
+   secrets into sbx. `sbx create shell` has no per-file exclusion flag, but it
+   has **`--clone`**: the agent runs on a private in-container clone of the host
+   git repo (mounted read-only), and its commits come back via a
+   `sandbox-<name>` git remote. Since `.env` is gitignored it is absent from the
+   clone — the same "no secret present" model AgentCore already uses. Trade-off:
+   the agent no longer edits the live working tree, and uncommitted/gitignored
+   local files are invisible to it. Now that the agent is confined (cannot
+   escalate, cannot defeat the sandbox), this is belt-and-suspenders rather than
+   the only wall, so it is a workflow choice, not a security emergency.
 2. **Operator hygiene:** the raw `sbx exec` shell and the `!` prefix are
    unsandboxed and have passwordless root. That is the operator's own power, not
    the agent's, so it is acceptable — but do not paste secrets or run untrusted
