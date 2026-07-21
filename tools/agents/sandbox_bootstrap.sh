@@ -61,6 +61,8 @@ export GEMINI_TELEMETRY_LOG_PROMPTS=false
 export OPENCODE_AUTO_SHARE=false
 export OPENCODE_CONFIG_CONTENT='{"share":"disabled"}'
 export TERM=xterm-256color
+export NPM_CONFIG_PREFIX="$HOME/.local/npm"
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
 
 codex() {
   command codex \
@@ -88,12 +90,25 @@ done
 
 install_node_lts() {
   echo "Installing Node LTS..."
-  NODE_ARCHIVE_URL="https://nodejs.org/dist/v24.9.0/node-v24.9.0-linux-arm64.tar.gz"
-
-  sbx exec "$SANDBOX_NAME" bash -c "
+  sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
 
-curl -fsSL \"$NODE_ARCHIVE_URL\" | sudo tar -xz -C /usr/local --strip-components=1"
+case "$(uname -m)" in
+  aarch64|arm64)
+    node_arch="arm64"
+    ;;
+  x86_64|amd64)
+    node_arch="x64"
+    ;;
+  *)
+    echo "ERROR: Unsupported architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+curl -fsSL "https://nodejs.org/dist/v24.9.0/node-v24.9.0-linux-${node_arch}.tar.gz" |
+  sudo tar -xz -C /usr/local --strip-components=1
+'
 }
 
 # upgrade_system_packages() {

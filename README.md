@@ -45,6 +45,8 @@ GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME=/coding-agent-workbench/github/private-key
 
 The two Parameter Store names must match exactly in `.env`, AWS Systems Manager Parameter Store, and `infra/aws/lib/workbench-runtime-stack.ts`. If you change the CDK constants, redeploy the stack.
 
+To use AgentCore with another repository, change only `GITHUB_REPOSITORY_URL` in `.env`, then run `start-agentcore.sh` normally. The GitHub App must be installed for the new repository.
+
 ## Start AgentCore
 
 From the project root, choose the primary agent:
@@ -76,6 +78,25 @@ To exit cleanly:
 3. Run `exit` at the AgentCore shell to stop the temporary environment and return to the local terminal.
 
 ## Local setup
+
+Start the complete Herdr and Hunk workbench:
+
+```shell
+./tools/agents/start-herdr.sh /path/to/local-project-folder
+```
+
+Pass a second argument to start with a preferred harness:
+
+```shell
+./tools/agents/start-herdr.sh /path/to/local-project-folder codex
+```
+
+You can also run the launcher from the project folder without passing a path:
+
+```shell
+cd /path/to/local-project-folder
+/path/to/agent-workbench/tools/agents/start-herdr.sh
+```
 
 The launchers under `tools/agents` use the current directory by default. Pass a path to use another workspace:
 
