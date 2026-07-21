@@ -82,20 +82,20 @@ To exit cleanly:
 Start the complete Herdr and Hunk workbench:
 
 ```shell
-./tools/agents/start-herdr.sh /path/to/local-project-folder
+./tools/agents/start_herdr.sh /path/to/local-project-folder
 ```
 
 Pass a second argument to start with a preferred harness:
 
 ```shell
-./tools/agents/start-herdr.sh /path/to/local-project-folder codex
+./tools/agents/start_herdr.sh /path/to/local-project-folder codex
 ```
 
 You can also run the launcher from the project folder without passing a path:
 
 ```shell
 cd /path/to/local-project-folder
-/path/to/agent-workbench/tools/agents/start-herdr.sh
+/path/to/agent-workbench/tools/agents/start_herdr.sh
 ```
 
 The launchers under `tools/agents` use the current directory by default. Pass a path to use another workspace:
@@ -104,6 +104,9 @@ The launchers under `tools/agents` use the current directory by default. Pass a 
 ./tools/agents/start_claude.sh
 ./tools/agents/start_codex.sh /path/to/local-project-folder
 ./tools/agents/start_opencode.sh /path/to/local-project-folder
+# or:
+cd /path/to/local-project-folder
+/path/to/agent-workbench/tools/agents/start_herdr.sh
 ```
 
 These scripts run the project inside a Docker `sbx` sandbox and are designed for locked-down mode. They add the network policies required by each agent and its setup tools. Before running them, review the `allow_*_network` functions in the selected launcher and [sandbox_bootstrap.sh](tools/agents/sandbox_bootstrap.sh), and remove any connections you do not want to permit.
