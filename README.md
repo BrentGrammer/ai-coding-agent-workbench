@@ -18,20 +18,9 @@ Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner o
 - Linux and WSL2 are not yet verified.
 - Windows is not currently supported.
 
-## Local Docker sandboxes
+## Install launcher commands (PATH)
 
-### Prerequisites
-
-- [Docker Desktop](https://docs.docker.com/desktop/)
-- [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode.
-- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
-- Login credentials or an API key for the coding agent you plan to use.
-
-Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional.
-
-### Install launcher commands (PATH)
-
-Convenience commands in the `bin` folder bootstrap coding agents on your machine in a Docker Sandbox.
+Convenience commands in the `bin` folder bootstrap local Docker sandbox agents and AgentCore sessions (`start-herdr`, `start-claude`, `start-agentcore`, `workbench`, and others).
 
 Run the installer once to add the commands to PATH:
 
@@ -45,6 +34,17 @@ It checks for command collisions, confirms the profile change, and creates a bac
 # Optional: override auto detection of profile:
 ./bin/install-commands --profile /path/to/profile
 ```
+
+## Local Docker sandboxes
+
+### Prerequisites
+
+- [Docker Desktop](https://docs.docker.com/desktop/)
+- [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode.
+- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
+- Login credentials or an API key for the coding agent you plan to use.
+
+Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional.
 
 ### Start locally
 
