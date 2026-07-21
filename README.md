@@ -34,7 +34,7 @@ For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest
 - AWS CLI with credentials for the target account and region.
 - Node.js and npm.
 - AgentCore CLI 0.24.1 or newer.
-- A GitHub App installed for the target repository with **Contents: Read and write** permission.
+- A GitHub account with your project repo and a GitHub App installed for the target repository with **Contents: Read and write** permission.
 - The GitHub App ID and private key stored in AWS Systems Manager Parameter Store.
 
 ### Deploy the CDK Stack for AgentCore (if using the Herdr setup in the Cloud)
