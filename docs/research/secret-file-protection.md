@@ -200,6 +200,16 @@ everything the agent can do.
    the agent's, so it is acceptable — but do not paste secrets or run untrusted
    commands there expecting sandbox protection.
 
+### Decisions taken 2026-07-21
+
+- **Codex config: deliberately not added.** The `[permissions.filesystem]`
+  deny block is buggy/version-flaky and could not be validated (Codex not
+  installed in the working container). Codex will rely on `--clone` / not
+  mounting the secret instead. Revisit if Codex fixes the read-deny no-op bugs.
+- **sbx `--clone`: deferred**, not rejected. Still the recommended universal fix
+  — it is the only control that covers Codex, Cline, and Cursor, none of which
+  have a dependable config-level read block.
+
 ---
 
 ## Other harnesses (Codex, OpenCode, Cline, Cursor)
