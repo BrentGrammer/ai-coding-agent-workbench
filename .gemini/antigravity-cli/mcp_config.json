@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "exa": { "serverURL": "https://mcp.exa.ai/mcp" }
+  }
+}

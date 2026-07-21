@@ -46,6 +46,7 @@ allow_antigravity_network() {
 
 	# Antigravity app / CLI endpoints
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "antigravity.google:443"
+	sbx policy allow network --sandbox "$SANDBOX_NAME" "www.antigravity.google:443"
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "*.antigravity.google:443"
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "antigravity-unleash.goog:443"
 
