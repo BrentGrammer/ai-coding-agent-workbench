@@ -4,11 +4,14 @@ This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/
 
 It bootstraps an isolated multi-agent coding workbench running in the Cloud, with options for running a variety of other coding agents locally in Docker sandboxes.
 
+Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
+The agents also come baked in with [Matt Pocock's skills](https://github.com/mattpocock/skills) (remove their installation in the scripts if not desired).
+
 ## Platform support
 
 - macOS is supported and tested.
 - Linux and WSL2 are not yet verified.
-- Native Windows is not currently supported.
+- Windows is not currently supported.
 
 ## Prerequisites
 
