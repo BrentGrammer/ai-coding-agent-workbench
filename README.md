@@ -37,7 +37,7 @@ For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest
 
 AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](#deploy-agentcore) before the first cloud launch.
 
-### Install AgentCore cli locally
+### Install AWS Bedrock AgentCore locally
 
 ```shell
 npm install -g @aws/agentcore@latest
