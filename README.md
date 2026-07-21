@@ -214,7 +214,7 @@ These parameters are required before the first repository launch, but not before
 
 > **IMPORTANT: This setup incurs AWS charges.**
 >
-> Review the [cost controls and billing caveat](../../README.md#cost-controls) before deployment.
+> Review the cost controls and billing notes below.
 
 ## Cost controls
 
