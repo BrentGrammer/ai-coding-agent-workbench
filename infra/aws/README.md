@@ -1,6 +1,6 @@
 # AgentCore workbench
 
-This stack runs the generic Herdr and Hunk workbench on Bedrock AgentCore. It does not use the Lambda microVM example.
+This stack runs the generic Herdr and Hunk workbench on Bedrock AgentCore.
 
 Install or update the AgentCore CLI before opening a session:
 
@@ -37,7 +37,17 @@ The runtime does not store repository tokens. Its Git credential helper creates 
 ```shell
 cd infra/aws
 npm install
+```
+
+If this AWS account and region have not been bootstrapped for CDK, run this once:
+
+```shell
 npx cdk bootstrap
+```
+
+Deploy the stack:
+
+```shell
 npm run deploy
 ```
 
@@ -45,23 +55,23 @@ Attach the `AgentCoreShellCallerPolicyArn` stack output to the trusted IAM user 
 
 ## Launch
 
-Temporary session:
+Install the launcher commands and configure `.env` as described in the [project README](../../README.md), then choose the primary agent:
 
 ```shell
-./bin/workbench aws https://github.com/owner/repo.git --agent codex
+start-agentcore claude
+start-agentcore codex
+start-agentcore opencode
 ```
 
-Named persistent session:
+For named sessions, repository overrides, and session management, use the lower-level `workbench` command:
 
 ```shell
-./bin/workbench aws https://github.com/owner/repo.git --ref main --agent claude --keep repo-claude
-./bin/workbench aws reconnect repo-claude
-./bin/workbench aws stop repo-claude
-./bin/workbench aws status
+workbench aws https://github.com/owner/repo.git --ref main --agent claude --keep repo-claude
+workbench aws reconnect repo-claude
+workbench aws stop repo-claude
+workbench aws status
 ```
 
 Named sessions keep the checkout and agent home in AgentCore managed session storage across idle compute shutdowns. The first interactive login for Claude, Codex, or OpenCode is retained within that named session.
 
 `workbench aws` requires AgentCore CLI 0.24.1 or newer. The CLI automatically reconnects the same shell across AgentCore's one-hour WebSocket cutoff and transient network interruptions.
-
-CloudFormation does not currently accept AgentCore's required `MetadataConfiguration` property. After CDK deploys the runtime, the deploy wrapper enables MMDSv2 through the AgentCore control API and fails if that update does not succeed.
