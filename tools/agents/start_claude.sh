@@ -15,8 +15,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -25,19 +24,18 @@ allow_network() {
   
   sbx policy allow network --sandbox "$SANDBOX_NAME" claude.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.anthropic.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" console.anthropic.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" claude.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" platform.claude.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" downloads.claude.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" storage.googleapis.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" challenges.cloudflare.com:443
   
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
-  
-
-
 }
 
 get_anthropic_api_key() {
@@ -59,16 +57,8 @@ set -euo pipefail
 
 PERSISTENT_ENV="/etc/sandbox-persistent.sh"
 
-[ -f "$PERSISTENT_ENV" ] || touch "$PERSISTENT_ENV"
-sed -i "/^export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1$/d" "$PERSISTENT_ENV"
-
-cat >> "$PERSISTENT_ENV" <<EOF
-
-export DISABLE_ERROR_REPORTING=1
-export DISABLE_TELEMETRY=1
-export DISABLE_FEEDBACK_COMMAND=1
-export CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1
-EOF
+sudo touch "$PERSISTENT_ENV"
+sudo sed -i "/^export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1$/d" "$PERSISTENT_ENV"
 '
 }
 
@@ -98,13 +88,32 @@ claude --version
 copy_config() {
   local claude_config_dir="$WORKBENCH_ROOT/.claude"
 
-  if [ -d "$claude_config_dir" ]; then
-    echo "Copying workbench Claude Code config/settings into sandbox home..."
-    sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.claude"
-    sbx cp "$claude_config_dir/." "$SANDBOX_NAME":/home/agent/.claude/
-  else
+  if [ ! -d "$claude_config_dir" ]; then
     echo "WARN: No workbench Claude config at $claude_config_dir" >&2
+    return
   fi
+
+  echo "Copying workbench Claude Code config/settings into sandbox home..."
+  sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.claude"
+  sbx cp "$claude_config_dir/." "$SANDBOX_NAME":/home/agent/.claude/
+  sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo chown -R agent:agent /home/agent/.claude
+python3 - <<PY
+import json
+from pathlib import Path
+path = Path("/home/agent/.claude/settings.local.json")
+if not path.is_file():
+    raise SystemExit(0)
+data = json.loads(path.read_text())
+sandbox = data.get("sandbox")
+if isinstance(sandbox, dict):
+    sandbox["enabled"] = False
+    sandbox.pop("failIfUnavailable", None)
+    data["sandbox"] = sandbox
+    path.write_text(json.dumps(data, indent=2) + "\n")
+PY
+'
 }
 
 usage_instructions() {
@@ -130,6 +139,14 @@ Run Claude Code with Fable:
 
   claude --model fable
 
+In Claude, log in with your Claude subscription:
+
+  /login
+
+If the browser cannot reach this sandbox, press c to copy the URL,
+sign in on the host, then paste the code back into the terminal.
+Note: Make sure ANTHROPIC_API_KEY is unset, or it overrides subscription auth.
+
 MSG
 EOF
 
@@ -144,7 +161,7 @@ fi
 '
 }
 
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
   echo "Reconnecting..."
 

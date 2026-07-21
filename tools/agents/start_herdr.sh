@@ -153,10 +153,10 @@ done
 '
 }
 
-"$START_DOCKER"
+bash "$START_DOCKER"
 openLocalWorkspace
 
-if sbx ls | grep -Fq "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "Reusing sandbox: $SANDBOX_NAME"
 else
   echo "Creating sandbox: $SANDBOX_NAME"

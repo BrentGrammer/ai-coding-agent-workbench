@@ -35,8 +35,7 @@ START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 # One-time setup per sandbox name - enter your API key for BYOK usage:
 #   Ex: sbx secret set <sandbox_name> openai
@@ -75,26 +74,6 @@ allow_codex_oauth_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" challenges.cloudflare.com:443
 }
 
-configure_privacy_flags() {
-  echo "Configuring OpenCode-specific environment inside sandbox..."
-
-  sbx exec -d "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-touch /etc/sandbox-persistent.sh
-
-sed -i "/# BEGIN opencode privacy flags/,/# END opencode privacy flags/d" /etc/sandbox-persistent.sh
-
-cat >> /etc/sandbox-persistent.sh <<'"'"'EOF'"'"'
-# BEGIN opencode privacy flags
-export OPENCODE_DISABLE_SHARE=1
-export OPENCODE_AUTO_SHARE=false
-export OPENCODE_CONFIG_CONTENT='{"share":"disabled"}'
-# END opencode privacy flags
-EOF
-' || true
-}
-
 update_opencode() {
   echo "Updating OpenCode inside sandbox..."
 
@@ -104,7 +83,7 @@ set -euo pipefail
 npm install -g opencode-ai@latest
 
 opencode --version
-' || true
+'
 }
 
 install_skills() {
@@ -120,6 +99,17 @@ install_skills() {
       --global \
       --yes \
       --copy
+  "
+}
+
+update_skills() {
+  echo "Updating Matt Pocock skills..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc "
+    set -euo pipefail
+    cd '$REPO_ROOT'
+
+    npx --yes skills@latest update -g -y
   "
 }
 
@@ -171,15 +161,14 @@ echo "Project dir: $PROJECT_DIR"
 echo "Auth mode: OpenAI Codex (ChatGPT Plus/Pro OAuth)"
 
 # Reuse existing sandbox if it already exists
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
   echo "Reconnecting..."
 
   allow_opencode_network
   configure_sandbox_env
-  configure_privacy_flags
   update_opencode
-  install_skills
+  update_skills
 
   allow_codex_oauth_network
   install_codex_auth_plugin
@@ -194,7 +183,6 @@ else
   upgrade_system_packages
   install_node_lts
   configure_sandbox_env
-  configure_privacy_flags
   install_skills
 
   allow_codex_oauth_network

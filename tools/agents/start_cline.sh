@@ -13,8 +13,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -42,18 +41,6 @@ fi
 "
 }
 
-update_cline_cli() {
-  echo "Ensuring Cline CLI is installed..."
-
-  sbx exec "$SANDBOX_NAME" bash -c "
-set -euo pipefail
-
-if ! command -v cline >/dev/null 2>&1; then
-  sudo npm install -g cline --ignore-scripts --allow-git=none
-fi
-"
-}
-
 sync_cline_settings() {
   local workbench_settings_dir="$WORKBENCH_ROOT/.cline/data/settings"
 
@@ -66,14 +53,14 @@ sync_cline_settings() {
   done
 }
 
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
   echo "Reconnecting..."
   echo "REMINDER: Once inside the sandbox, run 'cline' to start the CLI."
 
   allow_cline_network
   configure_sandbox_env
-  update_cline_cli
+  install_cline_cli
   sync_cline_settings
   
   sbx run "$SANDBOX_NAME"

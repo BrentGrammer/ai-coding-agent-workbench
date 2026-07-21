@@ -15,8 +15,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -47,15 +46,11 @@ set -euo pipefail
 
 PERSISTENT_ENV="/etc/sandbox-persistent.sh"
 
-[ -f "$PERSISTENT_ENV" ] || touch "$PERSISTENT_ENV"
-
-if ! grep "HOME/.local/bin" "$PERSISTENT_ENV" 2>/dev/null; then
-  cat >> "$PERSISTENT_ENV" <<EOF
-
-export PATH="\$HOME/.local/bin:\$PATH"
+sudo touch "$PERSISTENT_ENV"
+sudo sed -i "/^export NPM_CONFIG_PREFIX=/d" "$PERSISTENT_ENV"
+sudo tee -a "$PERSISTENT_ENV" >/dev/null <<EOF
 export NPM_CONFIG_PREFIX="\$HOME/.local"
 EOF
-fi
 '
 }
 
@@ -141,7 +136,7 @@ fi
 '
 }
 
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
   echo "Reconnecting..."
 

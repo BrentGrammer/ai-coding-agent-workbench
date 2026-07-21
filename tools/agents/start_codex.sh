@@ -15,8 +15,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -97,6 +96,17 @@ install_skills() {
   "
 }
 
+update_skills() {
+  echo "Updating Matt Pocock skills..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc "
+    set -euo pipefail
+    cd '$REPO_ROOT'
+
+    npx --yes skills@latest update -g -y
+  "
+}
+
 # install_or_update_lean_ctx() {
 #   echo "Installing/updating LeanCTX..."
 
@@ -169,7 +179,7 @@ fi
 '
 }
 
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
   echo "Reconnecting..."
 
@@ -177,7 +187,7 @@ if sbx ls | grep "$SANDBOX_NAME"; then
   configure_sandbox_env
   install_or_update
   copy_config
-  install_skills
+  update_skills
   # install_or_update_lean_ctx
   usage_instructions
 

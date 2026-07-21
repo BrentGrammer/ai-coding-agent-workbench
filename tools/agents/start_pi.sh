@@ -13,8 +13,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -38,24 +37,15 @@ set -euo pipefail
 pi install npm:pi-mcp-adapter
 "
 }
-update_pi_cli() {
-    sbx exec "$SANDBOX_NAME" bash -c "
-set -euo pipefail
 
-  sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent
-
-pi install npm:pi-mcp-adapter
-"
-}
-
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
     echo "✅ Existing sandbox found: $SANDBOX_NAME"
     echo "Reconnecting..."
     echo "REMINDER: Once inside the sandbox, run 'pi' to start the CLI."
 
     allow_pi_network
     configure_sandbox_env
-    update_pi_cli
+    install_pi_cli
 
     sbx run "$SANDBOX_NAME"
 else

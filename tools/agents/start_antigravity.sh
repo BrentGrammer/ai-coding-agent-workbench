@@ -20,8 +20,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
-chmod +x "$START_DOCKER"
-"$START_DOCKER"
+bash "$START_DOCKER"
 
 openLocalWorkspace
 
@@ -135,7 +134,7 @@ fi
 # Create or reuse sandbox
 ###############################################################################
 
-if sbx ls | grep "$SANDBOX_NAME"; then
+if sandboxExists "$SANDBOX_NAME"; then
 	echo "✅ Existing sandbox found: $SANDBOX_NAME"
 	allow_antigravity_network
 	configure_sandbox_env
