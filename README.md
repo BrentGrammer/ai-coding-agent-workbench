@@ -9,7 +9,7 @@ The agents also come baked in with [Matt Pocock's skills](https://github.com/mat
 
 ## Platform support
 
-- macOS is supported and tested.
+- macOS is supported.
 - Linux and WSL2 are not yet verified.
 - Windows is not currently supported.
 
@@ -17,23 +17,27 @@ The agents also come baked in with [Matt Pocock's skills](https://github.com/mat
 
 For local Docker sandboxes:
 
-- [Docker Desktop](https://docs.docker.com/desktop/) running locally.
+- [Docker Desktop](https://docs.docker.com/desktop/)
 - [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode.
-- A terminal with OSC 52 clipboard support, such as Ghostty.
+- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for the coding agent you plan to use.
 
 Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional.
 
 For [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html):
 
-- [Docker Desktop](https://docs.docker.com/desktop/) running locally.
+- [Docker Desktop](https://docs.docker.com/desktop/)
 - AWS CLI with credentials for the target account and region.
 - Node.js and npm.
 - AgentCore CLI 0.24.1 or newer.
 - A GitHub App installed for the target repository with **Contents: Read and write** permission.
 - The GitHub App ID and private key stored in AWS Systems Manager Parameter Store.
 
-AWS CDK is installed locally by `npm install` in `infra/aws`. Complete [Deploy AgentCore](#deploy-agentcore) before the first cloud launch.
+### Deploy the CDK Stack for AgentCore (if using the Herdr setup in the Cloud)
+
+AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](#deploy-agentcore) before the first cloud launch.
+
+### Install AgentCore cli locally
 
 ```shell
 npm install -g @aws/agentcore@latest
