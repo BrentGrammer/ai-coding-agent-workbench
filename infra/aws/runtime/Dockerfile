@@ -1,5 +1,7 @@
 FROM node:24-bookworm-slim
 
+# pinned aws cli - update when needed
+ARG AWS_CLI_VERSION=2.36.4
 ARG HERDR_VERSION=0.7.4
 ARG HUNK_VERSION=0.17.3
 
@@ -21,6 +23,7 @@ RUN apt-get update \
       ca-certificates \
       curl \
       git \
+      gnupg \
       less \
       ncurses-bin \
       ncurses-term \
@@ -28,12 +31,11 @@ RUN apt-get update \
       unzip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN aws_cli_arch="$(uname -m)" \
-    && if [ "$aws_cli_arch" = "x86_64" ]; then aws_cli_arch="x86_64"; else aws_cli_arch="aarch64"; fi \
-    && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${aws_cli_arch}.zip" -o /tmp/awscliv2.zip \
-    && unzip -q /tmp/awscliv2.zip -d /tmp \
-    && /tmp/aws/install \
-    && rm -rf /tmp/aws /tmp/awscliv2.zip
+COPY infra/aws/runtime/aws-cli-public-key.asc /tmp/aws-cli-public-key.asc
+COPY infra/aws/runtime/install-aws-cli.sh /tmp/install-aws-cli.sh
+
+RUN /bin/bash /tmp/install-aws-cli.sh "$AWS_CLI_VERSION" \
+    && rm -f /tmp/aws-cli-public-key.asc /tmp/install-aws-cli.sh
 
 RUN herdr_arch="$(uname -m)" \
     && if [ "$herdr_arch" = "x86_64" ]; then herdr_arch="x86_64"; else herdr_arch="aarch64"; fi \

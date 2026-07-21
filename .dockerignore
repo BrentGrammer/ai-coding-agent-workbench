@@ -27,8 +27,10 @@ infra/aws/microvms/claude-code-agentcore/profile.d/*
 infra/aws/runtime/*
 !infra/aws/runtime/Dockerfile
 !infra/aws/runtime/agentcore-server.mjs
+!infra/aws/runtime/aws-cli-public-key.asc
 !infra/aws/runtime/bootstrap-repo.sh
 !infra/aws/runtime/git-credential-github-app.mjs
+!infra/aws/runtime/install-aws-cli.sh
 !infra/aws/runtime/workbench-profile.sh
 !runtime/
 runtime/*

@@ -98,6 +98,7 @@ install_skills() {
     npx --yes skills@latest add mattpocock/skills \
       --agent codex \
       --skill '*' \
+      --global \
       --yes \
       --copy
   "

@@ -117,6 +117,7 @@ install_skills() {
     npx --yes skills@latest add mattpocock/skills \
       --agent opencode \
       --skill '*' \
+      --global \
       --yes \
       --copy
   "
