@@ -20,10 +20,12 @@ openLocalWorkspace
 
 allow_grok_network() {
 	allow_system_update_network
+	allow_vendor_docs_network
 	allow_exa_mcp_network
 
 	# Grok Build installer / updates
 	sbx policy allow network --sandbox "$SANDBOX_NAME" x.ai:443
+	sbx policy allow network --sandbox "$SANDBOX_NAME" docs.x.ai:443
 	sbx policy allow network --sandbox "$SANDBOX_NAME" storage.googleapis.com:443
 
 	# Grok API

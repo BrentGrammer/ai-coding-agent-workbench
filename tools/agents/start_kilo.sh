@@ -21,6 +21,7 @@ openLocalWorkspace
 
 allow_network() {
   allow_system_update_network
+  allow_vendor_docs_network
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" kilo.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" app.kilo.ai:443
@@ -75,20 +76,10 @@ fi
 }
 
 copy_config() {
-  # Kilo project config is usually ./kilo.jsonc or ./.kilo/kilo.jsonc.
-  # .kilo takes priority if both exist. Global config lives at ~/.config/kilo/kilo.jsonc.
-  # Source: Kilo settings docs.
-  local kilo_config_dir="$WORKBENCH_ROOT/.kilo"
-  local kilo_config_file="$WORKBENCH_ROOT/kilo.jsonc"
-
-  if [ -d "$kilo_config_dir" ]; then
-    echo "Copying workbench Kilo config into sandbox home..."
-    sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.config/kilo"
-    sbx cp "$kilo_config_dir/." "$SANDBOX_NAME":/home/agent/.config/kilo/
-  fi
+  local kilo_config_file="$SCRIPT_DIR/kilo.jsonc"
 
   if [ -f "$kilo_config_file" ]; then
-    echo "Copying workbench kilo.jsonc into sandbox home..."
+    echo "Copying bundled Kilo config into sandbox home..."
     sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.config/kilo"
     sbx cp "$kilo_config_file" "$SANDBOX_NAME":/home/agent/.config/kilo/kilo.jsonc
   fi

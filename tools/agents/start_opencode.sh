@@ -46,6 +46,7 @@ bash "$START_DOCKER"
 allow_opencode_network() {
   allow_gemini_access
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
@@ -53,6 +54,7 @@ allow_opencode_network() {
   # exa searches
   sbx policy allow network --sandbox "$SANDBOX_NAME" cdn.jsdelivr.net:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" opencode.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" openrouter.ai:443
 
   # Required by `npx skills add mattpocock/skills`
@@ -113,6 +115,23 @@ update_skills() {
   "
 }
 
+copy_config() {
+  local opencode_config="$SCRIPT_DIR/opencode.json"
+
+  if [ ! -f "$opencode_config" ]; then
+    echo "WARN: No workbench OpenCode config at $opencode_config" >&2
+    return
+  fi
+
+  sbx cp "$opencode_config" "$SANDBOX_NAME":/tmp/opencode.json
+  sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -d -m 755 -o root -g root /etc/opencode
+sudo install -m 644 -o root -g root /tmp/opencode.json /etc/opencode/opencode.json
+sudo rm -f /tmp/opencode.json
+'
+}
+
 install_codex_auth_plugin() {
   echo "Installing OpenAI Codex Auth plugin..."
 
@@ -171,6 +190,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   update_skills
 
   allow_codex_oauth_network
+  copy_config
   install_codex_auth_plugin
   usage_instructions
   sbx exec -it -w "$PROJECT_DIR" "$SANDBOX_NAME" bash
@@ -186,6 +206,7 @@ else
   install_skills
 
   allow_codex_oauth_network
+  copy_config
   install_codex_auth_plugin
   usage_instructions
   sbx exec -it -w "$PROJECT_DIR" "$SANDBOX_NAME" bash

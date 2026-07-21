@@ -59,9 +59,12 @@ openLocalWorkspace
 
 allow_gemini_network() {
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
   allow_serena_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" geminicli.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" www.geminicli.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" generativelanguage.googleapis.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" oauth2.googleapis.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" accounts.google.com:443
@@ -82,6 +85,24 @@ fi
 "
 }
 
+copy_gemini_settings() {
+  local gemini_settings="$SCRIPT_DIR/gemini-settings.json"
+
+  if [ ! -f "$gemini_settings" ]; then
+    echo "WARN: No workbench Gemini settings at $gemini_settings" >&2
+    return
+  fi
+
+  sbx cp "$gemini_settings" "$SANDBOX_NAME":/tmp/gemini-settings.json
+  sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -d -m 755 -o root -g root /etc/gemini-cli
+sudo install -m 644 -o root -g root /tmp/gemini-settings.json \
+  /etc/gemini-cli/settings.json
+sudo rm -f /tmp/gemini-settings.json
+'
+}
+
 # Reuse existing sandbox if it already exists
 if sandboxExists "$SANDBOX_NAME"; then
   echo "✅ Existing sandbox found: $SANDBOX_NAME"
@@ -89,6 +110,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 
   allow_gemini_network
   configure_sandbox_env
+  copy_gemini_settings
 
   echo "REMINDER: Once inside the sandbox, run the command 'gemini' to start the cli."
   sbx run "$SANDBOX_NAME"
@@ -101,6 +123,7 @@ else
   upgrade_system_packages
   install_node_lts
   install_gemini_cli
+  copy_gemini_settings
 
   echo "Gemini CLI is installed. Run 'gemini' inside the sandbox and choose 'Sign in with Google'."
 

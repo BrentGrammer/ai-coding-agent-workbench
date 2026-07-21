@@ -21,9 +21,11 @@ openLocalWorkspace
 
 allow_network() {
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
 #   allow_serena_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.commandcode.ai:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" commandcode.ai:443
 
   # Often needed by install/update flows and Node-based project work.
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
@@ -54,12 +56,13 @@ export PATH="$HOME/.local/bin:$PATH"
 }
 
 copy_config() {
-  local commandcode_config_dir="$WORKBENCH_ROOT/.commandcode"
+  local commandcode_settings="$SCRIPT_DIR/commandcode-settings.json"
 
-  if [ -d "$commandcode_config_dir" ]; then
+  if [ -f "$commandcode_settings" ]; then
     echo "Copying workbench Command Code config into sandbox home..."
     sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.commandcode"
-    sbx cp "$commandcode_config_dir/." "$SANDBOX_NAME":/home/agent/.commandcode/
+    sbx cp "$commandcode_settings" \
+      "$SANDBOX_NAME":/home/agent/.commandcode/settings.json
   fi
 }
 

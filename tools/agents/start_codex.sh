@@ -21,6 +21,7 @@ openLocalWorkspace
 
 allow_network() {
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
@@ -31,6 +32,7 @@ allow_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" files.openai.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" developers.openai.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" chatgpt.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.openai.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" ab.chatgpt.com:443
@@ -59,7 +61,7 @@ codex update
 }
 
 copy_config() {
-  local codex_config="$WORKBENCH_ROOT/.codex/config.toml"
+  local codex_config="$SCRIPT_DIR/codex-config.toml"
 
   if [ -f "$codex_config" ]; then
     echo "Syncing workbench Codex config into sandbox..."

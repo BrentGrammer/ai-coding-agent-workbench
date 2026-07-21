@@ -29,6 +29,7 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
 allow_network() {
   allow_system_update_network
+  allow_vendor_docs_network
 
   local host
   for host in \
@@ -46,6 +47,7 @@ allow_network() {
     downloads.claude.ai:443 \
     files.openai.com:443 \
     github.com:443 \
+    herdr.dev:443 \
     models.dev:443 \
     nodejs.org:443 \
     objects.githubusercontent.com:443 \
@@ -140,6 +142,54 @@ opencode --version
 '
 }
 
+copy_agent_settings() {
+  local claude_settings_file="$SCRIPT_DIR/claude-settings.json"
+  local codex_config_file="$SCRIPT_DIR/codex-config.toml"
+  local opencode_config_file="$SCRIPT_DIR/opencode.json"
+
+  if [ -f "$claude_settings_file" ]; then
+    sbx cp "$claude_settings_file" "$SANDBOX_NAME":/tmp/claude-settings.json
+    sbx cp "$WORKBENCH_ROOT/runtime/deny-protected-file-reads" \
+      "$SANDBOX_NAME":/tmp/deny-protected-file-reads
+    sbx cp "$WORKBENCH_ROOT/runtime/install-claude-settings" \
+      "$SANDBOX_NAME":/tmp/install-claude-settings
+    sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+bash /tmp/install-claude-settings \
+  /tmp/claude-settings.json \
+  /tmp/deny-protected-file-reads
+sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
+  /tmp/deny-protected-file-reads
+'
+  else
+    echo "WARN: No bundled Claude settings at $claude_settings_file" >&2
+  fi
+
+  sbx exec "$SANDBOX_NAME" bash -c '
+mkdir -p "$HOME/.codex"
+chmod 700 "$HOME/.codex"
+'
+
+  if [ -f "$codex_config_file" ]; then
+    sbx cp "$codex_config_file" "$SANDBOX_NAME":/home/agent/.codex/config.toml
+    sbx exec "$SANDBOX_NAME" bash -c 'chmod 600 "$HOME/.codex/config.toml"'
+  else
+    echo "WARN: No workbench Codex config at $codex_config_file" >&2
+  fi
+
+  if [ -f "$opencode_config_file" ]; then
+    sbx cp "$opencode_config_file" "$SANDBOX_NAME":/tmp/opencode.json
+    sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -d -m 755 -o root -g root /etc/opencode
+sudo install -m 644 -o root -g root /tmp/opencode.json /etc/opencode/opencode.json
+sudo rm -f /tmp/opencode.json
+'
+  else
+    echo "WARN: No workbench OpenCode config at $opencode_config_file" >&2
+  fi
+}
+
 install_integrations() {
   sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
@@ -174,6 +224,8 @@ if ! sbx exec "$SANDBOX_NAME" bash -c 'command -v node >/dev/null 2>&1'; then
 fi
 install_runtime_files
 install_or_update_tools
+install_bash_sandbox_runtime
+copy_agent_settings
 install_integrations
 
 echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"

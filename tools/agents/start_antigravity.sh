@@ -26,6 +26,7 @@ openLocalWorkspace
 
 allow_antigravity_network() {
 	allow_system_update_network
+	allow_vendor_docs_network
 
 	# Antigravity CLI updater / runtime fetches
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "antigravity-cli-auto-updater-974169037036.us-central1.run.app:443"

@@ -1,0 +1,40 @@
+node_modules/
+dist/
+build/
+.next/
+coverage/
+*.log
+*.map
+.env*
+
+# macOS
+.DS_Store
+
+# Git / VCS
+.git/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Virtualenv: do not include installed packages in Cursor context/tools
+.venv/
+
+# Local AI/tool state
+.cline/
+.codex/
+opencode.json
+.clineignore
+.geminiignore
+
+# Serena MCP
+# Keep .serena/project*.yml and .serena/memories/ visible.
+.serena/cache/
+# ignore this if you have secrets there and have sensitive config setup: .serena/project.local.yml

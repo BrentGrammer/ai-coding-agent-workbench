@@ -19,12 +19,14 @@ openLocalWorkspace
 
 allow_cline_network() {
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
   allow_serena_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.workos.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.cline.bot:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.cline.bot:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" models.dev:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
 }
@@ -42,15 +44,27 @@ fi
 }
 
 sync_cline_settings() {
-  local workbench_settings_dir="$WORKBENCH_ROOT/.cline/data/settings"
+  local global_settings="$SCRIPT_DIR/cline-global-settings.json"
+  local mcp_settings="$SCRIPT_DIR/cline-mcp-settings.json"
 
-  sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.cline/data/settings"
+  sbx exec "$SANDBOX_NAME" bash -c '
+mkdir -p "$HOME/.cline/data/settings"
+chmod 700 "$HOME/.cline" "$HOME/.cline/data" "$HOME/.cline/data/settings"
+'
 
-  for settings_name in cline_mcp_settings.json global-settings.json; do
-    if [ -f "$workbench_settings_dir/$settings_name" ]; then
-      sbx cp "$workbench_settings_dir/$settings_name" "$SANDBOX_NAME":/home/agent/.cline/data/settings/"$settings_name"
-    fi
-  done
+  if [ -f "$global_settings" ]; then
+    sbx cp "$global_settings" \
+      "$SANDBOX_NAME":/home/agent/.cline/data/settings/global-settings.json
+    sbx exec "$SANDBOX_NAME" bash -c \
+      'chmod 600 "$HOME/.cline/data/settings/global-settings.json"'
+  fi
+
+  if [ -f "$mcp_settings" ]; then
+    sbx cp "$mcp_settings" \
+      "$SANDBOX_NAME":/home/agent/.cline/data/settings/cline_mcp_settings.json
+    sbx exec "$SANDBOX_NAME" bash -c \
+      'chmod 600 "$HOME/.cline/data/settings/cline_mcp_settings.json"'
+  fi
 }
 
 if sandboxExists "$SANDBOX_NAME"; then

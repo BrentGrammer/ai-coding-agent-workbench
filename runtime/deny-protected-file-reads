@@ -1,0 +1,161 @@
+#!/usr/bin/env node
+const { readFileSync } = require("node:fs");
+
+const READABLE_ENV_FILES = new Set([
+  ".env.template",
+  ".env.example",
+  ".env.sample",
+  ".env.dist",
+]);
+
+const PROTECTED_FILE_NAMES = new Set([
+  ".envrc",
+  ".netrc",
+  ".pgpass",
+  ".npmrc",
+  ".dockercfg",
+  ".git-credentials",
+  ".credentials.json",
+  "credentials.json",
+  "auth.json",
+  "oauth_creds.json",
+  "id_rsa",
+  "id_dsa",
+  "id_ecdsa",
+  "id_ed25519",
+]);
+
+const PROTECTED_FILE_SUFFIXES = [
+  ".pem",
+  ".key",
+  ".p12",
+  ".pfx",
+  ".keystore",
+  ".jks",
+];
+
+const PROTECTED_DIRECTORY_NAMES = new Set([".ssh", ".gnupg"]);
+
+const PROTECTED_PARENT_AND_FILE_PAIRS = new Set([
+  ".aws/credentials",
+  ".aws/config",
+  ".kube/config",
+  ".docker/config.json",
+  "gh/hosts.yml",
+  ".claude/history.jsonl",
+]);
+
+const PROTECTED_DIRECTORY_PAIRS = new Set([".claude/projects"]);
+
+const CONTENT_FIELD_NAMES = new Set([
+  "content",
+  "new_string",
+  "old_string",
+  "new_str",
+  "old_str",
+  "text",
+  "body",
+  "prompt",
+  "instructions",
+  "description",
+  "message",
+]);
+
+const ENV_FILE_PATTERN = /^\.env(\..+)?$/u;
+const PATH_TOKEN_PATTERN = /[A-Za-z0-9_.~/\\-]+/gu;
+
+const isProtectedPath = (token) => {
+  const segments = token.split(/[/\\]/u).filter(Boolean);
+  const fileName = segments.at(-1) ?? "";
+  const parentName = segments.at(-2) ?? "";
+
+  if (segments.some((segment) => PROTECTED_DIRECTORY_NAMES.has(segment))) {
+    return true;
+  }
+
+  if (
+    segments.some((segment, index) =>
+      PROTECTED_DIRECTORY_PAIRS.has(`${segment}/${segments[index + 1]}`),
+    )
+  ) {
+    return true;
+  }
+
+  if (PROTECTED_PARENT_AND_FILE_PAIRS.has(`${parentName}/${fileName}`)) {
+    return true;
+  }
+
+  if (READABLE_ENV_FILES.has(fileName)) {
+    return false;
+  }
+
+  if (ENV_FILE_PATTERN.test(fileName) || PROTECTED_FILE_NAMES.has(fileName)) {
+    return true;
+  }
+
+  return PROTECTED_FILE_SUFFIXES.some((suffix) => fileName.endsWith(suffix));
+};
+
+const collectInspectableStrings = (value, fieldName) => {
+  if (CONTENT_FIELD_NAMES.has(fieldName)) {
+    return [];
+  }
+
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectInspectableStrings(entry, fieldName));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, entry]) =>
+      collectInspectableStrings(entry, key),
+    );
+  }
+
+  return [];
+};
+
+const findProtectedPaths = (toolInput) => {
+  const tokens = collectInspectableStrings(toolInput, "").flatMap(
+    (text) => text.match(PATH_TOKEN_PATTERN) ?? [],
+  );
+  return [...new Set(tokens.filter(isProtectedPath))];
+};
+
+const blockToolCall = (reason) => {
+  process.stderr.write(
+    [
+      `Blocked: ${reason}`,
+      "Secrets, private keys and credential files are off limits in this workbench.",
+      "Ask the operator to read the value out for you, or use a placeholder instead.",
+    ].join(" "),
+  );
+  process.exit(2);
+};
+
+const readHookRequest = () => {
+  try {
+    return JSON.parse(readFileSync(0, "utf8"));
+  } catch {
+    return null;
+  }
+};
+
+const request = readHookRequest();
+
+if (!request || typeof request !== "object" || !("tool_input" in request)) {
+  blockToolCall("this hook could not read the tool request, so it denied it.");
+}
+
+const protectedPaths = findProtectedPaths(request.tool_input);
+
+if (protectedPaths.length > 0) {
+  blockToolCall(
+    `${request.tool_name} would touch a protected file (${protectedPaths.join(", ")}).`,
+  );
+}
+
+process.exit(0);
