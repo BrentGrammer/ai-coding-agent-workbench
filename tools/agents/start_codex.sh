@@ -60,31 +60,24 @@ codex update
 }
 
 copy_config() {
-  local codex_config="$REPO_ROOT/.codex/config.toml"
+  local codex_config="$WORKBENCH_ROOT/.codex/config.toml"
 
   if [ -f "$codex_config" ]; then
-    echo "Syncing Codex config into sandbox..."
-    CONFIG_B64="$(base64 < "$codex_config" | tr -d '\n')"
-
+    echo "Syncing workbench Codex config into sandbox..."
     sbx exec "$SANDBOX_NAME" bash -lc "
       set -euo pipefail
       mkdir -p /home/agent/.codex
       chmod 700 /home/agent/.codex
-      rm -f /home/agent/.codex/config.toml
-      printf '%s' '$CONFIG_B64' | base64 -d > /home/agent/.codex/config.toml
-      chmod 600 /home/agent/.codex/config.toml
     "
+    sbx cp "$codex_config" "$SANDBOX_NAME":/home/agent/.codex/config.toml
+    sbx exec "$SANDBOX_NAME" bash -lc "chmod 600 /home/agent/.codex/config.toml"
+  else
+    echo "WARN: No workbench Codex config at $codex_config" >&2
   fi
 
-  if [ -f "$REPO_ROOT/.npmrc" ]; then
-    NPMRC_B64="$(base64 < "$REPO_ROOT/.npmrc" | tr -d '\n')"
-
-    sbx exec "$SANDBOX_NAME" bash -lc "
-      set -euo pipefail
-      rm -f /home/agent/.npmrc
-      printf '%s' '$NPMRC_B64' | base64 -d > /home/agent/.npmrc
-      chmod 600 /home/agent/.npmrc
-    "
+  if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
+    sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
+    sbx exec "$SANDBOX_NAME" bash -lc "chmod 600 /home/agent/.npmrc"
   fi
 }
 

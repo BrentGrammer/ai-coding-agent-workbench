@@ -67,8 +67,8 @@ install_grok_build() {
 sync_files_to_sandbox() {
 	echo "Syncing host-managed files into sandbox..."
 
-	if [ -f "$REPO_ROOT/.npmrc" ]; then
-		sbx cp "$REPO_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
+	if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
+		sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
 	fi
 
 	echo "SUCCESS: Synced host-managed files into sandbox."

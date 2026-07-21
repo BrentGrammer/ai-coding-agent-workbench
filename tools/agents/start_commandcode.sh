@@ -55,10 +55,12 @@ export PATH="$HOME/.local/bin:$PATH"
 }
 
 copy_config() {
-  if [ -d "$REPO_ROOT/.commandcode" ]; then
-    echo "Copying repo config settings into sandbox home..."
+  local commandcode_config_dir="$WORKBENCH_ROOT/.commandcode"
 
+  if [ -d "$commandcode_config_dir" ]; then
+    echo "Copying workbench Command Code config into sandbox home..."
     sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.commandcode"
+    sbx cp "$commandcode_config_dir/." "$SANDBOX_NAME":/home/agent/.commandcode/
   fi
 }
 

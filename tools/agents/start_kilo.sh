@@ -83,12 +83,19 @@ copy_config() {
   # Kilo project config is usually ./kilo.jsonc or ./.kilo/kilo.jsonc.
   # .kilo takes priority if both exist. Global config lives at ~/.config/kilo/kilo.jsonc.
   # Source: Kilo settings docs.
-  if [ -d "$REPO_ROOT/.kilo" ]; then
-    echo "Repo Kilo Code project config found at .kilo; leaving it in-place for project-level loading."
+  local kilo_config_dir="$WORKBENCH_ROOT/.kilo"
+  local kilo_config_file="$WORKBENCH_ROOT/kilo.jsonc"
+
+  if [ -d "$kilo_config_dir" ]; then
+    echo "Copying workbench Kilo config into sandbox home..."
+    sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.config/kilo"
+    sbx cp "$kilo_config_dir/." "$SANDBOX_NAME":/home/agent/.config/kilo/
   fi
 
-  if [ -f "$REPO_ROOT/kilo.jsonc" ]; then
-    echo "Repo Kilo Code project config found at kilo.jsonc; leaving it in-place for project-level loading."
+  if [ -f "$kilo_config_file" ]; then
+    echo "Copying workbench kilo.jsonc into sandbox home..."
+    sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.config/kilo"
+    sbx cp "$kilo_config_file" "$SANDBOX_NAME":/home/agent/.config/kilo/kilo.jsonc
   fi
 }
 

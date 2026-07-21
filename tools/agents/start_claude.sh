@@ -96,16 +96,14 @@ claude --version
 }
 
 copy_config() {
-  if [ -d "$REPO_ROOT/.claude" ]; then
-    echo "Copying repo Claude Code config/settings into sandbox home..."
+  local claude_config_dir="$WORKBENCH_ROOT/.claude"
 
+  if [ -d "$claude_config_dir" ]; then
+    echo "Copying workbench Claude Code config/settings into sandbox home..."
     sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.claude"
-
-    sbx exec "$SANDBOX_NAME" bash -c "
-      if [ -d '$REPO_ROOT/.claude' ]; then
-        cp -a '$REPO_ROOT/.claude/.' /home/agent/.claude/
-      fi
-    "
+    sbx cp "$claude_config_dir/." "$SANDBOX_NAME":/home/agent/.claude/
+  else
+    echo "WARN: No workbench Claude config at $claude_config_dir" >&2
   fi
 }
 

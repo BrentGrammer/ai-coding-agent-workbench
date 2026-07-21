@@ -55,15 +55,12 @@ fi
 }
 
 sync_cline_settings() {
-  local settings_dir="$REPO_ROOT/.cline/data/settings"
   local workbench_settings_dir="$WORKBENCH_ROOT/.cline/data/settings"
 
   sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.cline/data/settings"
 
   for settings_name in cline_mcp_settings.json global-settings.json; do
-    if [ -f "$settings_dir/$settings_name" ]; then
-      sbx cp "$settings_dir/$settings_name" "$SANDBOX_NAME":/home/agent/.cline/data/settings/"$settings_name"
-    elif [ -f "$workbench_settings_dir/$settings_name" ]; then
+    if [ -f "$workbench_settings_dir/$settings_name" ]; then
       sbx cp "$workbench_settings_dir/$settings_name" "$SANDBOX_NAME":/home/agent/.cline/data/settings/"$settings_name"
     fi
   done

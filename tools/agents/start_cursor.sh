@@ -73,26 +73,25 @@ fi
 }
 
 copy_cursor_project_config() {
-  # Optional: copy repo-local Cursor config if your repo has one.
-  # This mirrors your Cline config-copy pattern, but avoids failing if absent.
+  # Optional: copy workbench Cursor config if present.
+  local cursor_config_dir="$WORKBENCH_ROOT/.cursor"
 
-  if [ -d "$REPO_ROOT/.cursor" ]; then
-    echo "Copying repo .cursor config into sandbox home..."
-
+  if [ -d "$cursor_config_dir" ]; then
+    echo "Copying workbench .cursor config into sandbox home..."
     sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.cursor"
 
     # Copy common Cursor project assets if they exist.
-    if [ -d "$REPO_ROOT/.cursor/rules" ]; then
-      sbx cp "$REPO_ROOT/.cursor/rules" "$SANDBOX_NAME":/home/agent/.cursor/rules
+    if [ -d "$cursor_config_dir/rules" ]; then
+      sbx cp "$cursor_config_dir/rules" "$SANDBOX_NAME":/home/agent/.cursor/rules
     fi
 
-    if [ -f "$REPO_ROOT/.cursor/mcp.json" ]; then
-      sbx cp "$REPO_ROOT/.cursor/mcp.json" "$SANDBOX_NAME":/home/agent/.cursor/mcp.json
+    if [ -f "$cursor_config_dir/mcp.json" ]; then
+      sbx cp "$cursor_config_dir/mcp.json" "$SANDBOX_NAME":/home/agent/.cursor/mcp.json
     fi
+  fi
 
-    if [ -f "$REPO_ROOT/.cursorignore" ]; then
-      sbx cp "$REPO_ROOT/.cursorignore" "$SANDBOX_NAME":/home/agent/.cursorignore
-    fi
+  if [ -f "$WORKBENCH_ROOT/.cursorignore" ]; then
+    sbx cp "$WORKBENCH_ROOT/.cursorignore" "$SANDBOX_NAME":/home/agent/.cursorignore
   fi
 }
 

@@ -69,12 +69,12 @@ sync_files_to_sandbox() {
 
 	sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.gemini/antigravity-cli"
 
-	if [ -f "$REPO_ROOT/.gemini/antigravity-cli/mcp_config.json" ]; then
-		sbx cp "$REPO_ROOT/.gemini/antigravity-cli/mcp_config.json" "$SANDBOX_NAME":/home/agent/.gemini/antigravity-cli/mcp_config.json
+	if [ -f "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" ]; then
+		sbx cp "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" "$SANDBOX_NAME":/home/agent/.gemini/antigravity-cli/mcp_config.json
 	fi
 
-	if [ -f "$REPO_ROOT/.npmrc" ]; then
-		sbx cp "$REPO_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
+	if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
+		sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
 	fi
 
 	echo "SUCCESS: Synced host-managed files into sandbox."
