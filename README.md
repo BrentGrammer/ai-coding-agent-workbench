@@ -2,7 +2,7 @@
 
 This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/). It supports running coding agents locally with `sbx` Docker sandbox MicroVMs and in the Cloud using [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html).
 
-It bootstraps an isolated multi-agent coding workbench, with options for running a variety of coding agents locally in Docker sandboxes.
+It bootstraps an isolated multi-agent coding workbench running in the Cloud, with options for running a variety of other coding agents locally in Docker sandboxes.
 
 ## Platform support
 
@@ -34,10 +34,18 @@ npm install -g @aws/agentcore@latest
 
 ## Add the commands to PATH
 
+To run the local launchers which run coding agents on your machine in Docker Sandbox instead of in the Cloud, convenience commands are included with this project in the bin folder.
+
+Check for existing commands with the same names:
+
+```shell
+./bin/check-command-collisions
+```
+
 Add this line to your shell profile, using the path where this repository was cloned:
 
 ```shell
-export PATH="/path/to/agent-workbench/bin:$PATH"
+export PATH="$PATH:/path/to/agent-workbench/bin"
 ```
 
 Restart the terminal after saving the profile.
