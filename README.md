@@ -120,7 +120,8 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 ### Prerequisites
 
 - [Docker Desktop](https://docs.docker.com/desktop/)
-- AWS CLI with credentials for the target account and region.
+- An AWS Account and a IAM user with sufficient permissions.
+- AWS CLI with credentials (run `aws configure`) for the target account and region.
 - Node.js and npm.
 - AgentCore CLI 0.24.1 or newer.
 - A GitHub account with your project repo and a GitHub App installed for the target repository with **Contents: Read and write** permission.
