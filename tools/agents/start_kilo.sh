@@ -47,15 +47,11 @@ set -euo pipefail
 
 PERSISTENT_ENV="/etc/sandbox-persistent.sh"
 
-[ -f "$PERSISTENT_ENV" ] || touch "$PERSISTENT_ENV"
-
-if ! grep "HOME/.local/bin" "$PERSISTENT_ENV" 2>/dev/null; then
-  cat >> "$PERSISTENT_ENV" <<EOF
-
-export PATH="\$HOME/.local/bin:\$PATH"
+sudo touch "$PERSISTENT_ENV"
+sudo sed -i "/^export NPM_CONFIG_PREFIX=/d" "$PERSISTENT_ENV"
+sudo tee -a "$PERSISTENT_ENV" >/dev/null <<EOF
 export NPM_CONFIG_PREFIX="\$HOME/.local"
 EOF
-fi
 '
 }
 

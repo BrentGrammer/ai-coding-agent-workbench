@@ -75,26 +75,6 @@ allow_codex_oauth_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" challenges.cloudflare.com:443
 }
 
-configure_privacy_flags() {
-  echo "Configuring OpenCode-specific environment inside sandbox..."
-
-  sbx exec -d "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-touch /etc/sandbox-persistent.sh
-
-sed -i "/# BEGIN opencode privacy flags/,/# END opencode privacy flags/d" /etc/sandbox-persistent.sh
-
-cat >> /etc/sandbox-persistent.sh <<'"'"'EOF'"'"'
-# BEGIN opencode privacy flags
-export OPENCODE_DISABLE_SHARE=1
-export OPENCODE_AUTO_SHARE=false
-export OPENCODE_CONFIG_CONTENT='{"share":"disabled"}'
-# END opencode privacy flags
-EOF
-' || true
-}
-
 update_opencode() {
   echo "Updating OpenCode inside sandbox..."
 
@@ -177,7 +157,6 @@ if sbx ls | grep "$SANDBOX_NAME"; then
 
   allow_opencode_network
   configure_sandbox_env
-  configure_privacy_flags
   update_opencode
   install_skills
 
@@ -194,7 +173,6 @@ else
   upgrade_system_packages
   install_node_lts
   configure_sandbox_env
-  configure_privacy_flags
   install_skills
 
   allow_codex_oauth_network
