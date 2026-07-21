@@ -9,6 +9,8 @@ The agents also come baked in with [Matt Pocock's skills](https://github.com/mat
 
 The project supports running a variety of harnesses individually locally inside a Docker Sandbox, or using Herdr with 3 harnesses baked in (Claude Code, Codex and OpenCode).
 
+Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner of this repo, of course). Adjust and edit these files to your needs and preferences.
+
 ## Platform support
 
 - macOS is supported.
