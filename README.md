@@ -2,7 +2,7 @@
 
 This project runs Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/) beside [Hunk](https://www.hunk.dev/). It supports a local `sbx` sandbox and [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-get-started-cli.html).
 
-It bootstraps an isolated multi-agent coding workbench, with options for running a variety of coding agents locally in Docker sandboxes or in the Cloud.
+It bootstraps an isolated multi-agent coding workbench, with options for running a variety of coding agents locally in Docker sandboxes.
 
 ## Prerequisites
 
