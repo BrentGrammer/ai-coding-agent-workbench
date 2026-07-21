@@ -1,6 +1,8 @@
 # AgentCore Stack CDK Deployment
 
-This CDK stack deploys the Herdr and Hunk workbench to Amazon Bedrock AgentCore.
+This CDK stack deploys the Herdr and Hunk workbench to Amazon Bedrock AgentCore. 
+
+[AWS CDK (Cloud Development Kit)](https://github.com/aws/aws-cdk) is AWS's approved Infrastructure as Code tool for deploying and managing AWS resources. Deploying this stack creates a CloudFormation Stack with the required resources for running the workbench on AWS Bedrock AgentCore.
 
 > **IMPORTANT: This setup incurs AWS charges.**
 >
