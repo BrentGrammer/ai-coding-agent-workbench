@@ -48,18 +48,18 @@ Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox
 
 ### Start locally
 
-Run from the project you want to work on. Claude starts by default:
+Run from the project you want to work on:
 
 ```shell
 cd /path/to/local-project-folder
-start-herdr
+start-herdr claude
 ```
 
 Choose another primary agent or project:
 
 ```shell
 start-herdr codex
-start-herdr claude /path/to/another-project
+start-herdr opencode /path/to/another-project
 ```
 
 Run one agent without Herdr:
