@@ -61,6 +61,7 @@ allow_opencode_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" add-skill.vercel.sh:443
 
 }
 
@@ -203,12 +204,13 @@ if sandboxExists "$SANDBOX_NAME"; then
 else
   echo "🆕 Creating new sandbox: $SANDBOX_NAME"
 
-  sbx create opencode "$PROJECT_DIR" --name "$SANDBOX_NAME"
+  sbx create shell "$PROJECT_DIR" --name "$SANDBOX_NAME"
 
   allow_opencode_network
   upgrade_system_packages
   install_node_lts
   configure_sandbox_env
+  update_opencode
   install_skills
 
   allow_codex_oauth_network
