@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SETTINGS_SOURCE="${1:?Claude managed settings source is required}"
+HOOK_SOURCE="${2:?Protected file hook source is required}"
+MANAGED_SETTINGS_DIR="/etc/claude-code"
+HOOK_TARGET="/usr/local/bin/deny-protected-file-reads"
+
+sudo install -d -m 755 -o root -g root "$MANAGED_SETTINGS_DIR"
+sudo install -m 644 -o root -g root "$SETTINGS_SOURCE" \
+  "$MANAGED_SETTINGS_DIR/managed-settings.json"
+sudo install -m 755 -o root -g root "$HOOK_SOURCE" "$HOOK_TARGET"

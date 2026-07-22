@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,13 +14,42 @@ const STATE_FILE = path.join(STATE_DIR, "aws-sessions.json");
 const AGENTS = new Set(["codex", "claude", "opencode"]);
 const MINIMUM_AGENTCORE_VERSION = [0, 24, 1];
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ESCAPE = String.fromCharCode(27);
+const TERMINAL_RESET_CODES = {
+  leaveAlternateScreen: `${ESCAPE}[?1049l`,
+  softReset: `${ESCAPE}[!p`,
+  stopFocusReports: `${ESCAPE}[?1004l`,
+  stopX10MouseReports: `${ESCAPE}[?9l`,
+  stopMouseClickReports: `${ESCAPE}[?1000l`,
+  stopMouseDragReports: `${ESCAPE}[?1002l`,
+  stopMouseMotionReports: `${ESCAPE}[?1003l`,
+  stopUtf8MouseReports: `${ESCAPE}[?1005l`,
+  stopSgrMouseReports: `${ESCAPE}[?1006l`,
+  stopUrxvtMouseReports: `${ESCAPE}[?1015l`,
+  stopBracketedPaste: `${ESCAPE}[?2004l`,
+  popKittyKeyboardProtocol: `${ESCAPE}[<u`,
+  stopModifyOtherKeys: `${ESCAPE}[>4;0m`,
+  useNumericKeypad: `${ESCAPE}>`,
+  useNormalCursorKeys: `${ESCAPE}[?1l`,
+  enableAutoWrap: `${ESCAPE}[?7h`,
+  clearScrollRegion: `${ESCAPE}[r`,
+  useAsciiCharacterSet: `${ESCAPE}(B`,
+  popWindowTitle: `${ESCAPE}[23;0t`,
+  clearTextAttributes: `${ESCAPE}[0m`,
+  showCursor: `${ESCAPE}[?25h`,
+};
+const LOCAL_TERMINAL_RESET_SEQUENCE =
+  Object.values(TERMINAL_RESET_CODES).join("");
+const INPUT_DISCARD_POLL_MS = 10;
+const INPUT_DISCARD_QUIET_MS = 120;
+const INPUT_DISCARD_TIMEOUT_MS = 500;
 
 const showUsage = () => {
   console.error(
     [
       "Usage:",
       "  workbench aws REPO_URL [--ref REF] [--agent codex|claude|opencode] [--keep NAME]",
-      "  workbench aws reconnect NAME",
+      "  workbench aws reconnect NAME [--new-shell]",
       "  workbench aws stop NAME",
       "  workbench aws status",
     ].join("\n"),
@@ -213,6 +242,73 @@ const createBootstrapCommand = (session) => {
 const runAgentCore = (args) =>
   spawnSync("agentcore", args, { stdio: "inherit" });
 
+const sleepSync = (milliseconds) => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+};
+
+const setTerminalModes = (args) =>
+  spawnSync("stty", args, {
+    encoding: "utf8",
+    stdio: ["inherit", "pipe", "ignore"],
+  });
+
+const readTerminalModes = () => {
+  if (!process.stdin.isTTY) {
+    return "";
+  }
+
+  const result = setTerminalModes(["-g"]);
+  return result.status === 0 ? result.stdout.trim() : "";
+};
+
+const discardPendingTerminalInput = () => {
+  if (setTerminalModes(["raw", "-echo", "min", "0", "time", "1"]).status !== 0) {
+    return;
+  }
+
+  const discardBuffer = Buffer.alloc(4096);
+  const giveUpAt = Date.now() + INPUT_DISCARD_TIMEOUT_MS;
+  let quietAt = Date.now() + INPUT_DISCARD_QUIET_MS;
+
+  while (Date.now() < giveUpAt && Date.now() < quietAt) {
+    let bytesRead = 0;
+
+    try {
+      bytesRead = readSync(0, discardBuffer, 0, discardBuffer.length, null);
+    } catch (error) {
+      if (error.code !== "EAGAIN") {
+        return;
+      }
+    }
+
+    if (bytesRead === 0) {
+      sleepSync(INPUT_DISCARD_POLL_MS);
+      continue;
+    }
+
+    quietAt = Date.now() + INPUT_DISCARD_QUIET_MS;
+  }
+};
+
+let localTerminalRestored = false;
+
+const restoreLocalTerminal = (savedTerminalModes) => {
+  if (localTerminalRestored) {
+    return;
+  }
+
+  localTerminalRestored = true;
+
+  if (process.stdin.isTTY) {
+    discardPendingTerminalInput();
+    setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
+  }
+
+  if (process.stdout.isTTY) {
+    process.stdout.write(LOCAL_TERMINAL_RESET_SEQUENCE);
+  }
+};
+
 const checkAgentCoreVersion = () => {
   const versionOutput = runQuietly("agentcore", ["--version"]);
   const versionMatch = versionOutput.match(/(\d+)\.(\d+)\.(\d+)/u);
@@ -306,22 +402,34 @@ const stopSession = (session) => {
   return true;
 };
 
+const buildShellId = (session) =>
+  `${session.agent}-${session.sessionId}-${session.shellGeneration ?? 0}`;
+
 const attachSession = (session) => {
   console.error(
     `Opening ${session.agent} session ${session.name ?? "temporary"}...`,
   );
-  const result = runAgentCore([
-    "exec",
-    "--it",
-    "--runtime",
-    session.runtimeArn,
-    "--region",
-    session.region,
-    "--session-id",
-    session.sessionId,
-    "--shell-id",
-    `${session.agent}-${randomUUID()}`,
-  ]);
+  const savedTerminalModes = readTerminalModes();
+  const restore = () => restoreLocalTerminal(savedTerminalModes);
+  process.once("exit", restore);
+  let result;
+
+  try {
+    result = runAgentCore([
+      "exec",
+      "--it",
+      "--runtime",
+      session.runtimeArn,
+      "--region",
+      session.region,
+      "--session-id",
+      session.sessionId,
+      "--shell-id",
+      buildShellId(session),
+    ]);
+  } finally {
+    restore();
+  }
 
   if (result.error) {
     throw new Error(`Could not run AgentCore: ${result.error.message}`);
@@ -356,6 +464,9 @@ const connectSession = (session, keepSession) => {
   const exitCode = attachSession(session);
   cleanup();
   applyLogRetention(session.region);
+  console.error(
+    "\nAgentCore shell disconnected. You are back in your local terminal.",
+  );
   return exitCode;
 };
 
@@ -404,12 +515,20 @@ const launchSession = (args) => {
   return connectSession(session, Boolean(session.name));
 };
 
-const reconnectSession = (name) => {
+const reconnectSession = (name, startNewShell) => {
   validateName(name);
-  const session = readSessions()[name];
+  const sessions = readSessions();
+  const session = sessions[name];
 
   if (!session) {
     throw new Error(`Unknown session: ${name}`);
+  }
+
+  if (startNewShell) {
+    session.shellGeneration = (session.shellGeneration ?? 0) + 1;
+    sessions[name] = session;
+    writeSessions(sessions);
+    console.error(`Abandoning the previous shell for ${name}.`);
   }
 
   return connectSession(session, true);
@@ -478,9 +597,13 @@ const main = () => {
     return showStatus();
   }
 
-  if (args[0] === "reconnect" && args.length === 2) {
+  if (args[0] === "reconnect" && args.length >= 2 && args.length <= 3) {
+    if (args.length === 3 && args[2] !== "--new-shell") {
+      throw new Error(`Invalid option: ${args[2]}`);
+    }
+
     checkAgentCoreVersion();
-    return reconnectSession(args[1]);
+    return reconnectSession(args[1], args[2] === "--new-shell");
   }
 
   if (args[0] === "stop" && args.length === 2) {

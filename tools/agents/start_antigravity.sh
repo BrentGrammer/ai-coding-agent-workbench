@@ -26,6 +26,7 @@ openLocalWorkspace
 
 allow_antigravity_network() {
 	allow_system_update_network
+	allow_vendor_docs_network
 
 	# Antigravity CLI updater / runtime fetches
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "antigravity-cli-auto-updater-974169037036.us-central1.run.app:443"
@@ -45,6 +46,7 @@ allow_antigravity_network() {
 
 	# Antigravity app / CLI endpoints
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "antigravity.google:443"
+	sbx policy allow network --sandbox "$SANDBOX_NAME" "www.antigravity.google:443"
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "*.antigravity.google:443"
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "antigravity-unleash.goog:443"
 
@@ -66,14 +68,12 @@ allow_antigravity_network() {
 sync_files_to_sandbox() {
 	echo "Syncing host-managed files into sandbox..."
 
-	sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.gemini/antigravity-cli"
-
 	if [ -f "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" ]; then
-		sbx cp "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" "$SANDBOX_NAME":/home/agent/.gemini/antigravity-cli/mcp_config.json
+		install_file_into_sandbox "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" /home/agent/.gemini/antigravity-cli/mcp_config.json
 	fi
 
 	if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
-		sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
+		install_file_into_sandbox "$WORKBENCH_ROOT/.npmrc" /home/agent/.npmrc
 	fi
 
 	echo "SUCCESS: Synced host-managed files into sandbox."

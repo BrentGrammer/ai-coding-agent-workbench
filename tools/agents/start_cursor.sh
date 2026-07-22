@@ -19,6 +19,7 @@ openLocalWorkspace
 
 allow_cursor_network() {
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
   allow_serena_mcp_network
 
@@ -71,26 +72,11 @@ fi
 '
 }
 
-copy_cursor_project_config() {
-  # Optional: copy workbench Cursor config if present.
-  local cursor_config_dir="$WORKBENCH_ROOT/.cursor"
+copy_cursor_mcp_config() {
+  local cursor_mcp_config="$SCRIPT_DIR/cursor-mcp.json"
 
-  if [ -d "$cursor_config_dir" ]; then
-    echo "Copying workbench .cursor config into sandbox home..."
-    sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.cursor"
-
-    # Copy common Cursor project assets if they exist.
-    if [ -d "$cursor_config_dir/rules" ]; then
-      sbx cp "$cursor_config_dir/rules" "$SANDBOX_NAME":/home/agent/.cursor/rules
-    fi
-
-    if [ -f "$cursor_config_dir/mcp.json" ]; then
-      sbx cp "$cursor_config_dir/mcp.json" "$SANDBOX_NAME":/home/agent/.cursor/mcp.json
-    fi
-  fi
-
-  if [ -f "$WORKBENCH_ROOT/.cursorignore" ]; then
-    sbx cp "$WORKBENCH_ROOT/.cursorignore" "$SANDBOX_NAME":/home/agent/.cursorignore
+  if [ -f "$cursor_mcp_config" ]; then
+    install_file_into_sandbox "$cursor_mcp_config" /home/agent/.cursor/mcp.json
   fi
 }
 
@@ -137,7 +123,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_sandbox_env
   configure_cursor_env
   install_or_update_cursor_cli
-  copy_cursor_project_config
+  copy_cursor_mcp_config
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -156,7 +142,7 @@ else
 
   configure_sandbox_env
   configure_cursor_env
-  copy_cursor_project_config
+  copy_cursor_mcp_config
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

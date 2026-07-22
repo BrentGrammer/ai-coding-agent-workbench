@@ -42,6 +42,9 @@ export HOME="$PERSISTENT_HOME"
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
 git config --global --add safe.directory "$WORKSPACE_DIR"
+mkdir -p "$HOME/.codex"
+chmod 700 "$HOME/.codex"
+install -m 600 /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
 
 if [ -d "$WORKSPACE_DIR/.git" ]; then
   CURRENT_REPO_URL="$(git -C "$WORKSPACE_DIR" remote get-url origin)"
@@ -125,7 +128,6 @@ write_shell_value() {
   printf 'export GEMINI_TELEMETRY_LOG_PROMPTS=false\n'
   printf 'export OPENCODE_DISABLE_SHARE=1\n'
   printf 'export OPENCODE_AUTO_SHARE=false\n'
-  printf 'export OPENCODE_CONFIG_CONTENT=%s\n' "$(write_shell_value '{"share":"disabled"}')"
 } > "$SESSION_CONFIG_FILE"
 
 cat >> "$SESSION_CONFIG_FILE" <<'EOF'

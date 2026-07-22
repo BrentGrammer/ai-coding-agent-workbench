@@ -37,6 +37,11 @@ allow_network() {
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
+
+  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
+
+  allow_vendor_docs_network
 }
 
 get_anthropic_api_key() {
@@ -87,33 +92,26 @@ claude --version
 }
 
 copy_config() {
-  local claude_config_dir="$WORKBENCH_ROOT/.claude"
+  local claude_settings_file="$SCRIPT_DIR/claude-settings.json"
 
-  if [ ! -d "$claude_config_dir" ]; then
-    echo "WARN: No workbench Claude config at $claude_config_dir" >&2
+  if [ ! -f "$claude_settings_file" ]; then
+    echo "WARN: No bundled Claude settings at $claude_settings_file" >&2
     return
   fi
 
-  echo "Copying workbench Claude Code config/settings into sandbox home..."
-  sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.claude"
-  sbx cp "$claude_config_dir/." "$SANDBOX_NAME":/home/agent/.claude/
+  echo "Installing Claude Code managed settings into sandbox..."
+  sbx cp "$claude_settings_file" "$SANDBOX_NAME":/tmp/claude-settings.json
+  sbx cp "$WORKBENCH_ROOT/runtime/deny-protected-file-reads" \
+    "$SANDBOX_NAME":/tmp/deny-protected-file-reads
+  sbx cp "$WORKBENCH_ROOT/runtime/install-claude-settings" \
+    "$SANDBOX_NAME":/tmp/install-claude-settings
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo chown -R agent:agent /home/agent/.claude
-python3 - <<PY
-import json
-from pathlib import Path
-path = Path("/home/agent/.claude/settings.local.json")
-if not path.is_file():
-    raise SystemExit(0)
-data = json.loads(path.read_text())
-sandbox = data.get("sandbox")
-if isinstance(sandbox, dict):
-    sandbox["enabled"] = False
-    sandbox.pop("failIfUnavailable", None)
-    data["sandbox"] = sandbox
-    path.write_text(json.dumps(data, indent=2) + "\n")
-PY
+bash /tmp/install-claude-settings \
+  /tmp/claude-settings.json \
+  /tmp/deny-protected-file-reads
+sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
+  /tmp/deny-protected-file-reads
 '
 }
 
@@ -167,6 +165,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   echo "Reconnecting..."
 
   allow_network
+  install_bash_sandbox_runtime
   configure_sandbox_env
   configure_claude_env
   install_or_update
@@ -181,6 +180,7 @@ else
 
   allow_network
   upgrade_system_packages
+  install_bash_sandbox_runtime
   install_node_lts
   configure_sandbox_env
   configure_claude_env

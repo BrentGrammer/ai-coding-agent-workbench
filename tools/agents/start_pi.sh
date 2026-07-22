@@ -19,6 +19,7 @@ openLocalWorkspace
 
 allow_pi_network() {
     allow_system_update_network
+    allow_vendor_docs_network
     allow_exa_mcp_network
     allow_serena_mcp_network
     sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443

@@ -46,6 +46,7 @@ bash "$START_DOCKER"
 allow_opencode_network() {
   allow_gemini_access
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
@@ -53,12 +54,14 @@ allow_opencode_network() {
   # exa searches
   sbx policy allow network --sandbox "$SANDBOX_NAME" cdn.jsdelivr.net:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" opencode.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" openrouter.ai:443
 
   # Required by `npx skills add mattpocock/skills`
   sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" add-skill.vercel.sh:443
 
 }
 
@@ -113,6 +116,17 @@ update_skills() {
   "
 }
 
+copy_config() {
+  local opencode_config="$SCRIPT_DIR/opencode.json"
+
+  if [ ! -f "$opencode_config" ]; then
+    echo "WARN: No workbench OpenCode config at $opencode_config" >&2
+    return
+  fi
+
+  install_file_into_sandbox "$opencode_config" /etc/opencode/opencode.json 644 755 root:root
+}
+
 install_codex_auth_plugin() {
   echo "Installing OpenAI Codex Auth plugin..."
 
@@ -130,6 +144,18 @@ usage_instructions() {
 cat <<MSG
 
 ------ Usage Instructions ------
+
+Start with OpenRouter (default - DeepSeek model):
+
+    opencode
+
+    # Then inside opencode:
+    # -> Run: /connect
+    # -> Select: OpenRouter
+    # -> Enter your OpenRouter API key (one time per sandbox)
+
+    # DeepSeek is the default model (openrouter/deepseek/deepseek-v4-pro).
+    # Switch models any time with /model.
 
 Start:
 
@@ -171,21 +197,24 @@ if sandboxExists "$SANDBOX_NAME"; then
   update_skills
 
   allow_codex_oauth_network
+  copy_config
   install_codex_auth_plugin
   usage_instructions
   sbx exec -it -w "$PROJECT_DIR" "$SANDBOX_NAME" bash
 else
   echo "🆕 Creating new sandbox: $SANDBOX_NAME"
 
-  sbx create opencode "$PROJECT_DIR" --name "$SANDBOX_NAME"
+  sbx create shell "$PROJECT_DIR" --name "$SANDBOX_NAME"
 
   allow_opencode_network
   upgrade_system_packages
   install_node_lts
   configure_sandbox_env
+  update_opencode
   install_skills
 
   allow_codex_oauth_network
+  copy_config
   install_codex_auth_plugin
   usage_instructions
   sbx exec -it -w "$PROJECT_DIR" "$SANDBOX_NAME" bash

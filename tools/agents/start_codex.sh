@@ -21,6 +21,7 @@ openLocalWorkspace
 
 allow_network() {
   allow_system_update_network
+  allow_vendor_docs_network
   allow_exa_mcp_network
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
@@ -31,6 +32,7 @@ allow_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" files.openai.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" developers.openai.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" chatgpt.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.openai.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" ab.chatgpt.com:443
@@ -59,24 +61,17 @@ codex update
 }
 
 copy_config() {
-  local codex_config="$WORKBENCH_ROOT/.codex/config.toml"
+  local codex_config="$SCRIPT_DIR/codex-config.toml"
 
   if [ -f "$codex_config" ]; then
     echo "Syncing workbench Codex config into sandbox..."
-    sbx exec "$SANDBOX_NAME" bash -lc "
-      set -euo pipefail
-      mkdir -p /home/agent/.codex
-      chmod 700 /home/agent/.codex
-    "
-    sbx cp "$codex_config" "$SANDBOX_NAME":/home/agent/.codex/config.toml
-    sbx exec "$SANDBOX_NAME" bash -lc "chmod 600 /home/agent/.codex/config.toml"
+    install_file_into_sandbox "$codex_config" /home/agent/.codex/config.toml
   else
     echo "WARN: No workbench Codex config at $codex_config" >&2
   fi
 
   if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
-    sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
-    sbx exec "$SANDBOX_NAME" bash -lc "chmod 600 /home/agent/.npmrc"
+    install_file_into_sandbox "$WORKBENCH_ROOT/.npmrc" /home/agent/.npmrc
   fi
 }
 

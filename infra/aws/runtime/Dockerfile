@@ -15,12 +15,13 @@ ENV DO_NOT_TRACK=1 \
     GEMINI_TELEMETRY_LOG_PROMPTS=false \
     OPENCODE_DISABLE_SHARE=1 \
     OPENCODE_AUTO_SHARE=false \
-    OPENCODE_CONFIG_CONTENT='{"share":"disabled"}' \
     TERM=xterm-256color
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       bash \
+      bubblewrap \
+      socat \
       ca-certificates \
       curl \
       git \
@@ -76,16 +77,26 @@ COPY infra/aws/runtime/bootstrap-repo.sh /usr/local/bin/bootstrap-repo
 COPY infra/aws/runtime/workbench-profile.sh /etc/profile.d/workbench.sh
 COPY runtime/start-herdr /usr/local/bin/start-herdr
 COPY runtime/workbench-pane-shell /usr/local/bin/workbench-pane-shell
+COPY runtime/deny-protected-file-reads /usr/local/bin/deny-protected-file-reads
 COPY runtime/herdr-config.toml /etc/agent-workbench/herdr-config.toml
+COPY tools/agents/claude-settings.json /etc/claude-code/managed-settings.json
+COPY tools/agents/codex-config.toml /etc/agent-workbench/codex-config.toml
+COPY tools/agents/opencode.json /etc/opencode/opencode.json
 
 RUN chmod 755 \
       /usr/local/bin/git-credential-github-app \
       /usr/local/bin/bootstrap-repo \
+      /usr/local/bin/deny-protected-file-reads \
       /usr/local/bin/start-herdr \
       /usr/local/bin/workbench-pane-shell \
+    && chown -R root:root /etc/claude-code /etc/opencode \
+    && chmod 755 /etc/claude-code /etc/opencode \
     && chmod 644 \
       /etc/profile.d/workbench.sh \
-      /etc/agent-workbench/herdr-config.toml
+      /etc/agent-workbench/herdr-config.toml \
+      /etc/claude-code/managed-settings.json \
+      /etc/agent-workbench/codex-config.toml \
+      /etc/opencode/opencode.json
 
 USER agent
 WORKDIR /home/agent

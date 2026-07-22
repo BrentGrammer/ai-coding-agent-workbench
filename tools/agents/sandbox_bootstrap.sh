@@ -1,5 +1,23 @@
 #!/bin/bash
 
+install_file_into_sandbox() {
+  local src="$1" dest="$2"
+  local file_mode="${3:-600}" dir_mode="${4:-700}" owner="${5:-agent:agent}"
+  local dest_dir user group staged
+  dest_dir="$(dirname "$dest")"
+  user="${owner%:*}"
+  group="${owner#*:}"
+  staged="/tmp/sbx-staged-$(basename "$dest")"
+
+  sbx cp "$src" "$SANDBOX_NAME":"$staged"
+  sbx exec "$SANDBOX_NAME" bash -c "
+set -euo pipefail
+[ -d '$dest_dir' ] || sudo install -d -m $dir_mode -o $user -g $group '$dest_dir'
+sudo install -m $file_mode -o $user -g $group '$staged' '$dest'
+sudo rm -f '$staged'
+"
+}
+
 allow_system_update_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" debian.org:443
 
@@ -23,6 +41,17 @@ allow_system_update_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" download.docker.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" files.pythonhosted.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" pypi.org:443
+}
+
+allow_vendor_docs_network() {
+  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.claude.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" code.claude.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.anthropic.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" developers.openai.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" opencode.ai:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.cline.bot:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" cursor.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" json.schemastore.org:443
 }
 
 allow_exa_mcp_network() {
@@ -60,7 +89,6 @@ export GEMINI_TELEMETRY_TRACES_ENABLED=false
 export GEMINI_TELEMETRY_LOG_PROMPTS=false
 export OPENCODE_DISABLE_SHARE=1
 export OPENCODE_AUTO_SHARE=false
-export OPENCODE_CONFIG_CONTENT='{"share":"disabled"}'
 export TERM=xterm-256color
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
@@ -87,6 +115,37 @@ for rcfile in "$HOME/.bashrc" "$HOME/.profile"; do
 done
 '
 
+}
+
+install_bash_sandbox_runtime() {
+  echo "Installing bubblewrap so the Claude Code Bash sandbox can start..."
+
+  sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+
+if ! command -v bwrap >/dev/null 2>&1 || ! command -v socat >/dev/null 2>&1; then
+  while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+    echo "Waiting for apt lock..."
+    sleep 2
+  done
+
+  sudo apt-get update
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    bubblewrap socat
+fi
+
+bwrap --version
+command -v socat
+
+if ! bwrap --ro-bind / / --dev /dev true 2>/dev/null; then
+  echo "ERROR: bubblewrap is installed but cannot create a sandbox here." >&2
+  echo "Unprivileged user namespaces are probably disabled on the host." >&2
+  echo "Claude Code will refuse to start until this is fixed." >&2
+  exit 1
+fi
+
+echo "Bubblewrap sandbox verified."
+'
 }
 
 install_node_lts() {

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openrouter/deepseek/deepseek-v4-pro",
+  "share": "disabled",
+  "mcp": {
+    "exa": {
+      "type": "remote",
+      "url": "https://mcp.exa.ai/mcp",
+      "enabled": true
+    }
+  },
+  "permission": {
+    "read": {
+      "*": "allow",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/.env.template": "allow",
+      "**/.env.example": "allow",
+      "**/.envrc": "deny",
+      "**/.netrc": "deny",
+      "**/.npmrc": "deny",
+      "**/.pgpass": "deny",
+      "**/.git-credentials": "deny",
+      "**/*.pem": "deny",
+      "**/*.key": "deny",
+      "**/*.p12": "deny",
+      "**/*.pfx": "deny",
+      "**/id_rsa": "deny",
+      "**/id_ed25519": "deny",
+      "**/.ssh/**": "deny",
+      "**/.aws/credentials": "deny",
+      "**/.aws/config": "deny",
+      "**/.kube/config": "deny",
+      "**/.docker/config.json": "deny"
+    },
+    "bash": {
+      "*": "allow",
+      "cat *.env*": "deny",
+      "cat .env*": "deny",
+      "head *.env*": "deny",
+      "tail *.env*": "deny",
+      "less *.env*": "deny",
+      "more *.env*": "deny",
+      "strings *.env*": "deny",
+      "* .env": "deny",
+      "* .env.*": "deny",
+      "* id_rsa*": "deny",
+      "* .git-credentials*": "deny",
+      "printenv*": "deny",
+      "env": "deny"
+    },
+    "external_directory": "ask"
+  },
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".next/**",
+      "coverage/**",
+      ".env",
+      ".env.*"
+    ]
+  }
+}

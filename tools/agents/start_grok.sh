@@ -20,10 +20,12 @@ openLocalWorkspace
 
 allow_grok_network() {
 	allow_system_update_network
+	allow_vendor_docs_network
 	allow_exa_mcp_network
 
 	# Grok Build installer / updates
 	sbx policy allow network --sandbox "$SANDBOX_NAME" x.ai:443
+	sbx policy allow network --sandbox "$SANDBOX_NAME" docs.x.ai:443
 	sbx policy allow network --sandbox "$SANDBOX_NAME" storage.googleapis.com:443
 
 	# Grok API
@@ -67,7 +69,7 @@ sync_files_to_sandbox() {
 	echo "Syncing host-managed files into sandbox..."
 
 	if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
-		sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
+		install_file_into_sandbox "$WORKBENCH_ROOT/.npmrc" /home/agent/.npmrc
 	fi
 
 	echo "SUCCESS: Synced host-managed files into sandbox."

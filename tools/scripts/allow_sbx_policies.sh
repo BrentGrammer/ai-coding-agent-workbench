@@ -62,7 +62,7 @@ sbx policy allow network -g api.github.com:443
 # sbx policy allow network -g chatgpt.com:443
 # sbx policy allow network -g api.openai.com:443
 
-# # For Exa mcp
+# # For Exa mcp (per-agent instead: allow_exa_mcp_network in sandbox_bootstrap.sh)
 # sbx policy allow network -g mcp.exa.ai:443
 
 # # Needed for Serena mcp

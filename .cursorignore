@@ -6,11 +6,9 @@ coverage/
 *.log
 *.map
 
-# Secrets and credentials. Used by both Gemini CLI and Antigravity. It blocks
-# the native file reader (with Agent Gitignore Access off) but NOT terminal
-# reads like `cat .env` — the agent's shell tool bypasses it, which Google has
-# called intended behavior. Defense-in-depth only. The reliable control is not
-# mounting the secret.
+# Secrets and credentials. Cursor treats .cursorignore as best-effort, not a
+# security boundary. Documented bypasses exist (Grep tool, git show on tracked
+# files, terminal shell-outs). The reliable control is not mounting the secret.
 .env*
 !.env.template
 !.env.example
@@ -45,7 +43,7 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Virtualenv: do not include installed packages in Gemini context/tools
+# Virtualenv: do not include installed packages in Cursor context/tools
 .venv/
 
 # Local AI/tool state
@@ -53,6 +51,7 @@ htmlcov/
 .codex/
 opencode.json
 .clineignore
+.geminiignore
 
 # Serena MCP
 # Keep .serena/project*.yml and .serena/memories/ visible.
