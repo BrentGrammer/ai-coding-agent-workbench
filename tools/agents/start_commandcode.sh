@@ -60,9 +60,13 @@ copy_config() {
 
   if [ -f "$commandcode_settings" ]; then
     echo "Copying workbench Command Code config into sandbox home..."
-    sbx exec "$SANDBOX_NAME" bash -c "mkdir -p /home/agent/.commandcode"
-    sbx cp "$commandcode_settings" \
-      "$SANDBOX_NAME":/home/agent/.commandcode/settings.json
+    sbx cp "$commandcode_settings" "$SANDBOX_NAME":/tmp/commandcode-settings.json
+    sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -d -m 700 -o agent -g agent /home/agent/.commandcode
+sudo install -m 600 -o agent -g agent /tmp/commandcode-settings.json /home/agent/.commandcode/settings.json
+sudo rm -f /tmp/commandcode-settings.json
+'
   fi
 }
 

@@ -165,14 +165,14 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
     echo "WARN: No bundled Claude settings at $claude_settings_file" >&2
   fi
 
-  sbx exec "$SANDBOX_NAME" bash -c '
-mkdir -p "$HOME/.codex"
-chmod 700 "$HOME/.codex"
-'
-
   if [ -f "$codex_config_file" ]; then
-    sbx cp "$codex_config_file" "$SANDBOX_NAME":/home/agent/.codex/config.toml
-    sbx exec "$SANDBOX_NAME" bash -c 'chmod 600 "$HOME/.codex/config.toml"'
+    sbx cp "$codex_config_file" "$SANDBOX_NAME":/tmp/codex-config.toml
+    sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -d -m 700 -o agent -g agent /home/agent/.codex
+sudo install -m 600 -o agent -g agent /tmp/codex-config.toml /home/agent/.codex/config.toml
+sudo rm -f /tmp/codex-config.toml
+'
   else
     echo "WARN: No workbench Codex config at $codex_config_file" >&2
   fi

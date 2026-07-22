@@ -65,20 +65,24 @@ copy_config() {
 
   if [ -f "$codex_config" ]; then
     echo "Syncing workbench Codex config into sandbox..."
-    sbx exec "$SANDBOX_NAME" bash -lc "
-      set -euo pipefail
-      mkdir -p /home/agent/.codex
-      chmod 700 /home/agent/.codex
-    "
-    sbx cp "$codex_config" "$SANDBOX_NAME":/home/agent/.codex/config.toml
-    sbx exec "$SANDBOX_NAME" bash -lc "chmod 600 /home/agent/.codex/config.toml"
+    sbx cp "$codex_config" "$SANDBOX_NAME":/tmp/codex-config.toml
+    sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -d -m 700 -o agent -g agent /home/agent/.codex
+sudo install -m 600 -o agent -g agent /tmp/codex-config.toml /home/agent/.codex/config.toml
+sudo rm -f /tmp/codex-config.toml
+'
   else
     echo "WARN: No workbench Codex config at $codex_config" >&2
   fi
 
   if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
-    sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/home/agent/.npmrc
-    sbx exec "$SANDBOX_NAME" bash -lc "chmod 600 /home/agent/.npmrc"
+    sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/tmp/.npmrc
+    sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+sudo install -m 600 -o agent -g agent /tmp/.npmrc /home/agent/.npmrc
+sudo rm -f /tmp/.npmrc
+'
   fi
 }
 
