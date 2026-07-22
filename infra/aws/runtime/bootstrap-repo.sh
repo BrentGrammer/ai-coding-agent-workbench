@@ -128,7 +128,6 @@ write_shell_value() {
   printf 'export GEMINI_TELEMETRY_LOG_PROMPTS=false\n'
   printf 'export OPENCODE_DISABLE_SHARE=1\n'
   printf 'export OPENCODE_AUTO_SHARE=false\n'
-  printf 'export OPENCODE_CONFIG_CONTENT=%s\n' "$(write_shell_value '{"share":"disabled"}')"
 } > "$SESSION_CONFIG_FILE"
 
 cat >> "$SESSION_CONFIG_FILE" <<'EOF'

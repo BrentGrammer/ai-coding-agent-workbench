@@ -15,7 +15,6 @@ ENV DO_NOT_TRACK=1 \
     GEMINI_TELEMETRY_LOG_PROMPTS=false \
     OPENCODE_DISABLE_SHARE=1 \
     OPENCODE_AUTO_SHARE=false \
-    OPENCODE_CONFIG_CONTENT='{"share":"disabled"}' \
     TERM=xterm-256color
 
 RUN apt-get update \

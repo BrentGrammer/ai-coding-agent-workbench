@@ -71,7 +71,6 @@ export GEMINI_TELEMETRY_TRACES_ENABLED=false
 export GEMINI_TELEMETRY_LOG_PROMPTS=false
 export OPENCODE_DISABLE_SHARE=1
 export OPENCODE_AUTO_SHARE=false
-export OPENCODE_CONFIG_CONTENT='{"share":"disabled"}'
 export TERM=xterm-256color
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
