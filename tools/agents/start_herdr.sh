@@ -63,22 +63,9 @@ allow_network() {
 }
 
 install_runtime_files() {
-  sbx exec "$SANDBOX_NAME" bash -c 'mkdir -p /tmp/agent-workbench-runtime'
-  sbx cp "$WORKBENCH_ROOT/runtime/start-herdr" \
-    "$SANDBOX_NAME":/tmp/agent-workbench-runtime/start-herdr
-  sbx cp "$WORKBENCH_ROOT/runtime/workbench-pane-shell" \
-    "$SANDBOX_NAME":/tmp/agent-workbench-runtime/workbench-pane-shell
-  sbx cp "$WORKBENCH_ROOT/runtime/herdr-config.toml" \
-    "$SANDBOX_NAME":/tmp/agent-workbench-runtime/herdr-config.toml
-
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-sudo mkdir -p /etc/agent-workbench
-sudo install -m 755 /tmp/agent-workbench-runtime/start-herdr /usr/local/bin/start-herdr
-sudo install -m 755 /tmp/agent-workbench-runtime/workbench-pane-shell /usr/local/bin/workbench-pane-shell
-sudo install -m 644 /tmp/agent-workbench-runtime/herdr-config.toml /etc/agent-workbench/herdr-config.toml
-'
+  install_file_into_sandbox "$WORKBENCH_ROOT/runtime/start-herdr" /usr/local/bin/start-herdr 755 755 root:root
+  install_file_into_sandbox "$WORKBENCH_ROOT/runtime/workbench-pane-shell" /usr/local/bin/workbench-pane-shell 755 755 root:root
+  install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-config.toml" /etc/agent-workbench/herdr-config.toml 644 755 root:root
 }
 
 install_system_packages() {
@@ -166,25 +153,13 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
   fi
 
   if [ -f "$codex_config_file" ]; then
-    sbx cp "$codex_config_file" "$SANDBOX_NAME":/tmp/codex-config.toml
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 700 -o agent -g agent /home/agent/.codex
-sudo install -m 600 -o agent -g agent /tmp/codex-config.toml /home/agent/.codex/config.toml
-sudo rm -f /tmp/codex-config.toml
-'
+    install_file_into_sandbox "$codex_config_file" /home/agent/.codex/config.toml
   else
     echo "WARN: No workbench Codex config at $codex_config_file" >&2
   fi
 
   if [ -f "$opencode_config_file" ]; then
-    sbx cp "$opencode_config_file" "$SANDBOX_NAME":/tmp/opencode.json
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 755 -o root -g root /etc/opencode
-sudo install -m 644 -o root -g root /tmp/opencode.json /etc/opencode/opencode.json
-sudo rm -f /tmp/opencode.json
-'
+    install_file_into_sandbox "$opencode_config_file" /etc/opencode/opencode.json 644 755 root:root
   else
     echo "WARN: No workbench OpenCode config at $opencode_config_file" >&2
   fi

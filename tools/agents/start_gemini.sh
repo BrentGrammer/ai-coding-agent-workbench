@@ -93,14 +93,7 @@ copy_gemini_settings() {
     return
   fi
 
-  sbx cp "$gemini_settings" "$SANDBOX_NAME":/tmp/gemini-settings.json
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 755 -o root -g root /etc/gemini-cli
-sudo install -m 644 -o root -g root /tmp/gemini-settings.json \
-  /etc/gemini-cli/settings.json
-sudo rm -f /tmp/gemini-settings.json
-'
+  install_file_into_sandbox "$gemini_settings" /etc/gemini-cli/settings.json 644 755 root:root
 }
 
 # Reuse existing sandbox if it already exists

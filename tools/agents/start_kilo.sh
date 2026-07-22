@@ -80,13 +80,7 @@ copy_config() {
 
   if [ -f "$kilo_config_file" ]; then
     echo "Copying bundled Kilo config into sandbox home..."
-    sbx cp "$kilo_config_file" "$SANDBOX_NAME":/tmp/kilo.jsonc
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 700 -o agent -g agent /home/agent/.config/kilo
-sudo install -m 600 -o agent -g agent /tmp/kilo.jsonc /home/agent/.config/kilo/kilo.jsonc
-sudo rm -f /tmp/kilo.jsonc
-'
+    install_file_into_sandbox "$kilo_config_file" /home/agent/.config/kilo/kilo.jsonc
   fi
 }
 

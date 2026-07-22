@@ -123,13 +123,7 @@ copy_config() {
     return
   fi
 
-  sbx cp "$opencode_config" "$SANDBOX_NAME":/tmp/opencode.json
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 755 -o root -g root /etc/opencode
-sudo install -m 644 -o root -g root /tmp/opencode.json /etc/opencode/opencode.json
-sudo rm -f /tmp/opencode.json
-'
+  install_file_into_sandbox "$opencode_config" /etc/opencode/opencode.json 644 755 root:root
 }
 
 install_codex_auth_plugin() {

@@ -76,13 +76,7 @@ copy_cursor_mcp_config() {
   local cursor_mcp_config="$SCRIPT_DIR/cursor-mcp.json"
 
   if [ -f "$cursor_mcp_config" ]; then
-    sbx cp "$cursor_mcp_config" "$SANDBOX_NAME":/tmp/cursor-mcp.json
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 700 -o agent -g agent /home/agent/.cursor
-sudo install -m 600 -o agent -g agent /tmp/cursor-mcp.json /home/agent/.cursor/mcp.json
-sudo rm -f /tmp/cursor-mcp.json
-'
+    install_file_into_sandbox "$cursor_mcp_config" /home/agent/.cursor/mcp.json
   fi
 }
 

@@ -65,24 +65,13 @@ copy_config() {
 
   if [ -f "$codex_config" ]; then
     echo "Syncing workbench Codex config into sandbox..."
-    sbx cp "$codex_config" "$SANDBOX_NAME":/tmp/codex-config.toml
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 700 -o agent -g agent /home/agent/.codex
-sudo install -m 600 -o agent -g agent /tmp/codex-config.toml /home/agent/.codex/config.toml
-sudo rm -f /tmp/codex-config.toml
-'
+    install_file_into_sandbox "$codex_config" /home/agent/.codex/config.toml
   else
     echo "WARN: No workbench Codex config at $codex_config" >&2
   fi
 
   if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
-    sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/tmp/.npmrc
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -m 600 -o agent -g agent /tmp/.npmrc /home/agent/.npmrc
-sudo rm -f /tmp/.npmrc
-'
+    install_file_into_sandbox "$WORKBENCH_ROOT/.npmrc" /home/agent/.npmrc
   fi
 }
 

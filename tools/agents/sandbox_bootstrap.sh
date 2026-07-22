@@ -1,5 +1,23 @@
 #!/bin/bash
 
+install_file_into_sandbox() {
+  local src="$1" dest="$2"
+  local file_mode="${3:-600}" dir_mode="${4:-700}" owner="${5:-agent:agent}"
+  local dest_dir user group staged
+  dest_dir="$(dirname "$dest")"
+  user="${owner%:*}"
+  group="${owner#*:}"
+  staged="/tmp/sbx-staged-$(basename "$dest")"
+
+  sbx cp "$src" "$SANDBOX_NAME":"$staged"
+  sbx exec "$SANDBOX_NAME" bash -c "
+set -euo pipefail
+[ -d '$dest_dir' ] || sudo install -d -m $dir_mode -o $user -g $group '$dest_dir'
+sudo install -m $file_mode -o $user -g $group '$staged' '$dest'
+sudo rm -f '$staged'
+"
+}
+
 allow_system_update_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" debian.org:443
 

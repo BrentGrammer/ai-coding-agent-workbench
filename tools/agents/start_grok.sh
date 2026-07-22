@@ -69,12 +69,7 @@ sync_files_to_sandbox() {
 	echo "Syncing host-managed files into sandbox..."
 
 	if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
-		sbx cp "$WORKBENCH_ROOT/.npmrc" "$SANDBOX_NAME":/tmp/.npmrc
-		sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -m 600 -o agent -g agent /tmp/.npmrc /home/agent/.npmrc
-sudo rm -f /tmp/.npmrc
-'
+		install_file_into_sandbox "$WORKBENCH_ROOT/.npmrc" /home/agent/.npmrc
 	fi
 
 	echo "SUCCESS: Synced host-managed files into sandbox."

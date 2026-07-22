@@ -47,27 +47,12 @@ sync_cline_settings() {
   local global_settings="$SCRIPT_DIR/cline-global-settings.json"
   local mcp_settings="$SCRIPT_DIR/cline-mcp-settings.json"
 
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -d -m 700 -o agent -g agent /home/agent/.cline/data/settings
-'
-
   if [ -f "$global_settings" ]; then
-    sbx cp "$global_settings" "$SANDBOX_NAME":/tmp/cline-global-settings.json
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -m 600 -o agent -g agent /tmp/cline-global-settings.json /home/agent/.cline/data/settings/global-settings.json
-sudo rm -f /tmp/cline-global-settings.json
-'
+    install_file_into_sandbox "$global_settings" /home/agent/.cline/data/settings/global-settings.json
   fi
 
   if [ -f "$mcp_settings" ]; then
-    sbx cp "$mcp_settings" "$SANDBOX_NAME":/tmp/cline_mcp_settings.json
-    sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-sudo install -m 600 -o agent -g agent /tmp/cline_mcp_settings.json /home/agent/.cline/data/settings/cline_mcp_settings.json
-sudo rm -f /tmp/cline_mcp_settings.json
-'
+    install_file_into_sandbox "$mcp_settings" /home/agent/.cline/data/settings/cline_mcp_settings.json
   fi
 }
 
