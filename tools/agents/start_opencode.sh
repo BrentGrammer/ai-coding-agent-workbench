@@ -150,6 +150,18 @@ cat <<MSG
 
 ------ Usage Instructions ------
 
+Start with OpenRouter (default - DeepSeek model):
+
+    opencode auth login
+
+    # -> Select: OpenRouter
+    # -> Paste your OpenRouter API key (one time per sandbox)
+
+    opencode
+
+    # DeepSeek is the default model (openrouter/deepseek/deepseek-v4-pro).
+    # Switch models any time with /model.
+
 Start:
 
     opencode
