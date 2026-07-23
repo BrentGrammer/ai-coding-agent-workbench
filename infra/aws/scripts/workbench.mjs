@@ -45,6 +45,7 @@ const INPUT_DISCARD_QUIET_MS = 120;
 const INPUT_DISCARD_TIMEOUT_MS = 500;
 
 const RECONNECT_DELAY_MS = 2000;
+const RECONNECT_ATTEMPT_LIMIT = 5;
 
 const showUsage = () => {
   console.error(
@@ -292,15 +293,7 @@ const discardPendingTerminalInput = () => {
   }
 };
 
-let localTerminalRestored = false;
-
 const restoreLocalTerminal = (savedTerminalModes) => {
-  if (localTerminalRestored) {
-    return;
-  }
-
-  localTerminalRestored = true;
-
   if (process.stdin.isTTY) {
     discardPendingTerminalInput();
     setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
@@ -430,6 +423,7 @@ const attachSession = (session) => {
       buildShellId(session),
     ]);
   } finally {
+    process.removeListener("exit", restore);
     restore();
   }
 
@@ -440,14 +434,7 @@ const attachSession = (session) => {
   return result.status ?? 1;
 };
 
-const persistSessionRecord = (session) => {
-  const sessions = readSessions();
-  sessions[session.name] = session;
-  writeSessions(sessions);
-};
-
 const connectSession = (session, keepSession) => {
-  let leaveRequested = false;
   let cleanupStarted = false;
 
   const cleanup = () => {
@@ -460,7 +447,6 @@ const connectSession = (session, keepSession) => {
   };
 
   const exitForSignal = (exitCode) => {
-    leaveRequested = true;
     cleanup();
     process.exit(exitCode);
   };
@@ -472,25 +458,20 @@ const connectSession = (session, keepSession) => {
 
   bootstrapSession(session);
 
-  let exitCode = 0;
-  let isFirstShell = true;
+  let exitCode = attachSession(session);
+  let reconnectAttempt = 0;
 
-  while (!leaveRequested) {
-    if (!isFirstShell) {
-      session.shellGeneration = (session.shellGeneration ?? 0) + 1;
-      if (keepSession && session.name) {
-        persistSessionRecord(session);
-      }
-      console.error("\nShell disconnected. Reconnecting...");
-      sleepSync(RECONNECT_DELAY_MS);
-      if (leaveRequested) {
-        break;
-      }
-      bootstrapSession(session);
-    }
-
+  while (exitCode !== 0 && reconnectAttempt < RECONNECT_ATTEMPT_LIMIT) {
+    reconnectAttempt += 1;
+    console.error(
+      `\nShell disconnected. Reconnecting (${reconnectAttempt}/${RECONNECT_ATTEMPT_LIMIT})...`,
+    );
+    sleepSync(RECONNECT_DELAY_MS);
     exitCode = attachSession(session);
-    isFirstShell = false;
+  }
+
+  if (exitCode !== 0) {
+    console.error("\nCould not reconnect to the AgentCore shell.");
   }
 
   cleanup();
