@@ -97,7 +97,7 @@ workbench aws status
 
 Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session.
 
-The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. AgentCore shuts down idle compute after 15 minutes and caps each compute lifetime at eight hours. Persistent files remain available to the same named session.
+The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap interactive shells after the default 15-minute idle timeout. Compute still stops on explicit `workbench aws stop`, when a temporary session's shell exits, or at the eight-hour max lifetime. Persistent files remain available to the same named session.
 
 ## Cost controls
 
