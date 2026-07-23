@@ -464,9 +464,15 @@ const connectSession = (session, keepSession) => {
   const exitCode = attachSession(session);
   cleanup();
   applyLogRetention(session.region);
-  console.error(
-    "\nAgentCore shell disconnected. You are back in your local terminal.",
-  );
+  if (exitCode === 0) {
+    console.error(
+      "\nAgentCore shell disconnected. You are back in your local terminal.",
+    );
+  } else {
+    console.error(
+      `\nAgentCore shell exited unexpectedly (status ${exitCode}). You are back in your local terminal.`,
+    );
+  }
   return exitCode;
 };
 
