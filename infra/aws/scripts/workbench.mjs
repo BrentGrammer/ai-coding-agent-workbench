@@ -44,6 +44,8 @@ const INPUT_DISCARD_POLL_MS = 10;
 const INPUT_DISCARD_QUIET_MS = 120;
 const INPUT_DISCARD_TIMEOUT_MS = 500;
 
+const RECONNECT_DELAY_MS = 2000;
+
 const showUsage = () => {
   console.error(
     [
@@ -438,7 +440,14 @@ const attachSession = (session) => {
   return result.status ?? 1;
 };
 
+const persistSessionRecord = (session) => {
+  const sessions = readSessions();
+  sessions[session.name] = session;
+  writeSessions(sessions);
+};
+
 const connectSession = (session, keepSession) => {
+  let leaveRequested = false;
   let cleanupStarted = false;
 
   const cleanup = () => {
@@ -451,6 +460,7 @@ const connectSession = (session, keepSession) => {
   };
 
   const exitForSignal = (exitCode) => {
+    leaveRequested = true;
     cleanup();
     process.exit(exitCode);
   };
@@ -461,18 +471,30 @@ const connectSession = (session, keepSession) => {
   process.once("exit", cleanup);
 
   bootstrapSession(session);
-  const exitCode = attachSession(session);
+
+  let exitCode = 0;
+  let isFirstShell = true;
+
+  while (!leaveRequested) {
+    if (!isFirstShell) {
+      session.shellGeneration = (session.shellGeneration ?? 0) + 1;
+      if (keepSession && session.name) {
+        persistSessionRecord(session);
+      }
+      console.error("\nShell disconnected. Reconnecting...");
+      sleepSync(RECONNECT_DELAY_MS);
+      if (leaveRequested) {
+        break;
+      }
+      bootstrapSession(session);
+    }
+
+    exitCode = attachSession(session);
+    isFirstShell = false;
+  }
+
   cleanup();
   applyLogRetention(session.region);
-  if (exitCode === 0) {
-    console.error(
-      "\nAgentCore shell disconnected. You are back in your local terminal.",
-    );
-  } else {
-    console.error(
-      `\nAgentCore shell exited unexpectedly (status ${exitCode}). You are back in your local terminal.`,
-    );
-  }
   return exitCode;
 };
 

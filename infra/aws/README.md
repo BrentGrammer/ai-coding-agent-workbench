@@ -78,7 +78,9 @@ Use the lower-level command to select a repository, branch, or persistent sessio
 workbench aws https://github.com/owner/repo.git --agent codex
 ```
 
-`--keep NAME` preserves the checkout and agent home for later use:
+If the shell drops while workbench is still running, it reconnects automatically. When you leave (Ctrl+C), a normal session is stopped so billing ends.
+
+`--keep NAME` preserves the checkout and agent home so you can come back later:
 
 ```shell
 workbench aws https://github.com/owner/repo.git \
@@ -95,9 +97,9 @@ workbench aws stop repo-claude
 workbench aws status
 ```
 
-Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session.
+Named sessions preserve the checkout and agent home in AgentCore managed session storage. Complete each agent's normal login the first time it runs in a named session. Package caches go to local `/tmp`, and `node_modules` / Python venvs under the checkout are removed on shell start so the small persistent volume does not fill up (reinstall them in the session when needed).
 
-The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap interactive shells after the default 15-minute idle timeout. Compute still stops on explicit `workbench aws stop`, when a temporary session's shell exits, or at the eight-hour max lifetime. Persistent files remain available to the same named session.
+The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap interactive shells after the default 15-minute idle timeout. Compute still stops on explicit `workbench aws stop`, when you leave a temporary session, or at the eight-hour max lifetime. Persistent files remain available to the same named session.
 
 ## Cost controls
 

@@ -1,19 +1,43 @@
 #!/bin/bash
 
+find_user_owned_home_dir() {
+  local dest_dir="$1" user="$2"
+  local user_home home_relative_dir
+  user_home="/home/$user"
+
+  case "$dest_dir" in
+    "$user_home"/*)
+      home_relative_dir="${dest_dir#"$user_home"/}"
+      echo "$user_home/${home_relative_dir%%/*}"
+      ;;
+  esac
+}
+
 install_file_into_sandbox() {
   local src="$1" dest="$2"
   local file_mode="${3:-600}" dir_mode="${4:-700}" owner="${5:-agent:agent}"
-  local dest_dir user group staged
+  local dest_dir user group staged user_owned_home_dir
   dest_dir="$(dirname "$dest")"
   user="${owner%:*}"
   group="${owner#*:}"
   staged="/tmp/sbx-staged-$(basename "$dest")"
 
+  # Agent/harness tools create runtime files here (i.e. settings config such as mcp_config.json etc.), 
+  # so the sandbox user must be able to write to it.
+  user_owned_home_dir="$(find_user_owned_home_dir "$dest_dir" "$user")"
+
   sbx cp "$src" "$SANDBOX_NAME":"$staged"
   sbx exec "$SANDBOX_NAME" bash -c "
 set -euo pipefail
-[ -d '$dest_dir' ] || sudo install -d -m $dir_mode -o $user -g $group '$dest_dir'
+# Keep the tool's runtime directory writable by the sandbox user.
+if [ -n '$user_owned_home_dir' ]; then
+  sudo install -d -m $dir_mode -o $user -g $group '$user_owned_home_dir'
+fi
+# Create the copied file's parent directory with private, user-owned permissions.
+sudo install -d -m $dir_mode -o $user -g $group '$dest_dir'
+# Copy the staged file with its required permissions and ownership.
 sudo install -m $file_mode -o $user -g $group '$staged' '$dest'
+# Remove the temporary file from the sandbox.
 sudo rm -f '$staged'
 "
 }
