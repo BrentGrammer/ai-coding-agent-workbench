@@ -122,6 +122,8 @@ write_shell_value() {
   printf 'export DISABLE_TELEMETRY=1\n'
   printf 'export DISABLE_ERROR_REPORTING=1\n'
   printf 'export DISABLE_FEEDBACK_COMMAND=1\n'
+  printf 'export DISABLE_AUTOUPDATER=1\n'
+  printf 'export DISABLE_UPDATES=1\n'
   printf 'export CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1\n'
   printf 'export GEMINI_TELEMETRY_ENABLED=false\n'
   printf 'export GEMINI_TELEMETRY_TRACES_ENABLED=false\n'
