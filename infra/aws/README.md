@@ -101,6 +101,23 @@ workbench aws status
 
 The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap interactive shells after the default 15-minute idle timeout. Compute still stops on explicit `workbench aws stop`, when you leave a temporary session, or at the eight-hour max lifetime. Persistent files remain available to the same named session.
 
+## Debug AgentCore runtime logs
+
+In the AWS console: CloudWatch → Log groups → open a group matching `/aws/bedrock-agentcore/runtimes/agent_workbench-*`.
+
+With the AWS CLI:
+
+```shell
+aws logs describe-log-groups \
+  --log-group-name-prefix "/aws/bedrock-agentcore/runtimes/agent_workbench" \
+  --query 'logGroups[*].logGroupName' \
+  --output text
+
+aws logs tail "LOG_GROUP_NAME" --since 2h --follow
+```
+
+Replace `LOG_GROUP_NAME` with a name from `describe-log-groups` (for example `/aws/bedrock-agentcore/runtimes/agent_workbench-<id>-DEFAULT`).
+
 ## Cost controls
 
 This section is a convenience checklist, not authoritative billing guidance and could contain incorrect information. Verify current pricing, limits, and billable resources in the official AWS documentation and the AWS billing console before relying on it. 
