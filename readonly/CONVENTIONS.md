@@ -2,7 +2,7 @@
 
 - Do not be verbose. Communicate the most important information in as concise a manner as possible.
 
-When making changes to this codebase, please adhere to the following rules and conventions:
+When making changes to this codebase, adhere to the following rules and conventions:
 
 ## 1. Testing Requirement
 
@@ -15,17 +15,12 @@ When making changes to this codebase, please adhere to the following rules and c
 - Prefer testing observable behavior over implementation details.
 - Name tests as user-visible scenarios or business outcomes. Stakeholders or business domain experts should be able to understand the test descriptions and they shouldn't contain internal implementation terms or details. Avoid React or implementation terms in test names when a plain app behavior is clearer.
 - For error handling and similar branches, prefer asserting the category of outcome, the returned value source, or the selected code path rather than freezing production wording in the test. Don't test for hard coded strings in error messages - that is brittle if the wording changes.
-- For error handling and failure-path tests, prefer assertions like "throws", "rejects", or "returns an error of the expected type" over hard-coded fallback error-message strings.
-- Only assert exact error text when that text is part of the user-facing contract or comes from a shared application constant that the test is intentionally pinning.
 - **Handling User-Facing Strings (The Balanced Approach)**:
   - **Use Raw Hardcoded Strings** in UI tests for static labels, headers, and simple button names (e.g. `expect(screen.getByText("Voice Inspector")).toBeInTheDocument()`). This enforces the _user-facing perspective_, ensuring that if the visible text changes accidentally, the test catches the regression.
   - **Use File-Scoped Test Constants** when a specific string needs to be queried, changed, and asserted across multiple tests within the same test file to avoid typos and keep the code DRY while maintaining isolation.
   - **Use Imported Global Constants** only when asserting arguments passed to mocked utility hooks or verifying long, multi-line paragraphs/modal messages that are already managed centrally in the code.
-- If a string or number is repeated in a test fixture or assertion, extract it to a descriptively named local variable instead of inlining it multiple times.
 - If a repeated test value carries important meaning in the assertion, extract it to a descriptive local variable even if it only appears a small number of times. Do this for values like names, ids, titles, or other domain data that the test is intentionally proving gets preserved, selected, or applied.
 - For test data and fixture values, use normal descriptive local variable names when they are local to the file or test. They do not need to be all-caps constants unless they are truly shared constants.
-- Keep test fixtures expressive. Reuse shared fixtures/helpers when the same setup appears in multiple tests, but do not build a large abstract test framework prematurely.
-- Prefer focused assertions that verify one contract at a time over large fully inlined expected objects, unless the exact full serialized shape is the contract under test.
 - When testing invalid actions or defensive paths, assert that state remains unchanged rather than relying on internal implementation details.
 
 Example of brittle error assertion to avoid:
@@ -62,8 +57,7 @@ it("preserves the current saved composition name when the imported name is blank
 
 ## 2. Iterative Development
 
-- Make small, incremental changes as outlined in the `PROJECT_GOAL.md`.
-- Ensure the pipeline architecture is respected (stateless transformations, separated I/O).
+- Small steps are preferred over large, longer running tasks so that they can be reviewed and managed.
 
 ## 3. Comments
 
@@ -150,11 +144,6 @@ const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
 ```
 - Fundamental Rule: CODE YOU WRITE SHOULD BE EASY TO READ AND EASY TO UNDERSTAND.
 
-## 6b. Logging vs. Print
-
-- Prefer using the standard Python `logging` module for all terminal output (INFO for success messages, WARNING/ERROR for issues).
-- Avoid using `print()` for non-CLI usage/help text. This ensures the application remains modular and can be integrated into other systems or GUIs in the future without hijacking standard output.
-
 #### 6a. Functions
 
 - Functions should not have more than 4 parameters. A long list of parameters is a code smell and indicates the function is trying to do too much.
@@ -211,11 +200,7 @@ def _phrase(name: str, *tones: Tone) -> Phrase:
 - Avoid manual type casting if possible. This indicates a possible code smell. If you need to type cast, then write a comment explaining why.
 - Also avoid `as unknown as` which is a smell. It indicates something deeper is wrong with the design or typing and we should not have to do this except in extreme cases.
 
-## 10. Refactors and Migrations
-
-- For large and complex refactors and migrations, do not worry about putting in place temporary patches to prevent breakage. There are no users for this application and backwards compatibility is not a concern. If making a clean break makes the migration simpler and faster, then breaking changes temporarily are fine.
-
-## 11. Frontend Development
+## 10. Frontend Development
 
 ### HTML Authoring
 

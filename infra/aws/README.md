@@ -36,9 +36,7 @@ Create these parameters in AWS Systems Manager Parameter Store in the same regio
 | `/coding-agent-workbench/github/app-id`      | `String`       | GitHub App ID            |
 | `/coding-agent-workbench/github/private-key` | `SecureString` | Complete PEM private key |
 
-The AWS console is the simplest way to store the multiline private key. Do not commit it, put it in an environment file, or paste it into logs.
-
-These parameters are required before the first repository launch, but not before stack deployment.
+Do not commit the PEM key, put it in an environment file, or paste it into logs.
 
 ### Install or update the AgentCore CLI before opening a session:
 
