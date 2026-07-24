@@ -76,9 +76,9 @@ Use the lower-level command to select a repository, branch, or persistent sessio
 workbench aws https://github.com/owner/repo.git --agent codex
 ```
 
-If the shell drops while workbench is still running, it reconnects automatically to the same live shell. This works for temporary and named sessions. When you leave a temporary session (Ctrl+C), AgentCore stops it so billing ends.
+Every launch is recorded locally under a name, so you can always get back to it. Without `--keep NAME` the name is generated from the repository, the agent, and a short session id, and it is printed whenever the shell closes.
 
-`--keep NAME` creates a named session that remains available after you leave so you can reconnect later:
+`--keep NAME` picks the name yourself:
 
 ```shell
 workbench aws https://github.com/owner/repo.git \
@@ -87,7 +87,7 @@ workbench aws https://github.com/owner/repo.git \
   --keep repo-claude
 ```
 
-Reconnect, stop, or check active AgentCore runtime sessions:
+Reconnect, stop, or list sessions:
 
 ```shell
 workbench aws reconnect repo-claude
@@ -95,9 +95,32 @@ workbench aws stop repo-claude
 workbench aws status
 ```
 
-**!IMPORTANT:** An unused named session when running with `--keep` can continue running and incurring charges until you run `workbench aws stop NAME` or it reaches AgentCore's eight-hour maximum lifetime.
+### Dropped connections and finishing a session
 
-The AgentCore CLI reconnects the same shell automatically across the one-hour WebSocket cutoff and transient network interruptions. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap interactive shells after the default 15-minute idle timeout. Compute still stops on explicit `workbench aws stop`, when you leave a temporary session, or at the eight-hour max lifetime. Persistent files remain available to the same named session.
+AgentCore drops the shell WebSocket on its own — at the one-hour connection cutoff, on a transient network fault, and when the client cannot read output frames fast enough. The shell closing therefore means one of two things, and **AgentCore reports the same successful exit status for both**, so the launcher cannot tell them apart on its own. It asks you instead.
+
+When the shell closes, workbench counts down for three seconds and then reattaches to the same session and shell id. Do nothing and a dropped connection repairs itself — AgentCore replays up to 256 KB of recent output, so you land back where you were.
+
+Press any key during the countdown to choose instead:
+
+```
+The AgentCore session repo-claude-79967b5d is still running.
+
+  [s] stop it now and end its billing (default)
+  [r] reconnect to it
+  [l] leave it running so you can reconnect later
+
+>
+```
+
+So finishing a session is: `exit` the shell, press any key, press Enter. The session is stopped and its record removed. Nothing to remember later.
+
+Two more layers keep a drop from costing you work:
+
+- **Herdr keeps your panes.** `start-herdr` runs Herdr's background session server, so the coding agent survives even if the shell process itself dies. Reattaching runs `start-herdr` for you when a Herdr server is still up, so your panes come straight back. Set `WORKBENCH_SKIP_HERDR=1` if you want a plain shell.
+- **Every launch is recoverable.** The session is saved locally before the shell opens, so `workbench aws reconnect NAME` always works, even after your terminal or laptop dies.
+
+**!IMPORTANT:** If you leave a session running, nothing else will clean it up promptly. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap an interactive shell mid-task, which also disables the 15-minute idle timeout. An abandoned session bills until `workbench aws stop NAME` or the eight-hour maximum lifetime. Run `workbench aws status` to see what is still saved.
 
 ## Debug AgentCore runtime logs
 
@@ -124,7 +147,7 @@ Also recommended: create an AWS Budget in the Billing console with an alert thre
 
 - No Lambda microVM, VPC, NAT gateway, load balancer, EFS, database, AgentCore Memory, Gateway, alarm, or dashboard is created.
 - AgentCore runtime billing is usage-based.
-- Idle runtime compute stops after 15 minutes.
+- The runtime's 15-minute idle timeout does not apply here, because `/ping` reports `HealthyBusy` for the whole session to stop AgentCore reaping an interactive shell mid-task. Stop sessions yourself with `workbench aws stop NAME`.
 - Runtime compute has an eight-hour maximum lifetime.
 - CloudWatch logs retain one day.
 - Deployment keeps one tracked workbench image and removes older tracked images.

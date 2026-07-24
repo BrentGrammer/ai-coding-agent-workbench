@@ -20,6 +20,10 @@ done
 cd "$WORKSPACE_DIR"
 HERDR_LOCAL_DIR="/tmp/agent-workbench/herdr-$WORKBENCH_SESSION"
 mkdir -p "$HERDR_LOCAL_DIR/config" "$HERDR_LOCAL_DIR/state"
+
+# Herdr's background server owns the panes, so the coding agent survives a dropped
+# AgentCore shell. The socket lives under XDG_CONFIG_HOME, which is keyed by the
+# workbench session name so re-running this attaches to the same server.
 XDG_CONFIG_HOME="$HERDR_LOCAL_DIR/config" \
 XDG_STATE_HOME="$HERDR_LOCAL_DIR/state" \
-  exec herdr --no-session
+  exec herdr
