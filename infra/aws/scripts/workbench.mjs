@@ -14,6 +14,11 @@ const STATE_FILE = path.join(STATE_DIR, "aws-sessions.json");
 const AGENTS = new Set(["codex", "claude", "opencode", "cursor"]);
 const MINIMUM_AGENTCORE_VERSION = [0, 24, 1];
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.join(SCRIPT_DIR, "..", "..", "..");
+const PANE_HELPER_SOURCE = path.join(REPO_ROOT, "runtime", "herdr-pane");
+const PANE_HELPER_TARGET = "/home/agent/.local/bin/herdr-pane";
+const PANE_HELPER_TIMEOUT_SECONDS = 60;
+const NEW_WINDOW_SHELL_LABEL = "new";
 const ESCAPE = String.fromCharCode(27);
 const TERMINAL_RESET_CODES = {
   leaveAlternateScreen: `${ESCAPE}[?1049l`,
@@ -62,6 +67,7 @@ const showUsage = () => {
       "Usage:",
       "  workbench aws REPO_URL [--ref REF] [--agent codex|claude|opencode|cursor] [--keep NAME]",
       "  workbench aws reconnect NAME [--new-shell]",
+      "  workbench aws new-window [NAME]",
       "  workbench aws stop NAME",
       "  workbench aws status",
       "",
@@ -411,7 +417,9 @@ const stopSession = (session) => {
 };
 
 const buildShellId = (session) =>
-  `${session.agent}-${session.sessionId}-${session.shellGeneration ?? 0}`;
+  session.shellLabel
+    ? `${session.agent}-${session.sessionId}-${session.shellLabel}`
+    : `${session.agent}-${session.sessionId}-${session.shellGeneration ?? 0}`;
 
 const attachSession = (session) => {
   console.error(`Opening ${session.agent} session ${session.name}...`);
@@ -782,6 +790,95 @@ const reconnectSession = (name, startNewShell) => {
   return connectSession(session);
 };
 
+// AgentCore keeps up to ten shells per runtime, so a second shell id lands in the
+// same microVM as the first window instead of taking its terminal away.
+const installPaneHelper = (session) => {
+  const encodedHelper = readFileSync(PANE_HELPER_SOURCE).toString("base64");
+  const installCommand = [
+    "mkdir -p /home/agent/.local/bin",
+    `printf %s ${quoteShell(encodedHelper)} | base64 -d > ${PANE_HELPER_TARGET}`,
+    `chmod 755 ${PANE_HELPER_TARGET}`,
+  ].join(" && ");
+
+  const result = spawnSync(
+    "agentcore",
+    [
+      "exec",
+      "--runtime",
+      session.runtimeArn,
+      "--region",
+      session.region,
+      "--session-id",
+      session.sessionId,
+      "--timeout",
+      String(PANE_HELPER_TIMEOUT_SECONDS),
+      `/bin/bash -lc ${quoteShell(installCommand)}`,
+    ],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  );
+
+  if (result.status !== 0) {
+    console.error("Warning: Could not install herdr-pane in the session.");
+  }
+};
+
+const waitForEnterKey = () => {
+  if (!process.stdin.isTTY) {
+    return;
+  }
+
+  try {
+    readSync(0, Buffer.alloc(64), 0, 64, null);
+  } catch {
+    // A shell that cannot read the keyboard should still open the window.
+  }
+};
+
+const askToOpenNewWindow = (name) => {
+  console.error(
+    [
+      "",
+      `Opening a second shell in ${name}. Drag this window to your other monitor.`,
+      "",
+      "Once Herdr appears:",
+      "  1. Press Ctrl+B, release, then q.",
+      "  2. Run herdr-pane to list the panes.",
+      "  3. Run herdr-pane TARGET to fill this window with one pane.",
+      "",
+      "Closing this window leaves the session and your other window running.",
+      "",
+      "Press Enter to open it.",
+    ].join("\n"),
+  );
+  waitForEnterKey();
+};
+
+const findOnlySessionName = () => {
+  const names = Object.keys(readSessions());
+
+  if (names.length !== 1) {
+    throw new Error("Name the session: workbench aws new-window NAME");
+  }
+
+  return names[0];
+};
+
+const openNewWindow = (name) => {
+  validateName(name);
+  const sessions = readSessions();
+  const session = sessions[name];
+
+  if (!session) {
+    throw new Error(`Unknown session: ${name}`);
+  }
+
+  installPaneHelper(session);
+  askToOpenNewWindow(name);
+
+  return attachSession({ ...session, shellLabel: NEW_WINDOW_SHELL_LABEL })
+    .exitCode;
+};
+
 const stopNamedSession = (name) => {
   validateName(name);
   const sessions = readSessions();
@@ -869,6 +966,11 @@ const main = () => {
 
     checkAgentCoreVersion();
     return reconnectSession(args[1], args[2] === "--new-shell");
+  }
+
+  if (args[0] === "new-window" && args.length <= 2) {
+    checkAgentCoreVersion();
+    return openNewWindow(args[1] ?? findOnlySessionName());
   }
 
   if (args[0] === "stop" && args.length === 2) {

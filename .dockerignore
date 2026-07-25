@@ -37,6 +37,7 @@ runtime/*
 !runtime/herdr-config.toml
 !runtime/workbench-pane-shell
 !runtime/start-herdr
+!runtime/herdr-pane
 !runtime/install-claude-settings
 !runtime/deny-protected-file-reads
 !tools/
@@ -46,3 +47,5 @@ tools/agents/*
 !tools/agents/claude-settings.json
 !tools/agents/codex-config.toml
 !tools/agents/opencode.json
+!tools/agents/cursor-mcp.json
+!tools/agents/cursor-cli-config.json

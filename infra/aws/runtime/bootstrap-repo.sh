@@ -98,6 +98,9 @@ for agent_name in claude codex opencode cursor; do
   herdr integration install "$agent_name"
 done
 
+mkdir -p "$HOME/.claude/skills/hunk-review"
+ln -sf "$(hunk skill path)" "$HOME/.claude/skills/hunk-review/SKILL.md"
+
 install -m 600 /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
 install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
 
