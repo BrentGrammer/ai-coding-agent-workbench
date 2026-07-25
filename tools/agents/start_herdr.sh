@@ -71,6 +71,7 @@ allow_network() {
 
 install_runtime_files() {
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/start-herdr" /usr/local/bin/start-herdr 755 755 root:root
+  install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-pane" /usr/local/bin/herdr-pane 755 755 root:root
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/workbench-pane-shell" /usr/local/bin/workbench-pane-shell 755 755 root:root
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-config.toml" /etc/agent-workbench/herdr-config.toml 644 755 root:root
 }
@@ -121,6 +122,9 @@ npm install -g \
 cd "$(npm root -g)/opencode-ai"
 node postinstall.mjs
 cd "$HOME"
+
+mkdir -p "$HOME/.claude/skills/hunk-review"
+ln -sf "$(hunk skill path)" "$HOME/.claude/skills/hunk-review/SKILL.md"
 
 if command -v claude >/dev/null 2>&1; then
   claude update || true

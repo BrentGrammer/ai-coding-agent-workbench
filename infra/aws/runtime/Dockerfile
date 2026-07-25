@@ -82,6 +82,7 @@ COPY infra/aws/runtime/git-credential-github-app.mjs /usr/local/bin/git-credenti
 COPY infra/aws/runtime/bootstrap-repo.sh /usr/local/bin/bootstrap-repo
 COPY infra/aws/runtime/workbench-profile.sh /etc/profile.d/workbench.sh
 COPY runtime/start-herdr /usr/local/bin/start-herdr
+COPY runtime/herdr-pane /usr/local/bin/herdr-pane
 COPY runtime/workbench-pane-shell /usr/local/bin/workbench-pane-shell
 COPY runtime/deny-protected-file-reads /usr/local/bin/deny-protected-file-reads
 COPY runtime/herdr-config.toml /etc/agent-workbench/herdr-config.toml
@@ -96,6 +97,7 @@ RUN chmod 755 \
       /usr/local/bin/bootstrap-repo \
       /usr/local/bin/deny-protected-file-reads \
       /usr/local/bin/start-herdr \
+      /usr/local/bin/herdr-pane \
       /usr/local/bin/workbench-pane-shell \
     && chown -R root:root /etc/claude-code /etc/opencode \
     && chmod 755 /etc/claude-code /etc/opencode \
