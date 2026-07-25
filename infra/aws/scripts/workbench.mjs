@@ -626,17 +626,12 @@ const connectSession = (session) => {
     process.exit(exitCode);
   };
 
-  const stopForSignal = (exitCode) => {
-    stopAndForgetSession(session);
-    process.exit(exitCode);
-  };
-
-  process.once("SIGHUP", () => stopForSignal(129));
-  process.once("SIGTERM", () => stopForSignal(143));
-  // Ctrl+C raises SIGINT whenever the terminal is in cooked mode, and spawnSync
-  // holds that signal until the current shell ends, so stopping on it would
-  // discard a session the keypress was never aimed at.
+  // Nothing in a session yields to the event loop, so these handlers only ever
+  // run once the session flow has already finished. Stopping the session from
+  // here would discard work the signal was never aimed at.
+  process.once("SIGHUP", () => leaveSessionRunning(129));
   process.once("SIGINT", () => leaveSessionRunning(130));
+  process.once("SIGTERM", () => leaveSessionRunning(143));
 
   bootstrapSession(session);
   saveSession(session);

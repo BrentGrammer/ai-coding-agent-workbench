@@ -123,7 +123,7 @@ Two more layers keep a drop from costing you work:
 **When you have to stop a session yourself:** only when you chose `[l] leave it running`. That session keeps billing until you run `workbench aws stop NAME`. Everything else stops for you:
 
 - Exit the shell and press Enter at the prompt, and it is stopped and its record removed.
-- If your terminal or laptop dies, the launcher stops the session when it gets the chance, and AgentCore has also been seen to end dropped sessions on its own. Neither is a documented guarantee, so if you are unsure whether something is still billing, check.
+- If your terminal or laptop dies, nothing on your machine is guaranteed to run, so nothing local can be counted on to stop the session. AgentCore has been seen to end dropped sessions on its own, but that is not documented behaviour. Check if you are unsure whether something is still billing.
 
 Run `workbench aws status` for what is saved locally. Run `node tools/scripts/probe_saved_sessions.mjs` to check each saved session against AWS for real — it says whether each one is still alive and stops any that are.
 
