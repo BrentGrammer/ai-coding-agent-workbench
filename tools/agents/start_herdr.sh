@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ "$#" -gt 2 ]; then
-  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode]" >&2
+  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor]" >&2
   exit 1
 fi
 
@@ -12,10 +12,10 @@ source "$SCRIPT_DIR/local_workspace.sh"
 WORKBENCH_AGENT="${2:-${WORKBENCH_AGENT:-claude}}"
 export WORKBENCH_AGENT
 case "$WORKBENCH_AGENT" in
-  claude|codex|opencode)
+  claude|codex|opencode|cursor)
     ;;
   *)
-    echo "ERROR: Agent must be claude, codex, or opencode." >&2
+    echo "ERROR: Agent must be claude, codex, opencode, or cursor." >&2
     exit 1
     ;;
 esac
@@ -45,6 +45,11 @@ allow_network() {
     cdn.jsdelivr.net:443 \
     codeload.github.com:443 \
     downloads.claude.ai:443 \
+    api.cursor.com:443 \
+    cursor.com:443 \
+    downloads.cursor.com:443 \
+    "*.cursor.com:443" \
+    "*.cursor.sh:443" \
     files.openai.com:443 \
     github.com:443 \
     herdr.dev:443 \
@@ -121,11 +126,14 @@ else
   curl -fsSL https://claude.ai/install.sh | bash
 fi
 
+curl -fsS https://cursor.com/install | bash
+
 herdr --version
 hunk --version
 claude --version
 codex --version
 opencode --version
+cursor-agent --version
 '
 }
 
@@ -133,6 +141,8 @@ copy_agent_settings() {
   local claude_settings_file="$SCRIPT_DIR/claude-settings.json"
   local codex_config_file="$SCRIPT_DIR/codex-config.toml"
   local opencode_config_file="$SCRIPT_DIR/opencode.json"
+  local cursor_mcp_config_file="$SCRIPT_DIR/cursor-mcp.json"
+  local cursor_cli_config_file="$SCRIPT_DIR/cursor-cli-config.json"
 
   if [ -f "$claude_settings_file" ]; then
     sbx cp "$claude_settings_file" "$SANDBOX_NAME":/tmp/claude-settings.json
@@ -163,16 +173,28 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
   else
     echo "WARN: No workbench OpenCode config at $opencode_config_file" >&2
   fi
+
+  if [ -f "$cursor_mcp_config_file" ]; then
+    install_file_into_sandbox "$cursor_mcp_config_file" /home/agent/.cursor/mcp.json
+  else
+    echo "WARN: No workbench Cursor MCP config at $cursor_mcp_config_file" >&2
+  fi
+
+  if [ -f "$cursor_cli_config_file" ]; then
+    install_file_into_sandbox "$cursor_cli_config_file" /home/agent/.cursor/cli-config.json
+  else
+    echo "WARN: No workbench Cursor permissions at $cursor_cli_config_file" >&2
+  fi
 }
 
 install_integrations() {
   sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"
-chmod 700 "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode"
+mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor"
+chmod 700 "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor"
 
-for agent_name in claude codex opencode; do
+for agent_name in claude codex opencode cursor; do
   herdr integration install "$agent_name"
 done
 '

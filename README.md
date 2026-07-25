@@ -59,6 +59,7 @@ Choose another primary agent or project:
 
 ```shell
 start-herdr codex
+start-herdr cursor
 start-herdr opencode /path/to/another-project
 ```
 
@@ -161,10 +162,11 @@ Choose the primary agent:
 ```shell
 start-agentcore claude
 start-agentcore codex
+start-agentcore cursor
 start-agentcore opencode
 ```
 
-The argument selects the agent that starts automatically. All three agents and their Herdr integrations are available in the environment.
+The argument selects the agent that starts automatically. All four agents and their Herdr integrations are available in the environment.
 
 At the AgentCore shell prompt, run:
 
@@ -176,7 +178,7 @@ This opens the primary agent full-screen with Hunk in a hidden pane. To add anot
 
 1. Press `Ctrl+B`, then `z` to show all panes.
 2. Press `Ctrl+B`, then `v` to create a pane.
-3. Run `claude`, `codex`, or `opencode` in the new pane.
+3. Run `claude`, `codex`, `cursor-agent`, or `opencode` in the new pane.
 
 ### Exit cleanly
 

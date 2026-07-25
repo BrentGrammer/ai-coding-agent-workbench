@@ -47,14 +47,14 @@ RUN herdr_arch="$(uname -m)" \
     && herdr --version
 
 RUN useradd --create-home --shell /bin/bash agent \
-    && mkdir -p /etc/agent-workbench /home/agent/.local/npm \
+    && mkdir -p /etc/agent-workbench /home/agent/.local/npm /home/agent/.local/bin \
     && chown -R agent:agent /home/agent \
     && printf '%s\n' \
-      'export PATH="/home/agent/.local/npm/bin:$PATH"' \
+      'export PATH="/home/agent/.local/npm/bin:/home/agent/.local/bin:$PATH"' \
       > /etc/profile.d/agent-npm.sh
 
 ENV NPM_CONFIG_PREFIX=/home/agent/.local/npm \
-    PATH="/home/agent/.local/npm/bin:${PATH}"
+    PATH="/home/agent/.local/npm/bin:/home/agent/.local/bin:${PATH}"
 
 USER agent
 
@@ -72,6 +72,9 @@ RUN npm install -g \
     && codex --version \
     && opencode --version
 
+RUN curl -fsS https://cursor.com/install | bash \
+    && cursor-agent --version
+
 USER root
 
 COPY infra/aws/runtime/agentcore-server.mjs /app/agentcore-server.mjs
@@ -85,6 +88,8 @@ COPY runtime/herdr-config.toml /etc/agent-workbench/herdr-config.toml
 COPY tools/agents/claude-settings.json /etc/claude-code/managed-settings.json
 COPY tools/agents/codex-config.toml /etc/agent-workbench/codex-config.toml
 COPY tools/agents/opencode.json /etc/opencode/opencode.json
+COPY tools/agents/cursor-mcp.json /etc/agent-workbench/cursor-mcp.json
+COPY tools/agents/cursor-cli-config.json /etc/agent-workbench/cursor-cli-config.json
 
 RUN chmod 755 \
       /usr/local/bin/git-credential-github-app \
@@ -99,6 +104,8 @@ RUN chmod 755 \
       /etc/agent-workbench/herdr-config.toml \
       /etc/claude-code/managed-settings.json \
       /etc/agent-workbench/codex-config.toml \
+      /etc/agent-workbench/cursor-mcp.json \
+      /etc/agent-workbench/cursor-cli-config.json \
       /etc/opencode/opencode.json
 
 USER agent

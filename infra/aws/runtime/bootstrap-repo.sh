@@ -11,7 +11,7 @@ set -euo pipefail
 REPO_REF="${REPO_REF:-}"
 
 case "$WORKBENCH_AGENT" in
-  codex|claude|opencode)
+  codex|claude|opencode|cursor)
     ;;
   *)
     echo "ERROR: Unsupported agent: $WORKBENCH_AGENT"
@@ -77,7 +77,7 @@ fi
 
 REPO_REF="$(git -C "$WORKSPACE_DIR" branch --show-current)"
 
-for agent_name in claude codex opencode; do
+for agent_name in claude codex opencode cursor; do
   case "$agent_name" in
     claude)
       agent_config_dir="$HOME/.claude"
@@ -88,12 +88,18 @@ for agent_name in claude codex opencode; do
     opencode)
       agent_config_dir="$HOME/.config/opencode"
       ;;
+    cursor)
+      agent_config_dir="$HOME/.cursor"
+      ;;
   esac
 
   mkdir -p "$agent_config_dir"
   chmod 700 "$agent_config_dir"
   herdr integration install "$agent_name"
 done
+
+install -m 600 /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
+install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
 
 if [ -n "${GIT_USER_NAME:-}" ]; then
   git -C "$WORKSPACE_DIR" config user.name "$GIT_USER_NAME"

@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 show_usage() {
   echo "Usage:"
-  echo "  $0 aws REPO_URL [--ref REF] [--agent codex|claude|opencode] [--keep NAME]"
+  echo "  $0 aws REPO_URL [--ref REF] [--agent codex|claude|opencode|cursor] [--keep NAME]"
   echo "  $0 aws reconnect NAME [--new-shell]"
   echo "  $0 aws stop NAME"
   echo "  $0 aws status"
