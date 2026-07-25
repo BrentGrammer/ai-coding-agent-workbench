@@ -7,6 +7,14 @@ The agents also come baked in with [Matt Pocock's skills](https://github.com/mat
 
 Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner of this repo, of course). Adjust and edit these files to your needs and preferences. Also review the dot files (`.gemini/, .cline/`, and files in the `/tools/agents/` folder: `codex-config.toml`, `claude-settings.json`, `cursor-mcp.json`, `opencode.json`, `cline-global-settings.json`, etc.) which contain some baked in settings for convenience (statusline content, accept all edits mode, etc.) and change any of them to your liking.
 
+### Tools included
+
+Remove any of these if not desired:
+
+- Exa MCP Server (for web fetching)
+- Hunk skills (baked into AgentCore setup with Herdr/Hunk)
+- Matt Pocock Skills (baked into most agents/harnesses both in local sbx setup and AgentCore setup)
+
 ## Choose a path
 
 - **Local Docker sandboxes** — run agents on your machine with `sbx`. See [Local Docker sandboxes](#local-docker-sandboxes).
