@@ -194,7 +194,7 @@ This window is keyboard only. Mouse clicks do not work in the new window.
 
 ### Review with Hunk
 
-1. In a pane, run `hunk diff --agent-notes`. (optionally add `--watch`)
+1. In a pane (`Ctrl+B`, then `v`), run `hunk diff --agent-notes`. (optionally add `--watch`)
 2. Put the cursor on a line and press `c` to leave a comment.
 3. Tell the agent: `read my hunk comments and fix them`.
 
