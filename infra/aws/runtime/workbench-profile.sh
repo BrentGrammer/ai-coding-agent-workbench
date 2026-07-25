@@ -40,8 +40,9 @@ if [ -f "$SESSION_CONFIG_FILE" ]; then
   printf 'Finish up:\n'
   printf '  1. Exit the coding agent with /exit or Ctrl+D.\n'
   printf '  2. Press Ctrl+B, release, then press q to detach from Herdr.\n'
-  printf '  3. Run exit to close the AgentCore shell, then choose stop at the prompt\n'
-  printf '     on your own machine to end the session and its billing.\n\n'
+  printf '  3. Run exit to close the AgentCore shell. A countdown appears on your own\n'
+  printf '     machine: press s to stop the session and end its billing, or l to leave\n'
+  printf '     it running. Doing nothing reconnects you here.\n\n'
 else
   echo "No workbench session is configured. Launch it with ./bin/workbench aws."
 fi
