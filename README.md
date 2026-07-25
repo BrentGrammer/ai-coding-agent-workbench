@@ -1,6 +1,6 @@
 # AI Coding Agent Workbench
 
-This project bootstraps Claude Code, Codex, and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/) in the Cloud. It also supports running coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses.
+This project bootstraps Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/) in the Cloud. It also supports running coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses.
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
 The agents also come baked in with [Matt Pocock's skills](https://github.com/mattpocock/skills) (remove their installation in the scripts if not desired).
