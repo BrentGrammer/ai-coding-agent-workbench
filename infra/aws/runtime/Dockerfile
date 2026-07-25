@@ -60,7 +60,7 @@ USER agent
 
 # Try this if we run into claude installation failures
 # RUN npm install -g --foreground-scripts \
-RUN npm install -g --foreground-scripts \
+RUN npm install -g \
       "hunkdiff@${HUNK_VERSION}" \
       @anthropic-ai/claude-code@latest \
       @openai/codex@latest \
