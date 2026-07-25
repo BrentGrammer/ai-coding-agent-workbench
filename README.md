@@ -182,7 +182,7 @@ This opens the primary agent full-screen with Hunk in a hidden pane. To add anot
 
 ### Closing a empty pane in Herdr
 
-- `Ctrl-B`, then `x
+- `Ctrl-B`, then `x`
 
 ### Second monitor
 
