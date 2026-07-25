@@ -23,6 +23,7 @@ allow_network() {
   allow_system_update_network
   allow_vendor_docs_network
   allow_exa_mcp_network
+  allow_skills_marketplace_network
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
@@ -73,6 +74,29 @@ copy_config() {
   if [ -f "$WORKBENCH_ROOT/.npmrc" ]; then
     install_file_into_sandbox "$WORKBENCH_ROOT/.npmrc" /home/agent/.npmrc
   fi
+}
+
+install_exa_mcp_server() {
+  echo "Registering the Exa MCP server with Codex..."
+
+  # The add writes the config entry first, then offers an OAuth flow that would
+  # block setup waiting for a browser callback. Exa's free tier needs no login,
+  # so the timeout stops at the entry.
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+
+if codex mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server already registered."
+else
+  timeout 20 codex mcp add exa --url https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
+fi
+
+if codex mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server ready."
+else
+  echo "WARN: Codex does not list the Exa MCP server. Run codex mcp add exa --url https://mcp.exa.ai/mcp inside the sandbox." >&2
+fi
+'
 }
 
 install_skills() {
@@ -182,6 +206,8 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_sandbox_env
   install_or_update
   copy_config
+  install_exa_mcp_server
+  install_skills
   update_skills
   # install_or_update_lean_ctx
   usage_instructions
@@ -198,6 +224,7 @@ else
   configure_sandbox_env
   install_or_update
   copy_config
+  install_exa_mcp_server
   install_skills
   # install_or_update_lean_ctx
   usage_instructions

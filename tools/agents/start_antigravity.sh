@@ -59,6 +59,7 @@ allow_antigravity_network() {
 	sbx policy allow network --sandbox "$SANDBOX_NAME" "playwright-verizon.azureedge.net:443"
 
 	allow_exa_mcp_network
+	allow_skills_marketplace_network
 
 	# for installing node and npm packages
 	sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
@@ -141,6 +142,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 
 	# Copy updated MCP config to the existing sandbox
 	sync_files_to_sandbox
+	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	usage_instructions
 else
 	echo "🆕 Creating new sandbox: $SANDBOX_NAME"
@@ -163,6 +165,7 @@ else
 	echo "SUCCESS: Installed Antigravity CLI"
 
 	sync_files_to_sandbox
+	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	usage_instructions
 fi
 

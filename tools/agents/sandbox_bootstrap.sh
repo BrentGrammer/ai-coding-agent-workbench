@@ -78,6 +78,65 @@ allow_vendor_docs_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" json.schemastore.org:443
 }
 
+allow_skills_marketplace_network() {
+  sbx policy allow network --sandbox "$SANDBOX_NAME" add-skill.vercel.sh:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
+}
+
+# Agent slugs come from the Supported Agents table in vercel-labs/skills, which
+# decides where each agent reads its skills from.
+install_matt_pocock_skills() {
+  local workspace_dir="$1"
+  shift
+
+  local agent_flags=()
+  local agent_slug
+  for agent_slug in "$@"; do
+    agent_flags+=(--agent "$agent_slug")
+  done
+
+  echo "Installing Matt Pocock skills for: $*"
+
+  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
+
+npx --yes skills@latest add mattpocock/skills \
+  ${agent_flags[*]} \
+  --skill '*' \
+  --global \
+  --yes \
+  --copy
+"; then
+    echo "WARN: Could not install Matt Pocock skills for: $*" >&2
+  fi
+}
+
+# The skills repo doubles as a Claude Code plugin marketplace, so Claude gets the
+# plugin rather than files copied into its skills directory.
+install_matt_pocock_skills_plugin() {
+  echo "Installing the Matt Pocock skills plugin for Claude Code..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+
+if claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
+  echo "Matt Pocock skills plugin already installed."
+else
+  claude plugin marketplace add mattpocock/skills </dev/null >/dev/null 2>&1 || true
+  claude plugin install mattpocock-skills@mattpocock </dev/null >/dev/null 2>&1 || true
+fi
+
+if ! claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
+  echo "WARN: The Matt Pocock skills plugin did not install for Claude Code." >&2
+fi
+'
+}
+
 allow_exa_mcp_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" mcp.exa.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" auth.exa.ai:443

@@ -30,6 +30,8 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 allow_network() {
   allow_system_update_network
   allow_vendor_docs_network
+  allow_exa_mcp_network
+  allow_skills_marketplace_network
 
   local host
   for host in \
@@ -200,6 +202,33 @@ done
 '
 }
 
+# The codex, opencode and cursor panes get Exa from their config files, so only
+# Claude Code needs it installed through its own CLI.
+install_exa_tools() {
+  echo "Installing Exa web search for Claude Code..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+
+if claude plugin list 2>/dev/null | grep -q exa; then
+  echo "Exa plugin already installed."
+elif claude plugin install exa@claude-plugins-official </dev/null 2>/dev/null; then
+  echo "Installed the Exa plugin."
+elif claude mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server already registered."
+else
+  echo "Plugin install did not work, falling back to the MCP server."
+  claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
+fi
+
+if ! claude plugin list 2>/dev/null | grep -q exa &&
+  ! claude mcp list 2>/dev/null | grep -q exa; then
+  echo "WARN: Claude Code has neither the Exa plugin nor the Exa MCP server." >&2
+fi
+'
+}
+
 bash "$START_DOCKER"
 openLocalWorkspace
 
@@ -224,6 +253,9 @@ install_or_update_tools
 install_bash_sandbox_runtime
 copy_agent_settings
 install_integrations
+install_exa_tools
+install_matt_pocock_skills_plugin
+install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
 
 echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"
 

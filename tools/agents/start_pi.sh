@@ -21,6 +21,7 @@ allow_pi_network() {
     allow_system_update_network
     allow_vendor_docs_network
     allow_exa_mcp_network
+    allow_skills_marketplace_network
     allow_serena_mcp_network
     sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
     sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
@@ -35,7 +36,7 @@ set -euo pipefail
 
   sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 
-pi install npm:pi-mcp-adapter
+pi install npm:pi-web-access
 "
 }
 
@@ -47,6 +48,7 @@ if sandboxExists "$SANDBOX_NAME"; then
     allow_pi_network
     configure_sandbox_env
     install_pi_cli
+    install_matt_pocock_skills "$REPO_ROOT" pi
 
     sbx run "$SANDBOX_NAME"
 else
@@ -63,6 +65,7 @@ else
 
     install_node_lts
     install_pi_cli
+    install_matt_pocock_skills "$REPO_ROOT" pi
 
     configure_sandbox_env
 
@@ -88,4 +91,4 @@ fi
 # Skills stored in .agents/skills/<filename>
 
 # packages at pi.dev/packages
-# enable mcp compatibility and usage: https://pi.dev/packages/pi-mcp-adapter                                                                                                                                                                                                                                                                                                   
+# web search and fetch via Exa, no API key: https://pi.dev/packages/pi-web-access                                                                                                                                                                                                                                                                                                   

@@ -42,6 +42,7 @@ allow_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
 
   allow_vendor_docs_network
+  allow_exa_mcp_network
 }
 
 get_anthropic_api_key() {
@@ -115,6 +116,31 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
 '
 }
 
+install_exa_tools() {
+  echo "Installing Exa web search for Claude Code..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+
+if claude plugin list 2>/dev/null | grep -q exa; then
+  echo "Exa plugin already installed."
+elif claude plugin install exa@claude-plugins-official </dev/null 2>/dev/null; then
+  echo "Installed the Exa plugin."
+elif claude mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server already registered."
+else
+  echo "Plugin install did not work, falling back to the MCP server."
+  claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
+fi
+
+if ! claude plugin list 2>/dev/null | grep -q exa &&
+  ! claude mcp list 2>/dev/null | grep -q exa; then
+  echo "WARN: Claude Code has neither the Exa plugin nor the Exa MCP server." >&2
+fi
+'
+}
+
 usage_instructions() {
   sbx exec "$SANDBOX_NAME" bash -c '
 cat > "$HOME/.claude-code-welcome.sh" <<EOF
@@ -170,6 +196,8 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_claude_env
   install_or_update
   copy_config
+  install_exa_tools
+  install_matt_pocock_skills_plugin
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -186,6 +214,8 @@ else
   configure_claude_env
   install_or_update
   copy_config
+  install_exa_tools
+  install_matt_pocock_skills_plugin
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

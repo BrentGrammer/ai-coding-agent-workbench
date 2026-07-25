@@ -46,6 +46,9 @@ fi
 sbx policy allow network -g github.com:443
 sbx policy allow network -g api.github.com:443
 
+# Allow the skills marketplace behind: npx skills@latest add <owner>/<repo>
+sbx policy allow network -g add-skill.vercel.sh:443
+
 ### NON GLOBAL ALLOWS
 
 # # Allow Google gemini

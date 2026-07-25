@@ -21,6 +21,7 @@ allow_cline_network() {
   allow_system_update_network
   allow_vendor_docs_network
   allow_exa_mcp_network
+  allow_skills_marketplace_network
   allow_serena_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
@@ -65,6 +66,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_sandbox_env
   install_cline_cli
   sync_cline_settings
+  install_matt_pocock_skills "$REPO_ROOT" cline
   
   sbx run "$SANDBOX_NAME"
 else
@@ -80,6 +82,7 @@ else
 
   configure_sandbox_env
   sync_cline_settings
+  install_matt_pocock_skills "$REPO_ROOT" cline
   
   echo "✅ Setup complete! Dropping you into the sandbox."
   echo "!!! REMINDER: Run 'cline auth' (requires registering a cline account on their site), then 'cline' to start the CLI."

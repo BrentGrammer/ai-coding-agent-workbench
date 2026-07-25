@@ -48,6 +48,7 @@ allow_opencode_network() {
   allow_system_update_network
   allow_vendor_docs_network
   allow_exa_mcp_network
+  allow_skills_marketplace_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" models.dev:443
@@ -56,12 +57,6 @@ allow_opencode_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" opencode.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" openrouter.ai:443
-
-  # Required by `npx skills add mattpocock/skills`
-  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" add-skill.vercel.sh:443
 
 }
 
@@ -194,6 +189,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   allow_opencode_network
   configure_sandbox_env
   update_opencode
+  install_skills
   update_skills
 
   allow_codex_oauth_network

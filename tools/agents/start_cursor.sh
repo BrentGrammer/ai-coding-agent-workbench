@@ -21,6 +21,7 @@ allow_cursor_network() {
   allow_system_update_network
   allow_vendor_docs_network
   allow_exa_mcp_network
+  allow_skills_marketplace_network
   allow_serena_mcp_network
 
   # Cursor CLI installer + runtime/auth endpoints.
@@ -125,6 +126,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_or_update_cursor_cli
   copy_cursor_mcp_config
   usage_instructions
+  install_matt_pocock_skills "$REPO_ROOT" cursor
 
   sbx run "$SANDBOX_NAME"
 else
@@ -144,6 +146,7 @@ else
   configure_cursor_env
   copy_cursor_mcp_config
   usage_instructions
+  install_matt_pocock_skills "$REPO_ROOT" cursor
 
   sbx run "$SANDBOX_NAME"
 fi
