@@ -44,7 +44,7 @@ const INPUT_DISCARD_POLL_MS = 10;
 const INPUT_DISCARD_QUIET_MS = 120;
 const INPUT_DISCARD_TIMEOUT_MS = 500;
 
-const RECONNECT_COUNTDOWN_SECONDS = 3;
+const RECONNECT_COUNTDOWN_SECONDS = 10;
 const RECONNECT_COUNTDOWN_POLL_MS = 50;
 const BRIEF_ATTACH_SECONDS = 5;
 const BRIEF_ATTACH_LIMIT = 5;
@@ -65,8 +65,9 @@ const showUsage = () => {
       "  workbench aws stop NAME",
       "  workbench aws status",
       "",
-      "When the shell closes, workbench reconnects after a short countdown. Press any key",
-      "during the countdown to stop the session instead, or leave it running for later.",
+      "When the shell closes, workbench shows a countdown and reconnects on its own so a",
+      "dropped connection recovers. Press s during the countdown to stop the session and",
+      "end its billing, or l to leave it running and reconnect later.",
     ].join("\n"),
   );
 };
@@ -448,135 +449,159 @@ const attachSession = (session) => {
   };
 };
 
-// AgentCore reports the same successful exit status for a deliberate quit and a
-// dropped WebSocket, so the shell closing cannot tell us which happened. Reconnect
-// by default and let a keypress cancel it.
-const waitForReconnectCountdown = () => {
-  if (!process.stdin.isTTY) {
-    return true;
+// Leaving the alternate screen restores whatever the terminal showed before Herdr
+// started, so the prompt would otherwise print on top of that stale content.
+const erasePromptArea = () => {
+  if (process.stderr.isTTY) {
+    process.stderr.write(`\r${ESCAPE}[J`);
   }
+};
 
-  const savedTerminalModes = readTerminalModes();
+const writePromptLine = (text) => {
+  const eraseToEndOfLine = process.stderr.isTTY ? `${ESCAPE}[K` : "";
+  process.stderr.write(`\r${eraseToEndOfLine}${text}`);
+};
 
-  if (setTerminalModes(["raw", "-echo", "min", "0", "time", "1"]).status !== 0) {
-    return true;
-  }
-
+const readKeyPressWithin = (timeoutMs) => {
   const keyBuffer = Buffer.alloc(64);
-  const reconnectAt = Date.now() + RECONNECT_COUNTDOWN_SECONDS * 1000;
-  let cancelled = false;
+  const giveUpAt = Date.now() + timeoutMs;
 
-  while (Date.now() < reconnectAt) {
+  while (Date.now() < giveUpAt) {
     let bytesRead = 0;
 
     try {
       bytesRead = readSync(0, keyBuffer, 0, keyBuffer.length, null);
     } catch (error) {
       if (error.code !== "EAGAIN") {
-        break;
+        return { key: "", keyboardFailed: true };
       }
     }
 
     if (bytesRead > 0) {
-      cancelled = true;
-      break;
+      return {
+        key: keyBuffer.toString("utf8", 0, bytesRead),
+        keyboardFailed: false,
+      };
     }
 
     sleepSync(RECONNECT_COUNTDOWN_POLL_MS);
   }
 
-  if (cancelled) {
-    discardPendingTerminalInput();
-  }
-
-  setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
-  return !cancelled;
+  return { key: "", keyboardFailed: false };
 };
 
-const readActionKey = () => {
-  const savedTerminalModes = readTerminalModes();
+const findChosenAction = (key) =>
+  ({
+    r: SESSION_ACTIONS.reconnect,
+    s: SESSION_ACTIONS.stop,
+    l: SESSION_ACTIONS.leave,
+    "\u0003": SESSION_ACTIONS.leave,
+    "\u0004": SESSION_ACTIONS.leave,
+  })[key.toLowerCase()] ?? "";
 
-  if (setTerminalModes(["raw", "-echo", "min", "0", "time", "1"]).status !== 0) {
-    return "";
-  }
+const isEnterKey = (key) => key === "\r" || key === "\n";
 
-  const keyBuffer = Buffer.alloc(1);
-  let key = "";
+// A key that names no action still means someone is at the keyboard, so the
+// countdown stops and waits instead of reconnecting under their hands.
+const countDownToReconnect = () => {
+  const reconnectAt = Date.now() + RECONNECT_COUNTDOWN_SECONDS * 1000;
+  let shownSecondsLeft = 0;
 
-  while (!key) {
-    let bytesRead = 0;
+  while (Date.now() < reconnectAt) {
+    const secondsLeft = Math.ceil((reconnectAt - Date.now()) / 1000);
 
-    try {
-      bytesRead = readSync(0, keyBuffer, 0, 1, null);
-    } catch (error) {
-      if (error.code !== "EAGAIN") {
-        break;
-      }
+    if (secondsLeft !== shownSecondsLeft) {
+      writePromptLine(
+        `  Reconnecting automatically in ${secondsLeft}s. Press r, s, or l to choose now.`,
+      );
+      shownSecondsLeft = secondsLeft;
     }
 
-    if (bytesRead > 0) {
-      key = keyBuffer.toString("utf8");
-    } else {
-      sleepSync(RECONNECT_COUNTDOWN_POLL_MS);
+    const { key, keyboardFailed } = readKeyPressWithin(
+      RECONNECT_COUNTDOWN_POLL_MS,
+    );
+
+    if (keyboardFailed) {
+      return SESSION_ACTIONS.reconnect;
+    }
+
+    if (key) {
+      return findChosenAction(key);
     }
   }
 
-  setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
-  return key;
+  return SESSION_ACTIONS.reconnect;
 };
 
-const askWhatToDoWithSession = (session) => {
+const askForSessionAction = () => {
+  writePromptLine("  Choose r, s, or l. Enter stops the session: ");
+
+  while (true) {
+    const { key, keyboardFailed } = readKeyPressWithin(
+      RECONNECT_COUNTDOWN_POLL_MS,
+    );
+
+    if (keyboardFailed) {
+      return SESSION_ACTIONS.leave;
+    }
+
+    if (!key) {
+      continue;
+    }
+
+    const action =
+      findChosenAction(key) || (isEnterKey(key) ? SESSION_ACTIONS.stop : "");
+
+    if (action) {
+      return action;
+    }
+  }
+};
+
+// AgentCore reports the same successful exit status for a deliberate quit and a
+// dropped WebSocket, so the shell closing cannot tell us which happened. The
+// countdown reconnects on its own for a dropped shell while giving a deliberate
+// quit time to choose something else.
+const decideWhatHappensNext = (session) => {
   if (!process.stdin.isTTY) {
-    return SESSION_ACTIONS.leave;
+    return SESSION_ACTIONS.reconnect;
   }
 
+  erasePromptArea();
   console.error(
     [
       "",
-      `The AgentCore session ${session.name} is still running.`,
+      `Shell closed. The AgentCore session ${session.name} is still running.`,
       "",
-      "  [s] stop it now and end its billing (default)",
       "  [r] reconnect to it",
+      "  [s] stop it now and end its billing",
       "  [l] leave it running so you can reconnect later",
       "",
     ].join("\n"),
   );
-  process.stderr.write("> ");
 
-  const chosenActions = {
-    s: SESSION_ACTIONS.stop,
-    "\r": SESSION_ACTIONS.stop,
-    "\n": SESSION_ACTIONS.stop,
-    r: SESSION_ACTIONS.reconnect,
-    l: SESSION_ACTIONS.leave,
-    "\u0003": SESSION_ACTIONS.leave,
-    "\u0004": SESSION_ACTIONS.leave,
-  };
+  const savedTerminalModes = readTerminalModes();
 
-  let action = "";
-
-  while (!action) {
-    const key = readActionKey();
-
-    if (!key) {
-      action = SESSION_ACTIONS.leave;
-    } else {
-      action = chosenActions[key.toLowerCase()] ?? "";
-    }
+  if (setTerminalModes(["raw", "-echo", "min", "0", "time", "1"]).status !== 0) {
+    console.error("  Could not read the keyboard, so reconnecting.");
+    return SESSION_ACTIONS.reconnect;
   }
 
-  console.error(action);
-  return action;
-};
+  try {
+    const countedDownAction = countDownToReconnect();
 
-const decideWhatHappensNext = (session) => {
-  console.error(
-    `\nShell closed. Reconnecting in ${RECONNECT_COUNTDOWN_SECONDS}s. Press any key to choose instead.`,
-  );
+    if (countedDownAction) {
+      writePromptLine(`  ${countedDownAction}\n`);
+      return countedDownAction;
+    }
 
-  return waitForReconnectCountdown()
-    ? SESSION_ACTIONS.reconnect
-    : askWhatToDoWithSession(session);
+    discardPendingTerminalInput();
+    const chosenAction = askForSessionAction();
+    writePromptLine(`  ${chosenAction}\n`);
+    return chosenAction;
+  } finally {
+    setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
+  }
 };
 
 const countConsecutiveBriefAttaches = (previousCount, attach) =>

@@ -184,4 +184,9 @@ This opens the primary agent full-screen with Hunk in a hidden pane. To add anot
 
 1. Exit the coding agent with `/exit` or `Ctrl+D`.
 2. Exit Herdr with `Ctrl+B`, then `q`.
-3. Run `exit` at the AgentCore shell to stop the temporary environment and return to the local terminal.
+3. Run `exit` at the AgentCore shell. A countdown appears on your own machine with three choices:
+   - `s` stops the session and ends its billing.
+   - `l` leaves it running so you can reconnect later.
+   - `r` reconnects now.
+
+   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are finished for the day.
