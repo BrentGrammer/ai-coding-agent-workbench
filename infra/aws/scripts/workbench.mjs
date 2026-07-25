@@ -11,7 +11,7 @@ const DEFAULT_AGENT = "codex";
 const BOOTSTRAP_TIMEOUT_SECONDS = 600;
 const STATE_DIR = path.join(homedir(), ".local", "state", "agent-workbench");
 const STATE_FILE = path.join(STATE_DIR, "aws-sessions.json");
-const AGENTS = new Set(["codex", "claude", "opencode"]);
+const AGENTS = new Set(["codex", "claude", "opencode", "cursor"]);
 const MINIMUM_AGENTCORE_VERSION = [0, 24, 1];
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ESCAPE = String.fromCharCode(27);
@@ -60,7 +60,7 @@ const showUsage = () => {
   console.error(
     [
       "Usage:",
-      "  workbench aws REPO_URL [--ref REF] [--agent codex|claude|opencode] [--keep NAME]",
+      "  workbench aws REPO_URL [--ref REF] [--agent codex|claude|opencode|cursor] [--keep NAME]",
       "  workbench aws reconnect NAME [--new-shell]",
       "  workbench aws stop NAME",
       "  workbench aws status",

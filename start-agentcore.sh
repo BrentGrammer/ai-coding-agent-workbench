@@ -20,12 +20,12 @@ GITHUB_APP_ID_PARAMETER_NAME="${GITHUB_APP_ID_PARAMETER_NAME:-}"
 GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME="${GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME:-}"
 
 if [ "$#" -ne 1 ]; then
-  echo "Usage: $0 codex|claude|opencode" >&2
+  echo "Usage: $0 codex|claude|opencode|cursor" >&2
   exit 1
 fi
 
 case "$AGENT" in
-  codex|claude|opencode)
+  codex|claude|opencode|cursor)
     ;;
   *)
     echo "ERROR: Unsupported agent: $AGENT" >&2

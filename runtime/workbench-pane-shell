@@ -39,6 +39,9 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
     opencode)
       AGENT_COMMAND=(opencode "$WORKSPACE_DIR")
       ;;
+    cursor)
+      AGENT_COMMAND=(cursor-agent --workspace "$WORKSPACE_DIR")
+      ;;
     *)
       echo "ERROR: Unsupported agent: $WORKBENCH_AGENT"
       rmdir "$WORKSPACE_MARKER"
