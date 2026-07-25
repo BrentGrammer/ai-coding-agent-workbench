@@ -198,6 +198,10 @@ This window is keyboard only. Mouse clicks do not work in the new window.
 2. Put the cursor on a line and press `c` to leave a comment.
 3. Tell the agent: `read my hunk comments and fix them`.
 
+### Closing a empty pane in Herdr
+
+- `Ctrl-B`, then `x`
+
 ### Exit cleanly
 
 1. Exit the coding agent with `/exit` or `Ctrl+D`.
