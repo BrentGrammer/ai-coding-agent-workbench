@@ -37,3 +37,7 @@
 - Always work on a feature branch - check that you are checked out to a branch and not on main
 - Never attribute any commits to Claude
 - Before committing - pull latest changes on the branch to make sure we are in sync.
+
+## Tools
+
+- If Exa MCP Server is installed, you can use it to fetch documentation on the web.

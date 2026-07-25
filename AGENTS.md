@@ -39,3 +39,7 @@ Do not inspect, read, print, summarize, or modify:
 - The name should answer these questions as best as possible:
   - What is the function doing?
   - Why does the function exist and why is it needed?
+
+## Tools
+
+- If Exa MCP Server is installed, you can use it to fetch documentation on the web.
