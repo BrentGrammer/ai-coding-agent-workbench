@@ -15,12 +15,11 @@ When making changes to this codebase, adhere to the following rules and conventi
 - Prefer testing observable behavior over implementation details.
 - Name tests as user-visible scenarios or business outcomes. Stakeholders or business domain experts should be able to understand the test descriptions and they shouldn't contain internal implementation terms or details. Avoid React or implementation terms in test names when a plain app behavior is clearer.
 - For error handling and similar branches, prefer asserting the category of outcome, the returned value source, or the selected code path rather than freezing production wording in the test. Don't test for hard coded strings in error messages - that is brittle if the wording changes.
-- **Handling User-Facing Strings (The Balanced Approach)**:
   - **Use Raw Hardcoded Strings** in UI tests for static labels, headers, and simple button names (e.g. `expect(screen.getByText("Voice Inspector")).toBeInTheDocument()`). This enforces the _user-facing perspective_, ensuring that if the visible text changes accidentally, the test catches the regression.
   - **Use File-Scoped Test Constants** when a specific string needs to be queried, changed, and asserted across multiple tests within the same test file to avoid typos and keep the code DRY while maintaining isolation.
   - **Use Imported Global Constants** only when asserting arguments passed to mocked utility hooks or verifying long, multi-line paragraphs/modal messages that are already managed centrally in the code.
 - If a repeated test value carries important meaning in the assertion, extract it to a descriptive local variable even if it only appears a small number of times. Do this for values like names, ids, titles, or other domain data that the test is intentionally proving gets preserved, selected, or applied.
-- For test data and fixture values, use normal descriptive local variable names when they are local to the file or test. They do not need to be all-caps constants unless they are truly shared constants.
+- For test data and fixture values, use camel-case descriptive local variable names when they are local to the file or test. They do not need to be all-caps snake-cased constants.
 - When testing invalid actions or defensive paths, assert that state remains unchanged rather than relying on internal implementation details.
 
 Example of brittle error assertion to avoid:
@@ -57,7 +56,7 @@ it("preserves the current saved composition name when the imported name is blank
 
 ## 2. Iterative Development
 
-- Small steps are preferred over large, longer running tasks so that they can be reviewed and managed.
+- Breaking goals down into small steps are preferred over large, longer running tasks so that they can be reviewed and managed.
 
 ## 3. Comments
 
@@ -150,6 +149,7 @@ const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
 - Functions should have a low cyclomatic complexity. Do not write code that is more than 3 levels deep in nesting conditionals or similar constructs.
 - Function names should be descriptive and clearly indicate what the function is doing. Prefer following the convention - verb_noun
   , ex: use `find_edge_nodes()` instead of `edge_nodes()`
+- Do not use `resolve` terminology in function names, that is a vague term. The function name should clearly express intent, purpose and action.
 
 ##### Special Note on Helper Functions:
 
