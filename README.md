@@ -180,7 +180,9 @@ This opens the primary agent full-screen with Hunk in a hidden pane. To add anot
 2. Press `Ctrl+B`, then `v` to create a pane.
 3. Run `claude`, `codex`, `cursor-agent`, or `opencode` in the new pane.
 
-Pane keys: `Ctrl+B` then `x` closes a pane, `?` lists every binding.
+### Closing a empty pane in Herdr
+
+- `Ctrl-B`, then `x
 
 ### Second monitor
 
@@ -196,11 +198,7 @@ This window is keyboard only. Mouse clicks do not work in the new window.
 
 1. In a pane (`Ctrl+B`, then `v`), run `hunk diff --agent-notes`. (optionally add `--watch`)
 2. Put the cursor on a line and press `c` to leave a comment.
-3. Tell the agent: `read my hunk comments and fix them`.
-
-### Closing a empty pane in Herdr
-
-- `Ctrl-B`, then `x`
+3. Tell the agent: `read my hunk comments and fix them`.`
 
 ### Exit cleanly
 
