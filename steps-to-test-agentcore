@@ -1,0 +1,27 @@
+  ### Controlled verification
+
+  Create a disposable named session. Inside it:
+
+  curl -fsS http://127.0.0.1:8080/ping
+  export RECONNECT_PROBE=working
+  cd /tmp
+  echo $$
+
+  The ping should report HealthyBusy.
+
+  From another local terminal, find only the local AgentCore attachment process:
+
+  pgrep -fl "agentcore exec"
+
+  Terminate its exact PID:
+
+  kill -TERM <PID>
+
+  The first terminal should show Reconnecting (1/5) and return to the same shell. Verify:
+
+  echo "$RECONNECT_PROBE"
+  pwd
+  echo $$
+
+  Expect working, /tmp, and the same shell PID. This directly proves same-shell reconnection. AWS documents that reusing shellId preserves terminal state and buffered output. AWS interactive-shell documentation
+  (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-get-started-command-shell.html)

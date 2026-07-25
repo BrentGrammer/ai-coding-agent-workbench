@@ -44,8 +44,17 @@ const INPUT_DISCARD_POLL_MS = 10;
 const INPUT_DISCARD_QUIET_MS = 120;
 const INPUT_DISCARD_TIMEOUT_MS = 500;
 
-const RECONNECT_DELAY_MS = 2000;
-const RECONNECT_ATTEMPT_LIMIT = 5;
+const RECONNECT_COUNTDOWN_SECONDS = 3;
+const RECONNECT_COUNTDOWN_POLL_MS = 50;
+const BRIEF_ATTACH_SECONDS = 5;
+const BRIEF_ATTACH_LIMIT = 5;
+const GENERATED_NAME_REPO_LENGTH = 24;
+const GENERATED_NAME_ID_LENGTH = 8;
+const SESSION_ACTIONS = {
+  stop: "stop",
+  reconnect: "reconnect",
+  leave: "leave",
+};
 
 const showUsage = () => {
   console.error(
@@ -55,6 +64,9 @@ const showUsage = () => {
       "  workbench aws reconnect NAME [--new-shell]",
       "  workbench aws stop NAME",
       "  workbench aws status",
+      "",
+      "When the shell closes, workbench reconnects after a short countdown. Press any key",
+      "during the countdown to stop the session instead, or leave it running for later.",
     ].join("\n"),
   );
 };
@@ -224,7 +236,7 @@ const createBootstrapCommand = (session) => {
     ["REPO_URL", session.repoUrl],
     ["REPO_REF", session.repoRef],
     ["WORKBENCH_AGENT", session.agent],
-    ["WORKBENCH_SESSION", session.name ?? session.sessionId],
+    ["WORKBENCH_SESSION", session.name],
     ["AWS_REGION", session.region],
     ["GITHUB_APP_ID_PARAMETER_NAME", githubAppIdParameterName],
     [
@@ -401,12 +413,11 @@ const buildShellId = (session) =>
   `${session.agent}-${session.sessionId}-${session.shellGeneration ?? 0}`;
 
 const attachSession = (session) => {
-  console.error(
-    `Opening ${session.agent} session ${session.name ?? "temporary"}...`,
-  );
+  console.error(`Opening ${session.agent} session ${session.name}...`);
   const savedTerminalModes = readTerminalModes();
   const restore = () => restoreLocalTerminal(savedTerminalModes);
   process.once("exit", restore);
+  const attachedAt = Date.now();
   let result;
 
   try {
@@ -431,52 +442,245 @@ const attachSession = (session) => {
     throw new Error(`Could not run AgentCore: ${result.error.message}`);
   }
 
-  return result.status ?? 1;
+  return {
+    exitCode: result.status ?? 1,
+    attachedSeconds: (Date.now() - attachedAt) / 1000,
+  };
 };
 
-const connectSession = (session, keepSession) => {
-  let cleanupStarted = false;
+// AgentCore reports the same successful exit status for a deliberate quit and a
+// dropped WebSocket, so the shell closing cannot tell us which happened. Reconnect
+// by default and let a keypress cancel it.
+const waitForReconnectCountdown = () => {
+  if (!process.stdin.isTTY) {
+    return true;
+  }
 
-  const cleanup = () => {
-    if (keepSession || cleanupStarted) {
-      return;
+  const savedTerminalModes = readTerminalModes();
+
+  if (setTerminalModes(["raw", "-echo", "min", "0", "time", "1"]).status !== 0) {
+    return true;
+  }
+
+  const keyBuffer = Buffer.alloc(64);
+  const reconnectAt = Date.now() + RECONNECT_COUNTDOWN_SECONDS * 1000;
+  let cancelled = false;
+
+  while (Date.now() < reconnectAt) {
+    let bytesRead = 0;
+
+    try {
+      bytesRead = readSync(0, keyBuffer, 0, keyBuffer.length, null);
+    } catch (error) {
+      if (error.code !== "EAGAIN") {
+        break;
+      }
     }
 
-    cleanupStarted = true;
-    stopSession(session);
+    if (bytesRead > 0) {
+      cancelled = true;
+      break;
+    }
+
+    sleepSync(RECONNECT_COUNTDOWN_POLL_MS);
+  }
+
+  if (cancelled) {
+    discardPendingTerminalInput();
+  }
+
+  setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
+  return !cancelled;
+};
+
+const readActionKey = () => {
+  const savedTerminalModes = readTerminalModes();
+
+  if (setTerminalModes(["raw", "-echo", "min", "0", "time", "1"]).status !== 0) {
+    return "";
+  }
+
+  const keyBuffer = Buffer.alloc(1);
+  let key = "";
+
+  while (!key) {
+    let bytesRead = 0;
+
+    try {
+      bytesRead = readSync(0, keyBuffer, 0, 1, null);
+    } catch (error) {
+      if (error.code !== "EAGAIN") {
+        break;
+      }
+    }
+
+    if (bytesRead > 0) {
+      key = keyBuffer.toString("utf8");
+    } else {
+      sleepSync(RECONNECT_COUNTDOWN_POLL_MS);
+    }
+  }
+
+  setTerminalModes(savedTerminalModes ? [savedTerminalModes] : ["sane"]);
+  return key;
+};
+
+const askWhatToDoWithSession = (session) => {
+  if (!process.stdin.isTTY) {
+    return SESSION_ACTIONS.leave;
+  }
+
+  console.error(
+    [
+      "",
+      `The AgentCore session ${session.name} is still running.`,
+      "",
+      "  [s] stop it now and end its billing (default)",
+      "  [r] reconnect to it",
+      "  [l] leave it running so you can reconnect later",
+      "",
+    ].join("\n"),
+  );
+  process.stderr.write("> ");
+
+  const chosenActions = {
+    s: SESSION_ACTIONS.stop,
+    "\r": SESSION_ACTIONS.stop,
+    "\n": SESSION_ACTIONS.stop,
+    r: SESSION_ACTIONS.reconnect,
+    l: SESSION_ACTIONS.leave,
+    "\u0003": SESSION_ACTIONS.leave,
+    "\u0004": SESSION_ACTIONS.leave,
   };
 
-  const exitForSignal = (exitCode) => {
-    cleanup();
+  let action = "";
+
+  while (!action) {
+    const key = readActionKey();
+
+    if (!key) {
+      action = SESSION_ACTIONS.leave;
+    } else {
+      action = chosenActions[key.toLowerCase()] ?? "";
+    }
+  }
+
+  console.error(action);
+  return action;
+};
+
+const decideWhatHappensNext = (session) => {
+  console.error(
+    `\nShell closed. Reconnecting in ${RECONNECT_COUNTDOWN_SECONDS}s. Press any key to choose instead.`,
+  );
+
+  return waitForReconnectCountdown()
+    ? SESSION_ACTIONS.reconnect
+    : askWhatToDoWithSession(session);
+};
+
+const countConsecutiveBriefAttaches = (previousCount, attach) =>
+  attach.attachedSeconds < BRIEF_ATTACH_SECONDS ? previousCount + 1 : 0;
+
+const printRunningSessionNotice = (session) => {
+  console.error(
+    [
+      "",
+      `The AgentCore session is still running as ${session.name}.`,
+      "",
+      "Reconnect to it:",
+      `  workbench aws reconnect ${session.name}`,
+      "",
+      "Stop it and end its billing:",
+      `  workbench aws stop ${session.name}`,
+      "",
+    ].join("\n"),
+  );
+};
+
+const saveSession = (session) => {
+  const sessions = readSessions();
+  sessions[session.name] = session;
+  writeSessions(sessions);
+};
+
+const forgetSession = (name) => {
+  const sessions = readSessions();
+  delete sessions[name];
+  writeSessions(sessions);
+};
+
+const stopAndForgetSession = (session) => {
+  if (!stopSession(session)) {
+    printRunningSessionNotice(session);
+    return;
+  }
+
+  forgetSession(session.name);
+  console.error(`\nStopped ${session.name}. Its billing has ended.`);
+};
+
+const connectSession = (session) => {
+  const leaveSessionRunning = (exitCode) => {
+    printRunningSessionNotice(session);
     process.exit(exitCode);
   };
 
-  process.once("SIGHUP", () => exitForSignal(129));
-  process.once("SIGINT", () => exitForSignal(130));
-  process.once("SIGTERM", () => exitForSignal(143));
-  process.once("exit", cleanup);
+  // Nothing in a session yields to the event loop, so these handlers only ever
+  // run once the session flow has already finished. Stopping the session from
+  // here would discard work the signal was never aimed at.
+  process.once("SIGHUP", () => leaveSessionRunning(129));
+  process.once("SIGINT", () => leaveSessionRunning(130));
+  process.once("SIGTERM", () => leaveSessionRunning(143));
 
   bootstrapSession(session);
+  saveSession(session);
 
-  let exitCode = attachSession(session);
-  let reconnectAttempt = 0;
+  // Signal handlers cannot run until spawnSync returns, which is after the
+  // reconnect decision has already been made. Asking the terminal for its modes
+  // is a synchronous check that fails once the terminal is gone.
+  const startedWithLocalTerminal = process.stdin.isTTY;
+  const localTerminalClosed = () =>
+    startedWithLocalTerminal && !readTerminalModes();
 
-  while (exitCode !== 0 && reconnectAttempt < RECONNECT_ATTEMPT_LIMIT) {
-    reconnectAttempt += 1;
-    console.error(
-      `\nShell disconnected. Reconnecting (${reconnectAttempt}/${RECONNECT_ATTEMPT_LIMIT})...`,
-    );
-    sleepSync(RECONNECT_DELAY_MS);
-    exitCode = attachSession(session);
+  let attach = attachSession(session);
+  let consecutiveBriefAttaches = countConsecutiveBriefAttaches(0, attach);
+  let action = SESSION_ACTIONS.reconnect;
+
+  while (action === SESSION_ACTIONS.reconnect) {
+    if (localTerminalClosed()) {
+      console.error("\nLocal terminal closed.");
+      action = SESSION_ACTIONS.stop;
+      break;
+    }
+
+    if (consecutiveBriefAttaches >= BRIEF_ATTACH_LIMIT) {
+      console.error(
+        "\nThe shell closed immediately several times in a row, so reconnecting stopped.",
+      );
+      action = SESSION_ACTIONS.leave;
+      break;
+    }
+
+    action = decideWhatHappensNext(session);
+
+    if (action === SESSION_ACTIONS.reconnect) {
+      attach = attachSession(session);
+      consecutiveBriefAttaches = countConsecutiveBriefAttaches(
+        consecutiveBriefAttaches,
+        attach,
+      );
+    }
   }
 
-  if (exitCode !== 0) {
-    console.error("\nCould not reconnect to the AgentCore shell.");
+  if (action === SESSION_ACTIONS.stop) {
+    stopAndForgetSession(session);
+  } else {
+    printRunningSessionNotice(session);
   }
 
-  cleanup();
   applyLogRetention(session.region);
-  return exitCode;
+  return attach.exitCode;
 };
 
 const createSession = (launchOptions) => {
@@ -497,6 +701,19 @@ const createSession = (launchOptions) => {
   };
 };
 
+const buildSessionName = (session) => {
+  const repoName = session.repoUrl
+    .replace(/\.git$/u, "")
+    .split("/")
+    .pop()
+    .replace(/[^A-Za-z0-9_-]/gu, "-")
+    .replace(/^[^A-Za-z0-9]+/u, "")
+    .slice(0, GENERATED_NAME_REPO_LENGTH);
+  const shortId = session.sessionId.slice(0, GENERATED_NAME_ID_LENGTH);
+
+  return `${repoName || "repo"}-${session.agent}-${shortId}`;
+};
+
 const launchSession = (args) => {
   const launchOptions = parseLaunchArguments(args);
   const sessions = readSessions();
@@ -514,14 +731,11 @@ const launchSession = (args) => {
         `Session ${launchOptions.name} already has another configuration.`,
       );
     }
+  } else {
+    session.name = launchOptions.name ?? buildSessionName(session);
   }
 
-  if (session.name) {
-    sessions[session.name] = session;
-    writeSessions(sessions);
-  }
-
-  return connectSession(session, Boolean(session.name));
+  return connectSession(session);
 };
 
 const reconnectSession = (name, startNewShell) => {
@@ -540,7 +754,7 @@ const reconnectSession = (name, startNewShell) => {
     console.error(`Abandoning the previous shell for ${name}.`);
   }
 
-  return connectSession(session, true);
+  return connectSession(session);
 };
 
 const stopNamedSession = (name) => {
@@ -556,10 +770,26 @@ const stopNamedSession = (name) => {
     return 1;
   }
 
-  delete sessions[name];
-  writeSessions(sessions);
+  forgetSession(name);
   console.error(`Stopped ${name} and removed its local session record.`);
   return 0;
+};
+
+const printSavedSessions = () => {
+  const sessions = readSessions();
+  const names = Object.keys(sessions).sort();
+
+  if (names.length === 0) {
+    console.log("Saved sessions: none");
+    return;
+  }
+
+  console.log("Saved sessions:");
+  for (const name of names) {
+    console.log(
+      `  ${name} (${sessions[name].agent}) ${sessions[name].repoUrl}`,
+    );
+  }
 };
 
 const showStatus = () => {
@@ -596,6 +826,7 @@ const showStatus = () => {
   console.log(`Active AgentCore runtime sessions: ${activeSessionCount || "no metric data"}`);
   console.log(`Workbench runtime: ${runtimeArn || "not deployed"}`);
   console.log("A deployed READY runtime is not necessarily an active session.");
+  printSavedSessions();
   return 0;
 };
 
