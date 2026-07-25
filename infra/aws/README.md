@@ -120,7 +120,12 @@ Two more layers keep a drop from costing you work:
 - **Herdr keeps your panes.** `start-herdr` runs Herdr's background session server, so the coding agent survives even if the shell process itself dies. Reattaching runs `start-herdr` for you when a Herdr server is still up, so your panes come straight back. Set `WORKBENCH_SKIP_HERDR=1` if you want a plain shell.
 - **Every launch is recoverable.** The session is saved locally before the shell opens, so `workbench aws reconnect NAME` always works, even after your terminal or laptop dies.
 
-**!IMPORTANT:** If you leave a session running, nothing else will clean it up promptly. This workbench reports `HealthyBusy` on `/ping` for the whole session so AgentCore does not reap an interactive shell mid-task, which also disables the 15-minute idle timeout. An abandoned session bills until `workbench aws stop NAME` or the eight-hour maximum lifetime. Run `workbench aws status` to see what is still saved.
+**When you have to stop a session yourself:** only when you chose `[l] leave it running`. That session keeps billing until you run `workbench aws stop NAME`. Everything else stops for you:
+
+- Exit the shell and press Enter at the prompt, and it is stopped and its record removed.
+- If your terminal or laptop dies, the launcher stops the session when it gets the chance, and AgentCore has also been seen to end dropped sessions on its own. Neither is a documented guarantee, so if you are unsure whether something is still billing, check.
+
+Run `workbench aws status` for what is saved locally. Run `node tools/scripts/probe_saved_sessions.mjs` to check each saved session against AWS for real — it says whether each one is still alive and stops any that are.
 
 ## Debug AgentCore runtime logs
 
@@ -147,7 +152,7 @@ Also recommended: create an AWS Budget in the Billing console with an alert thre
 
 - No Lambda microVM, VPC, NAT gateway, load balancer, EFS, database, AgentCore Memory, Gateway, alarm, or dashboard is created.
 - AgentCore runtime billing is usage-based.
-- The runtime's 15-minute idle timeout does not apply here, because `/ping` reports `HealthyBusy` for the whole session to stop AgentCore reaping an interactive shell mid-task. Stop sessions yourself with `workbench aws stop NAME`.
+- The runtime's 15-minute idle timeout does not apply here, because `/ping` reports `HealthyBusy` for the whole session to stop AgentCore reaping an interactive shell mid-task. A dropped session has still been seen to end on its own, but do not count on that. Stop sessions yourself with `workbench aws stop NAME`.
 - Runtime compute has an eight-hour maximum lifetime.
 - CloudWatch logs retain one day.
 - Deployment keeps one tracked workbench image and removes older tracked images.

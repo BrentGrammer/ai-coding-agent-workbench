@@ -598,6 +598,12 @@ const printRunningSessionNotice = (session) => {
   );
 };
 
+const saveSession = (session) => {
+  const sessions = readSessions();
+  sessions[session.name] = session;
+  writeSessions(sessions);
+};
+
 const forgetSession = (name) => {
   const sessions = readSessions();
   delete sessions[name];
@@ -620,17 +626,39 @@ const connectSession = (session) => {
     process.exit(exitCode);
   };
 
-  process.once("SIGHUP", () => leaveSessionRunning(129));
+  const stopForSignal = (exitCode) => {
+    stopAndForgetSession(session);
+    process.exit(exitCode);
+  };
+
+  process.once("SIGHUP", () => stopForSignal(129));
+  process.once("SIGTERM", () => stopForSignal(143));
+  // Ctrl+C raises SIGINT whenever the terminal is in cooked mode, and spawnSync
+  // holds that signal until the current shell ends, so stopping on it would
+  // discard a session the keypress was never aimed at.
   process.once("SIGINT", () => leaveSessionRunning(130));
-  process.once("SIGTERM", () => leaveSessionRunning(143));
 
   bootstrapSession(session);
+  saveSession(session);
+
+  // Signal handlers cannot run until spawnSync returns, which is after the
+  // reconnect decision has already been made. Asking the terminal for its modes
+  // is a synchronous check that fails once the terminal is gone.
+  const startedWithLocalTerminal = process.stdin.isTTY;
+  const localTerminalClosed = () =>
+    startedWithLocalTerminal && !readTerminalModes();
 
   let attach = attachSession(session);
   let consecutiveBriefAttaches = countConsecutiveBriefAttaches(0, attach);
   let action = SESSION_ACTIONS.reconnect;
 
   while (action === SESSION_ACTIONS.reconnect) {
+    if (localTerminalClosed()) {
+      console.error("\nLocal terminal closed.");
+      action = SESSION_ACTIONS.stop;
+      break;
+    }
+
     if (consecutiveBriefAttaches >= BRIEF_ATTACH_LIMIT) {
       console.error(
         "\nThe shell closed immediately several times in a row, so reconnecting stopped.",
@@ -711,9 +739,6 @@ const launchSession = (args) => {
   } else {
     session.name = launchOptions.name ?? buildSessionName(session);
   }
-
-  sessions[session.name] = session;
-  writeSessions(sessions);
 
   return connectSession(session);
 };
