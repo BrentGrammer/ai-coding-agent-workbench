@@ -58,7 +58,7 @@ ENV NPM_CONFIG_PREFIX=/home/agent/.local/npm \
 
 USER agent
 
-RUN npm install -g \
+RUN npm install -g --foreground-scripts \
       "hunkdiff@${HUNK_VERSION}" \
       @anthropic-ai/claude-code@latest \
       @openai/codex@latest \
