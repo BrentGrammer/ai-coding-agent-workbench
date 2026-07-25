@@ -190,6 +190,8 @@ Pane keys: `Ctrl+B` then `x` closes a pane, `?` lists every binding.
 
 Both windows share one session. Closing this one leaves everything running.
 
+This window is keyboard only. Mouse clicks do not work in the new window.
+
 ### Review with Hunk
 
 1. In a pane, run `hunk diff --agent-notes`. (optionally add `--watch`)
@@ -205,4 +207,4 @@ Both windows share one session. Closing this one leaves everything running.
    - `l` leaves it running so you can reconnect later.
    - `r` reconnects now.
 
-   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are finished for the day.
+   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are fin
