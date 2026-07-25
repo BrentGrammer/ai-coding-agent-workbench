@@ -58,6 +58,8 @@ ENV NPM_CONFIG_PREFIX=/home/agent/.local/npm \
 
 USER agent
 
+# Try this if we run into claude installation failures
+# RUN npm install -g --foreground-scripts \
 RUN npm install -g --foreground-scripts \
       "hunkdiff@${HUNK_VERSION}" \
       @anthropic-ai/claude-code@latest \
