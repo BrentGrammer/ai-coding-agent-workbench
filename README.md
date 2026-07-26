@@ -217,4 +217,4 @@ This window is keyboard only. Mouse clicks do not work in the new window.
    - `l` leaves it running so you can reconnect later.
    - `r` reconnects now.
 
-   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are fin
+   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are finished.
