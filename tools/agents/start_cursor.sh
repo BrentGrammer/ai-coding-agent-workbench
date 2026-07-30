@@ -133,7 +133,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 else
   echo "🆕 Creating new sandbox: $SANDBOX_NAME"
 
-  sbx create shell "$REPO_ROOT" --name "$SANDBOX_NAME"
+  createWorkbenchSandbox "$REPO_ROOT" "$SANDBOX_NAME"
 
   allow_cursor_network
   upgrade_system_packages

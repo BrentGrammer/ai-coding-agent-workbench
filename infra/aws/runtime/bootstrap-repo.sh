@@ -5,8 +5,7 @@ set -euo pipefail
 : "${WORKBENCH_AGENT:?WORKBENCH_AGENT is required}"
 : "${WORKBENCH_SESSION:?WORKBENCH_SESSION is required}"
 : "${AWS_REGION:?AWS_REGION is required}"
-: "${GITHUB_APP_ID_PARAMETER_NAME:?GITHUB_APP_ID_PARAMETER_NAME is required}"
-: "${GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME:?GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME is required}"
+: "${GITHUB_APP_TOKEN_FUNCTION_NAME:?GITHUB_APP_TOKEN_FUNCTION_NAME is required}"
 
 REPO_REF="${REPO_REF:-}"
 
@@ -124,8 +123,7 @@ write_shell_value() {
   printf 'export WORKBENCH_AGENT=%s\n' "$(write_shell_value "$WORKBENCH_AGENT")"
   printf 'export WORKBENCH_SESSION=%s\n' "$(write_shell_value "$WORKBENCH_SESSION")"
   printf 'export AWS_REGION=%s\n' "$(write_shell_value "$AWS_REGION")"
-  printf 'export GITHUB_APP_ID_PARAMETER_NAME=%s\n' "$(write_shell_value "$GITHUB_APP_ID_PARAMETER_NAME")"
-  printf 'export GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME=%s\n' "$(write_shell_value "$GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME")"
+  printf 'export GITHUB_APP_TOKEN_FUNCTION_NAME=%s\n' "$(write_shell_value "$GITHUB_APP_TOKEN_FUNCTION_NAME")"
   printf 'export HERDR_CONFIG_PATH=/etc/agent-workbench/herdr-config.toml\n'
   printf 'export DO_NOT_TRACK=1\n'
   printf 'export DISABLE_TELEMETRY=1\n'

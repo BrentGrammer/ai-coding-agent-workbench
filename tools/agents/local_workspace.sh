@@ -116,11 +116,17 @@ configureLocalWorkspace() {
   local workspace_input="${WORKSPACE_ROOT_DIR:-$PWD}"
   local workspace_path_was_given="false"
   PROMPT_INSTRUCTION_COPY="false"
+  # start_herdr.sh takes only positional arguments, so the environment variable
+  # is the way to ask it for a clone.
+  SANDBOX_CLONE="${SANDBOX_CLONE:-false}"
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --prompt-instruction-copy)
         PROMPT_INSTRUCTION_COPY="true"
+        ;;
+      --clone)
+        SANDBOX_CLONE="true"
         ;;
       --*)
         echo "Unknown option: $1" >&2
@@ -128,7 +134,7 @@ configureLocalWorkspace() {
         ;;
       *)
         if [ "$workspace_path_was_given" = "true" ]; then
-          echo "Usage: $0 [--prompt-instruction-copy] [WORKSPACE_PATH]" >&2
+          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [WORKSPACE_PATH]" >&2
           return 1
         fi
         workspace_input="$1"
@@ -282,4 +288,28 @@ openLocalWorkspace() {
 sandboxExists() {
   local sandbox_name="$1"
   sbx ls 2>/dev/null | awk '{print $1}' | grep -Fxq -- "$sandbox_name"
+}
+
+# Mounts the live workspace by default. Pass --clone to a launcher to work on a
+# private in-container git clone instead, which leaves gitignored files such as
+# .env on the host.
+createWorkbenchSandbox() {
+  local workspace_dir="$1"
+  local sandbox_name="$2"
+
+  if [ "${SANDBOX_CLONE:-false}" != "true" ]; then
+    sbx create shell "$workspace_dir" --name "$sandbox_name"
+    return
+  fi
+
+  if ! git -C "$workspace_dir" rev-parse --git-dir >/dev/null 2>&1; then
+    echo "ERROR: --clone needs a git repository, and $workspace_dir is not one." >&2
+    return 1
+  fi
+
+  echo "Creating the sandbox from a private git clone of $workspace_dir."
+  echo "Only committed files cross over, so gitignored files such as .env stay on the host."
+  echo "Commit first if you want the agent to see your current edits."
+  echo "Bring work back with: git fetch sandbox-$sandbox_name"
+  sbx create shell "$workspace_dir" --name "$sandbox_name" --clone
 }

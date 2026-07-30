@@ -19,6 +19,7 @@ const PROTECTED_FILE_NAMES = new Set([
   "credentials.json",
   "auth.json",
   "oauth_creds.json",
+  "private-key",
   "id_rsa",
   "id_dsa",
   "id_ecdsa",
@@ -59,6 +60,10 @@ const CONTENT_FIELD_NAMES = new Set([
   "instructions",
   "description",
   "message",
+  // Search terms, not paths. Scanning them blocks an MCP documentation search
+  // for the word ".env", which is friction with no security value.
+  "query",
+  "queries",
 ]);
 
 const ENV_FILE_PATTERN = /^\.env(\..+)?$/u;
