@@ -139,9 +139,103 @@ configureLocalWorkspace() {
   # prevent collisions - add hash to end of folder name
   local workspace_path_hash
   workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
+  WORKSPACE_PATH_HASH="$workspace_path_hash"
   SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
 
   openPreferredTerminal "$@"
+}
+
+copyMissingProjectInstructions() {
+  local ask_again="${1:-false}"
+  local instruction_files=(AGENTS.md CLAUDE.md)
+  local missing_instruction_files=()
+  local instruction_file
+
+  for instruction_file in "${instruction_files[@]}"; do
+    if [ ! -e "$WORKSPACE_ROOT_DIR/$instruction_file" ] && [ ! -L "$WORKSPACE_ROOT_DIR/$instruction_file" ]; then
+      missing_instruction_files+=("$instruction_file")
+    fi
+  done
+
+  if [ "${#missing_instruction_files[@]}" -eq 0 ]; then
+    return
+  fi
+
+  local instruction_copy_directory="$HOME/.local/state/agent-workbench/instruction-copy"
+  local instruction_copy_file="$instruction_copy_directory/$WORKSPACE_PATH_HASH"
+  local instruction_choice=""
+
+  if [ "$ask_again" != "true" ] && [ -f "$instruction_copy_file" ]; then
+    local saved_workspace_path
+    local saved_instruction_choice
+    saved_workspace_path="$(sed -n '1p' "$instruction_copy_file")"
+    saved_instruction_choice="$(sed -n '2p' "$instruction_copy_file")"
+
+    if [ "$saved_workspace_path" = "$WORKSPACE_ROOT_DIR" ]; then
+      case "$saved_instruction_choice" in
+        copy|skip)
+          instruction_choice="$saved_instruction_choice"
+          ;;
+      esac
+    fi
+  fi
+
+  local remember_choice="false"
+  if [ -z "$instruction_choice" ]; then
+    echo "Missing project instruction files: ${missing_instruction_files[*]}"
+    echo "1. Copy the missing files once."
+    echo "2. Copy the missing files and remember this choice."
+    echo "3. Do not copy the files this time."
+    echo "4. Do not copy the files and remember this choice."
+
+    local selected_choice
+    while true; do
+      if ! read -r -p "Choose 1, 2, 3, or 4: " selected_choice; then
+        echo "No project instruction files were copied."
+        return
+      fi
+
+      case "$selected_choice" in
+        1)
+          instruction_choice="copy"
+          break
+          ;;
+        2)
+          instruction_choice="copy"
+          remember_choice="true"
+          break
+          ;;
+        3)
+          instruction_choice="skip"
+          break
+          ;;
+        4)
+          instruction_choice="skip"
+          remember_choice="true"
+          break
+          ;;
+        *)
+          echo "Enter 1, 2, 3, or 4."
+          ;;
+      esac
+    done
+  fi
+
+  if [ "$remember_choice" = "true" ]; then
+    mkdir -p "$instruction_copy_directory"
+    printf '%s\n%s\n' "$WORKSPACE_ROOT_DIR" "$instruction_choice" > "$instruction_copy_file"
+  fi
+
+  if [ "$instruction_choice" = "skip" ]; then
+    echo "Project instruction files were not copied."
+    return
+  fi
+
+  for instruction_file in "${missing_instruction_files[@]}"; do
+    cp "$WORKBENCH_ROOT/$instruction_file" "$WORKSPACE_ROOT_DIR/$instruction_file"
+  done
+
+  echo "Copied project instruction files: ${missing_instruction_files[*]}"
 }
 
 openLocalWorkspace() {
