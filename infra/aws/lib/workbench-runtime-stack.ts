@@ -186,6 +186,9 @@ export class WorkbenchRuntimeStack extends cdk.Stack {
       environment: {
         GITHUB_APP_ID_PARAMETER_NAME,
         GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME,
+        ...(process.env.ALLOWED_REPOSITORIES
+          ? { ALLOWED_REPOSITORIES: process.env.ALLOWED_REPOSITORIES }
+          : {}),
       },
     });
 

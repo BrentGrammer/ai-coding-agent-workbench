@@ -149,6 +149,8 @@ cat <<MSG
 
 ✅ sandbox is ready: '"$SANDBOX_NAME"'
 
+Prerequisite: gh (GitHub CLI) must be installed and authenticated here.
+
 Run Claude Code:
 
   claude

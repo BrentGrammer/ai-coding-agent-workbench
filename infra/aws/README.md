@@ -38,7 +38,14 @@ Create these parameters in AWS Systems Manager Parameter Store in the same regio
 
 Do not commit the PEM key, put it in an environment file, or paste it into logs.
 
-Only the token Lambda reads these parameters. The runtime role can only invoke that function, which returns a one-hour token scoped to one repository — the container never sees the private key. Set `ALLOWED_REPOSITORIES` on the function to limit which repositories it will issue tokens for.
+Only the token Lambda reads these parameters. The runtime role can only invoke that function, which returns a one-hour token scoped to one repository — the container never sees the private key.
+
+Set `ALLOWED_REPOSITORIES` to restrict which repositories can receive tokens:
+
+```shell
+export ALLOWED_REPOSITORIES=owner/repo-one,owner/repo-two
+npm run deploy
+```
 
 ### Install or update the AgentCore CLI before opening a session:
 

@@ -4,6 +4,7 @@ FROM node:24-bookworm-slim
 ARG AWS_CLI_VERSION=2.36.4
 ARG HERDR_VERSION=0.7.4
 ARG HUNK_VERSION=0.17.3
+ARG GH_CLI_VERSION=2.63.2
 
 ENV DO_NOT_TRACK=1 \
     DISABLE_ERROR_REPORTING=1 \
@@ -46,6 +47,15 @@ RUN herdr_arch="$(uname -m)" \
     && chmod 755 /usr/local/bin/herdr \
     && herdr --version
 
+RUN gh_arch="$(uname -m)" \
+    && if [ "$gh_arch" = "x86_64" ]; then gh_arch="amd64"; else gh_arch="arm64"; fi \
+    && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/gh_${GH_CLI_VERSION}_linux_${gh_arch}.tar.gz" -o /tmp/gh.tar.gz \
+    && tar -xzf /tmp/gh.tar.gz -C /tmp \
+    && mv "/tmp/gh_${GH_CLI_VERSION}_linux_${gh_arch}/bin/gh" /usr/local/bin/gh \
+    && rm -rf /tmp/gh.tar.gz "/tmp/gh_${GH_CLI_VERSION}_linux_${gh_arch}" \
+    && chmod 755 /usr/local/bin/gh \
+    && gh --version
+
 RUN useradd --create-home --shell /bin/bash agent \
     && mkdir -p /etc/agent-workbench /home/agent/.local/npm /home/agent/.local/bin \
     && chown -R agent:agent /home/agent \
@@ -78,7 +88,9 @@ RUN curl -fsS https://cursor.com/install | bash \
 USER root
 
 COPY infra/aws/runtime/agentcore-server.mjs /app/agentcore-server.mjs
+COPY infra/aws/runtime/github-app-token-client.mjs /usr/local/lib/agent-workbench/github-app-token-client.mjs
 COPY infra/aws/runtime/git-credential-github-app.mjs /usr/local/bin/git-credential-github-app
+COPY infra/aws/runtime/gh-token.mjs /usr/local/bin/gh-token
 COPY infra/aws/runtime/bootstrap-repo.sh /usr/local/bin/bootstrap-repo
 COPY infra/aws/runtime/workbench-profile.sh /etc/profile.d/workbench.sh
 COPY runtime/start-herdr /usr/local/bin/start-herdr
@@ -94,6 +106,7 @@ COPY tools/agents/cursor-cli-config.json /etc/agent-workbench/cursor-cli-config.
 
 RUN chmod 755 \
       /usr/local/bin/git-credential-github-app \
+      /usr/local/bin/gh-token \
       /usr/local/bin/bootstrap-repo \
       /usr/local/bin/deny-protected-file-reads \
       /usr/local/bin/start-herdr \
@@ -108,7 +121,8 @@ RUN chmod 755 \
       /etc/agent-workbench/codex-config.toml \
       /etc/agent-workbench/cursor-mcp.json \
       /etc/agent-workbench/cursor-cli-config.json \
-      /etc/opencode/opencode.json
+      /etc/opencode/opencode.json \
+      /usr/local/lib/agent-workbench/github-app-token-client.mjs
 
 USER agent
 WORKDIR /home/agent

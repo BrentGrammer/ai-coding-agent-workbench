@@ -34,6 +34,8 @@ if [ -f "$SESSION_CONFIG_FILE" ]; then
   fi
 
   printf '\nWorkspace: %s\nAgent: %s\n\n' "$WORKSPACE_DIR" "$WORKBENCH_AGENT"
+  printf 'Run /setup-matt-pocock-skills once per repo, if you have not already.\n\n'
+  printf 'gh is wrapped to mint a fresh token per call - no gh auth login needed.\n\n'
   printf 'Run:\n  start-herdr\n\n'
   printf 'Herdr keeps your panes and agent in a background server, so they survive a\n'
   printf 'dropped shell. Reattaching runs start-herdr for you.\n\n'

@@ -88,6 +88,38 @@ Use `command-code`, `gemini-cli`, `grok`, or `kilo` as `<agent-value>`.
 3. Add the shared installer to Command Code, Gemini CLI, Grok Build, and Kilo Code.
 4. Run `/setup-matt-pocock-skills` once in each target project before the first Wayfinder run.
 
+## Prerequisites for this project
+
+Beyond installing the skill, Wayfinder needs two things set up in this repo before first use.
+
+1. **`gh` (GitHub CLI)**, installed and able to create/read/close issues. In the AgentCore sandbox this is not `gh auth login` — that would leave a durable token in `~/.config/gh/hosts.yml` inside the sandbox. Instead, `gh` is wrapped as a shell function (`infra/aws/runtime/bootstrap-repo.sh`) that fetches a fresh, repo-scoped, one-hour token from the same GitHub App broker Lambda the git credential helper already uses (`infra/aws/runtime/gh-token.mjs`, `infra/aws/runtime/github-app-token-client.mjs`), and sets `GH_TOKEN` for that one call only. Nothing persists. The `gh` binary itself is installed in `infra/aws/runtime/Dockerfile`.
+
+   In the local (non-AgentCore) sandbox launched by `tools/agents/start_claude.sh`, this wrapper does not exist — `gh` must be installed and authenticated manually there, and the welcome banner prints a one-line reminder of that prerequisite.
+
+2. **`/setup-matt-pocock-skills`**, run once per repo. For this project it wrote:
+   - `docs/agents/issue-tracker.md` — GitHub via `gh`, PRs-as-triage-surface off
+   - `docs/agents/triage-labels.md` — default label vocabulary
+   - `docs/agents/domain.md` — single-context layout
+   - An `## Agent skills` section in `AGENTS.md` pointing at the three files above
+
+   The AgentCore welcome banner (`infra/aws/runtime/workbench-profile.sh`) reminds you to run this if you have not already.
+
+## GitHub App permissions
+
+Wayfinder stores its map and tickets as GitHub issues, so the GitHub App used by this project's AgentCore sandbox needs these permissions:
+
+| Permission | Level | Why |
+| --- | --- | --- |
+| Contents | Read & write | git clone/fetch/push |
+| Issues | Read & write | Create/comment/close issues, labels, assignees, sub-issues, and issue dependencies (`blocked_by`) — all Wayfinder operations |
+| Metadata | Read-only | Mandatory default for any GitHub App, added automatically |
+
+Not needed unless the "PRs as a request surface" flag in `docs/agents/issue-tracker.md` is turned on:
+
+| Permission | Level | Why |
+| --- | --- | --- |
+| Pull requests | Read & write | Only if external PRs are treated as triage requests |
+
 ## Sources
 
 - [Matt Pocock skills installation](https://github.com/mattpocock/skills#installation-30-second-setup)
