@@ -125,16 +125,21 @@ configureLocalWorkspace() {
   WORKBENCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
   WORKSPACE_ROOT_DIR="$(cd "$workspace_input" && pwd -P)"
   WORKSPACE_NAME="$(basename "$WORKSPACE_ROOT_DIR")"
-  SANDBOX_WORKSPACE_NAME="$(
+  local readable_workspace_name
+  readable_workspace_name="$(
     printf '%s' "$WORKSPACE_NAME" |
       tr '[:upper:]_' '[:lower:]-' |
       tr -cs '[:alnum:]-' '-' |
       sed 's/^-//; s/-$//'
   )"
 
-  if [ -z "$SANDBOX_WORKSPACE_NAME" ]; then
-    SANDBOX_WORKSPACE_NAME="workspace"
+  if [ -z "$readable_workspace_name" ]; then
+    readable_workspace_name="workspace"
   fi
+  # prevent collisions - add hash to end of folder name
+  local workspace_path_hash
+  workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
+  SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
 
   openPreferredTerminal "$@"
 }

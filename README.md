@@ -92,7 +92,7 @@ start-kilo
 start-pi
 ```
 
-Each command uses the current directory unless a project path is passed. Sandboxes are reused by project so logins persist.
+Each command uses the current directory unless a project path is passed. Sandbox names use the workspace folder name and a hash of its canonical path. Sandboxes are reused only for the same workspace path, so the first launch with the new name can require a new agent login.
 
 ### Terminal and IDE options
 
