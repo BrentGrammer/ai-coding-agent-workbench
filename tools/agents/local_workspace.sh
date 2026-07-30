@@ -111,6 +111,7 @@ openPreferredTerminal() {
 # Shared setup for local agent launchers. Uses the current directory or
 # optional local project path and creates a Docker sandbox name from it.
 configureLocalWorkspace() {
+  local launcher_argument_count="$#"
   local launcher_arguments=("$@")
   local workspace_input="${WORKSPACE_ROOT_DIR:-$PWD}"
   local workspace_path_was_given="false"
@@ -161,6 +162,11 @@ configureLocalWorkspace() {
   workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
   WORKSPACE_PATH_HASH="$workspace_path_hash"
   SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
+
+  if [ "$launcher_argument_count" -eq 0 ]; then
+    openPreferredTerminal
+    return
+  fi
 
   openPreferredTerminal "${launcher_arguments[@]}"
 }
