@@ -111,12 +111,32 @@ openPreferredTerminal() {
 # Shared setup for local agent launchers. Uses the current directory or
 # optional local project path and creates a Docker sandbox name from it.
 configureLocalWorkspace() {
-  if [ "$#" -gt 1 ]; then
-    echo "Usage: $0 [WORKSPACE_PATH]" >&2
-    return 1
-  fi
+  local launcher_arguments=("$@")
+  local workspace_input="${WORKSPACE_ROOT_DIR:-$PWD}"
+  local workspace_path_was_given="false"
+  PROMPT_INSTRUCTION_COPY="false"
 
-  local workspace_input="${1:-${WORKSPACE_ROOT_DIR:-$PWD}}"
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --prompt-instruction-copy)
+        PROMPT_INSTRUCTION_COPY="true"
+        ;;
+      --*)
+        echo "Unknown option: $1" >&2
+        return 1
+        ;;
+      *)
+        if [ "$workspace_path_was_given" = "true" ]; then
+          echo "Usage: $0 [--prompt-instruction-copy] [WORKSPACE_PATH]" >&2
+          return 1
+        fi
+        workspace_input="$1"
+        workspace_path_was_given="true"
+        ;;
+    esac
+    shift
+  done
+
   if [ ! -d "$workspace_input" ]; then
     echo "ERROR: Workspace directory does not exist: $workspace_input" >&2
     return 1
@@ -142,7 +162,7 @@ configureLocalWorkspace() {
   WORKSPACE_PATH_HASH="$workspace_path_hash"
   SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
 
-  openPreferredTerminal "$@"
+  openPreferredTerminal "${launcher_arguments[@]}"
 }
 
 copyMissingProjectInstructions() {
