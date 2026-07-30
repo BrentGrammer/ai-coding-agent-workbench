@@ -100,6 +100,17 @@ done
 mkdir -p "$HOME/.claude/skills/hunk-review"
 ln -sf "$(hunk skill path)" "$HOME/.claude/skills/hunk-review/SKILL.md"
 
+if claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
+  echo "The Matt Pocock skills plugin is already installed."
+else
+  claude plugin marketplace add mattpocock/skills </dev/null >/dev/null 2>&1 || true
+  claude plugin install mattpocock-skills@mattpocock </dev/null >/dev/null 2>&1 || true
+fi
+
+if ! claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
+  echo "WARN: The Matt Pocock skills plugin did not install for Claude Code." >&2
+fi
+
 install -m 600 /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
 install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
 
