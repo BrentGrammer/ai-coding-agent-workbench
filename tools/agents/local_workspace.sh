@@ -183,8 +183,10 @@ copyMissingProjectInstructions() {
   local remember_choice="false"
   if [ -z "$instruction_choice" ]; then
     echo "Missing project instruction files: ${missing_instruction_files[*]}"
-    echo "1. Copy the missing files once."
-    echo "2. Copy the missing files and remember this choice."
+    echo "Project root: $WORKSPACE_ROOT_DIR"
+    echo "Copying writes these files to this folder on your hard drive."
+    echo "1. Copy the missing files to this project root once."
+    echo "2. Copy the missing files to this project root and remember this choice."
     echo "3. Do not copy the files this time."
     echo "4. Do not copy the files and remember this choice."
 
@@ -235,7 +237,7 @@ copyMissingProjectInstructions() {
     cp "$WORKBENCH_ROOT/$instruction_file" "$WORKSPACE_ROOT_DIR/$instruction_file"
   done
 
-  echo "Copied project instruction files: ${missing_instruction_files[*]}"
+  echo "Copied project instruction files to $WORKSPACE_ROOT_DIR: ${missing_instruction_files[*]}"
 }
 
 openLocalWorkspace() {
