@@ -79,6 +79,15 @@ start-codex /path/to/another-project
 start-opencode
 ```
 
+Run a direct agent from a parent folder:
+
+```shell
+cd "/workspace/My Projects"
+start-codex
+```
+
+Every child repository is writable. Run Git commands inside the child repository that the command applies to.
+
 Other available launchers:
 
 ```shell
@@ -93,6 +102,19 @@ start-pi
 ```
 
 Each command uses the current directory unless a project path is passed. Sandbox names use the workspace folder name and a hash of its canonical path. Sandboxes are reused only for the same workspace path, so the first launch with the new name can require a new agent login.
+
+### Project instruction files
+
+When `AGENTS.md` or `CLAUDE.md` is missing, the selected local launchers ask if they should copy the missing files into the project root.
+
+Show the choice again:
+
+```shell
+start-codex --prompt-instruction-copy
+start-codex --prompt-instruction-copy "/path/to/project"
+```
+
+`readonly/CONVENTIONS.md` and `readonly/REACT_INSTRUCTIONS.md` are optional convenience files. You can copy them into a project yourself when needed.
 
 ### Terminal and IDE options
 
