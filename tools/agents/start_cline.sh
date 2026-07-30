@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 configureLocalWorkspace "$@"
+copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
 SANDBOX_NAME="cline-$REPO_REPLACE_UNDERSCORES"

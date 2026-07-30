@@ -111,12 +111,33 @@ openPreferredTerminal() {
 # Shared setup for local agent launchers. Uses the current directory or
 # optional local project path and creates a Docker sandbox name from it.
 configureLocalWorkspace() {
-  if [ "$#" -gt 1 ]; then
-    echo "Usage: $0 [WORKSPACE_PATH]" >&2
-    return 1
-  fi
+  local launcher_argument_count="$#"
+  local launcher_arguments=("$@")
+  local workspace_input="${WORKSPACE_ROOT_DIR:-$PWD}"
+  local workspace_path_was_given="false"
+  PROMPT_INSTRUCTION_COPY="false"
 
-  local workspace_input="${1:-${WORKSPACE_ROOT_DIR:-$PWD}}"
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --prompt-instruction-copy)
+        PROMPT_INSTRUCTION_COPY="true"
+        ;;
+      --*)
+        echo "Unknown option: $1" >&2
+        return 1
+        ;;
+      *)
+        if [ "$workspace_path_was_given" = "true" ]; then
+          echo "Usage: $0 [--prompt-instruction-copy] [WORKSPACE_PATH]" >&2
+          return 1
+        fi
+        workspace_input="$1"
+        workspace_path_was_given="true"
+        ;;
+    esac
+    shift
+  done
+
   if [ ! -d "$workspace_input" ]; then
     echo "ERROR: Workspace directory does not exist: $workspace_input" >&2
     return 1
@@ -125,18 +146,124 @@ configureLocalWorkspace() {
   WORKBENCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
   WORKSPACE_ROOT_DIR="$(cd "$workspace_input" && pwd -P)"
   WORKSPACE_NAME="$(basename "$WORKSPACE_ROOT_DIR")"
-  SANDBOX_WORKSPACE_NAME="$(
+  local readable_workspace_name
+  readable_workspace_name="$(
     printf '%s' "$WORKSPACE_NAME" |
       tr '[:upper:]_' '[:lower:]-' |
       tr -cs '[:alnum:]-' '-' |
       sed 's/^-//; s/-$//'
   )"
 
-  if [ -z "$SANDBOX_WORKSPACE_NAME" ]; then
-    SANDBOX_WORKSPACE_NAME="workspace"
+  if [ -z "$readable_workspace_name" ]; then
+    readable_workspace_name="workspace"
+  fi
+  # prevent collisions - add hash to end of folder name
+  local workspace_path_hash
+  workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
+  WORKSPACE_PATH_HASH="$workspace_path_hash"
+  SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
+
+  if [ "$launcher_argument_count" -eq 0 ]; then
+    openPreferredTerminal
+    return
   fi
 
-  openPreferredTerminal "$@"
+  openPreferredTerminal "${launcher_arguments[@]}"
+}
+
+copyMissingProjectInstructions() {
+  local ask_again="${1:-false}"
+  local instruction_files=(AGENTS.md CLAUDE.md)
+  local missing_instruction_files=()
+  local instruction_file
+
+  for instruction_file in "${instruction_files[@]}"; do
+    if [ ! -e "$WORKSPACE_ROOT_DIR/$instruction_file" ] && [ ! -L "$WORKSPACE_ROOT_DIR/$instruction_file" ]; then
+      missing_instruction_files+=("$instruction_file")
+    fi
+  done
+
+  if [ "${#missing_instruction_files[@]}" -eq 0 ]; then
+    return
+  fi
+
+  local instruction_copy_directory="$HOME/.local/state/agent-workbench/instruction-copy"
+  local instruction_copy_file="$instruction_copy_directory/$WORKSPACE_PATH_HASH"
+  local instruction_choice=""
+
+  if [ "$ask_again" != "true" ] && [ -f "$instruction_copy_file" ]; then
+    local saved_workspace_path
+    local saved_instruction_choice
+    saved_workspace_path="$(sed -n '1p' "$instruction_copy_file")"
+    saved_instruction_choice="$(sed -n '2p' "$instruction_copy_file")"
+
+    if [ "$saved_workspace_path" = "$WORKSPACE_ROOT_DIR" ]; then
+      case "$saved_instruction_choice" in
+        copy|skip)
+          instruction_choice="$saved_instruction_choice"
+          ;;
+      esac
+    fi
+  fi
+
+  local remember_choice="false"
+  if [ -z "$instruction_choice" ]; then
+    echo "Missing project instruction files: ${missing_instruction_files[*]}"
+    echo "Project root: $WORKSPACE_ROOT_DIR"
+    echo "Copying writes these files to this folder on your hard drive."
+    echo "1. Copy the missing files to this project root once."
+    echo "2. Copy the missing files to this project root and remember this choice."
+    echo "3. Do not copy the files this time."
+    echo "4. Do not copy the files and remember this choice."
+
+    local selected_choice
+    while true; do
+      if ! read -r -p "Choose 1, 2, 3, or 4: " selected_choice; then
+        echo "No project instruction files were copied."
+        return
+      fi
+
+      case "$selected_choice" in
+        1)
+          instruction_choice="copy"
+          break
+          ;;
+        2)
+          instruction_choice="copy"
+          remember_choice="true"
+          break
+          ;;
+        3)
+          instruction_choice="skip"
+          break
+          ;;
+        4)
+          instruction_choice="skip"
+          remember_choice="true"
+          break
+          ;;
+        *)
+          echo "Enter 1, 2, 3, or 4."
+          ;;
+      esac
+    done
+  fi
+
+  if [ "$remember_choice" = "true" ]; then
+    mkdir -p "$instruction_copy_directory"
+    printf '%s\n%s\n' "$WORKSPACE_ROOT_DIR" "$instruction_choice" > "$instruction_copy_file"
+  fi
+
+  if [ "$instruction_choice" = "skip" ]; then
+    echo "Project instruction files were not copied."
+    return
+  fi
+
+  for instruction_file in "${missing_instruction_files[@]}"; do
+    cp "$WORKBENCH_ROOT/$instruction_file" "$WORKSPACE_ROOT_DIR/$instruction_file"
+  done
+
+  echo "Copied project instruction files to $WORKSPACE_ROOT_DIR: ${missing_instruction_files[*]}"
 }
 
 openLocalWorkspace() {
