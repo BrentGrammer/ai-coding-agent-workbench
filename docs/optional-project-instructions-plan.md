@@ -23,8 +23,12 @@ No multi-project code change is necessary.
 2. Create portable `AGENTS.md` and `CLAUDE.md` templates for use in other
    projects.
 3. Make `CLAUDE.md` import `AGENTS.md` so Claude receives the shared rules.
-4. Keep both templates self-contained so no other Markdown files must be
-   copied.
+4. Copy only `AGENTS.md` and `CLAUDE.md` through the automatic prompt.
+   - Do not include or reference `readonly/CONVENTIONS.md` in the portable
+     templates.
+   - Do not include or reference `readonly/REACT_INSTRUCTIONS.md` in the
+     portable templates.
+   - Keep both files in the workbench as optional convenience files.
 5. Add one shared instruction-copy function for the applicable local start
    commands.
 6. Before a sandbox starts, check which instruction files are missing from the
@@ -45,8 +49,16 @@ No multi-project code change is necessary.
     - Treat a moved or renamed workspace as a new workspace.
 12. Provide a start-command option that asks again and replaces the remembered
     choice for the selected workspace.
-13. Apply the prompt only to harnesses that read `AGENTS.md`, `CLAUDE.md`, or
-    both.
+13. Add the prompt to these local start commands:
+    - `start-claude`
+    - `start-cline`
+    - `start-codex`
+    - `start-commandcode`
+    - `start-cursor`
+    - `start-grok`
+    - `start-kilo`
+    - `start-opencode`
+    - `start-pi`
 14. Do not add this behavior to AgentCore, Herdr, Hunk, Antigravity, or Gemini
     in this change.
 15. Add a README example that shows how to start a direct agent from a parent
@@ -59,3 +71,6 @@ No multi-project code change is necessary.
 
 16. State in the README that every child repository is writable and Git
     commands must run inside the applicable repository.
+17. Document `readonly/CONVENTIONS.md` and
+    `readonly/REACT_INSTRUCTIONS.md` as optional files that users can copy into
+    a project themselves.
