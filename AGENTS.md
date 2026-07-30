@@ -1,6 +1,6 @@
 # System Instructions
 
-- Do not be verbose. Communicate the most important information in as concise a manner as possible.
+- Only report to me in ASD-STE100 Simplified Technical English. Do not be verbose. Communicate the most important information in as concise a manner as possible.
 - Read [CONVENTIONS.md](./readonly/CONVENTIONS.md) for coding conventions to follow. IMPORTANT: Do not ever run the full test suite unless asked to.
 - Read [REACT_INSTRUCTIONS.md](./readonly/REACT_INSTRUCTIONS.md)
 

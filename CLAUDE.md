@@ -2,7 +2,7 @@
 
 ## Communication
 
-- Keep design discussion and summaries short and in plain words. Avoid dense, jargon-heavy prose and long compound sentences.
+- Only report to me in ASD-STE100 Simplified Technical English. Keep design discussion and summaries short and in plain words. Avoid dense, jargon-heavy prose and long compound sentences.
 - Lead with the plain-terms definition of a thing before proposing any name or design detail for it.
 - For open items, use short numbered lists: one sentence of context, one clear question. Mark each item as "decision needed" vs "just say ok".
 - Prefer everyday words over jargon.
