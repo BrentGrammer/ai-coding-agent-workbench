@@ -116,6 +116,25 @@ start-codex --prompt-instruction-copy "/path/to/project"
 
 `readonly/CONVENTIONS.md` and `readonly/REACT_INSTRUCTIONS.md` are optional convenience files. You can copy them into a project yourself when needed.
 
+### `--clone`: keep secrets out of the sandbox
+
+Launchers mount your live folder, so a real `.env` is readable by the agent. Some of the harnesses have sufficient protection, but some do not and `--clone` is recommended for:
+
+**Recommended: Use `--clone` with these:** `start-cline`, `start-cursor`, `start-antigravity`, `start-gemini`, `start-grok`, `start-kilo`, `start-pi`, `start-commandcode`. None of them can block a secret read.
+
+**Skip it with these:** `start-claude`, `start-opencode`, `start-codex`. All three block secret reads on their own.
+
+```shell
+start-cursor --clone
+SANDBOX_CLONE=true start-herdr   # herdr takes positional arguments only
+```
+
+The agent then works on a git clone inside the sandbox. The tradeoff: using this option means your original project files drift from the sandbox project so you need to keep them in sync.
+
+### Security findings
+
+The workbench layers several controls to stop agents from reading secrets: instructions, a PreToolUse hook, permission deny rules, and an OS sandbox. Read more: [docs/research/secret-file-protection.md](docs/research/secret-file-protection.md).
+
 ### Terminal and IDE options
 
 Ghostty opens automatically when installed. Override the terminal with `WORKSPACE_TERMINAL=wezterm`, `kitty`, `alacritty`, or `current`:
@@ -172,16 +191,18 @@ Before starting, copy the environment template from the project root:
 cp .env.template .env
 ```
 
-Edit `.env` and fill in every value:
+Edit `.env`. These two values are the only ones it needs:
 
 ```shell
 GITHUB_REPOSITORY_URL=https://github.com/owner/repository.git
 AWS_REGION=YOUR_AWS_REGION
-GITHUB_APP_ID_PARAMETER_NAME=/coding-agent-workbench/github/app-id
-GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME=/coding-agent-workbench/github/private-key
 ```
 
-The two Parameter Store names must match exactly in `.env`, AWS Systems Manager Parameter Store, and `infra/aws/lib/workbench-runtime-stack.ts`. If you change the CDK constants, redeploy the stack.
+#### GitHub App Tokens
+
+Note: The GitHub App private key stays inside the a lambda function to get a token and never reaches the agent container. The container can only ask that function for an installation token, which GitHub expires in one hour and scopes to one repository. To limit which repositories the container may ask for, set `ALLOWED_REPOSITORIES` on the function to a comma-separated list of `owner/repository` values. Leave it unset to allow any repository the App is installed on.
+
+#### GitHub Repos
 
 To use AgentCore with another repository, change only `GITHUB_REPOSITORY_URL` in `.env`, then run `start-agentcore` normally. The GitHub App must be installed for the new repository.
 

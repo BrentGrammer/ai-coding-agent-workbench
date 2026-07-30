@@ -201,7 +201,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 else
   echo "🆕 Creating new sandbox: $SANDBOX_NAME"
 
-  sbx create shell "$PROJECT_DIR" --name "$SANDBOX_NAME"
+  createWorkbenchSandbox "$PROJECT_DIR" "$SANDBOX_NAME"
 
   allow_opencode_network
   upgrade_system_packages

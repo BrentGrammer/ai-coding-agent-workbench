@@ -228,28 +228,14 @@ const readGitIdentity = () => ({
 
 const createBootstrapCommand = (session) => {
   const gitIdentity = readGitIdentity();
-  const githubAppIdParameterName =
-    process.env.GITHUB_APP_ID_PARAMETER_NAME;
-  const githubAppPrivateKeyParameterName =
-    process.env.GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME;
 
-  if (!githubAppIdParameterName || !githubAppPrivateKeyParameterName) {
-    throw new Error(
-      "Set the GitHub App Parameter Store names before launching AgentCore.",
-    );
-  }
-
+  // The cdk stack sets GITHUB_APP_TOKEN_FUNCTION_NAME on the runtime
   const exports = [
     ["REPO_URL", session.repoUrl],
     ["REPO_REF", session.repoRef],
     ["WORKBENCH_AGENT", session.agent],
     ["WORKBENCH_SESSION", session.name],
     ["AWS_REGION", session.region],
-    ["GITHUB_APP_ID_PARAMETER_NAME", githubAppIdParameterName],
-    [
-      "GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME",
-      githubAppPrivateKeyParameterName,
-    ],
     ["GIT_USER_NAME", gitIdentity.name],
     ["GIT_USER_EMAIL", gitIdentity.email],
   ]

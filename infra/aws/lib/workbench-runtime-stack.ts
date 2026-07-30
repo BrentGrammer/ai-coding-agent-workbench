@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib/core";
 import { DockerImageAsset, Platform } from "aws-cdk-lib/aws-ecr-assets";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as path from "node:path";
 import { Construct } from "constructs";
 
@@ -36,9 +37,11 @@ export class WorkbenchRuntimeStack extends cdk.Stack {
       description: "Runs Agent Workbench sessions.",
     });
 
+    const githubTokenFunction = this.createGitHubTokenFunction();
+
     image.repository.grantPull(executionRole);
     this.grantLogging(executionRole);
-    this.grantGitHubAppAccess(executionRole);
+    githubTokenFunction.grantInvoke(executionRole);
     this.grantWorkloadIdentity(executionRole);
 
     executionRole.addToPolicy(
@@ -65,8 +68,7 @@ export class WorkbenchRuntimeStack extends cdk.Stack {
         ProtocolConfiguration: "HTTP",
         EnvironmentVariables: {
           AWS_REGION: this.region,
-          GITHUB_APP_ID_PARAMETER_NAME,
-          GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME,
+          GITHUB_APP_TOKEN_FUNCTION_NAME: githubTokenFunction.functionName,
         },
         FilesystemConfigurations: [
           {
@@ -135,6 +137,9 @@ export class WorkbenchRuntimeStack extends cdk.Stack {
     new cdk.CfnOutput(this, "AgentCoreShellCallerPolicyArn", {
       value: callerPolicy.managedPolicyArn,
     });
+    new cdk.CfnOutput(this, "GitHubAppTokenFunctionName", {
+      value: githubTokenFunction.functionName,
+    });
   }
 
   private grantLogging(role: iam.Role): void {
@@ -164,39 +169,60 @@ export class WorkbenchRuntimeStack extends cdk.Stack {
     );
   }
 
-  private grantGitHubAppAccess(role: iam.Role): void {
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        actions: ["ssm:GetParameter"],
-        resources: [
-          this.formatArn({
-            service: "ssm",
-            resource: "parameter",
-            resourceName: GITHUB_APP_ID_PARAMETER_NAME.replace(/^\//, ""),
-          }),
-          this.formatArn({
-            service: "ssm",
-            resource: "parameter",
-            resourceName: GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME.replace(
-              /^\//,
-              "",
-            ),
-          }),
-        ],
+  // Holds the GitHub App private key so the agent container never can. The
+  // container may only invoke this function, which hands back a token that
+  // GitHub expires in an hour and scopes to one repository.
+  private createGitHubTokenFunction(): lambda.Function {
+    const tokenFunction = new lambda.Function(this, "GitHubAppTokenFunction", {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: "index.handler",
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "..", "lambda", "github-app-token"),
+      ),
+      timeout: cdk.Duration.seconds(15),
+      memorySize: 256,
+      description:
+        "Makes short-lived GitHub App installation tokens for Agent Workbench.",
+      environment: {
+        GITHUB_APP_ID_PARAMETER_NAME,
+        GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME,
+      },
+    });
+
+    const parameterArns = [
+      GITHUB_APP_ID_PARAMETER_NAME,
+      GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME,
+    ].map((parameterName) =>
+      this.formatArn({
+        service: "ssm",
+        resource: "parameter",
+        resourceName: parameterName.replace(/^\//, ""),
       }),
     );
 
-    role.addToPolicy(
+    tokenFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["ssm:GetParameter"],
+        resources: parameterArns,
+      }),
+    );
+
+    // The key that encrypts the parameters is not known when this synthesises,
+    // so the encryption context pins decryption to those two parameters.
+    tokenFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["kms:Decrypt"],
         conditions: {
           StringEquals: {
             "kms:ViaService": `ssm.${this.region}.amazonaws.com`,
+            "kms:EncryptionContext:PARAMETER_ARN": parameterArns,
           },
         },
         resources: ["*"],
       }),
     );
+
+    return tokenFunction;
   }
 
   private grantWorkloadIdentity(role: iam.Role): void {

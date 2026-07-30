@@ -240,7 +240,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   echo "Reusing sandbox: $SANDBOX_NAME"
 else
   echo "Creating sandbox: $SANDBOX_NAME"
-  sbx create shell "$WORKSPACE_ROOT_DIR" --name "$SANDBOX_NAME"
+  createWorkbenchSandbox "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME"
   allow_network
   upgrade_system_packages
   install_system_packages
