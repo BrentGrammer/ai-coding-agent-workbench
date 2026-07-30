@@ -38,6 +38,8 @@ Create these parameters in AWS Systems Manager Parameter Store in the same regio
 
 Do not commit the PEM key, put it in an environment file, or paste it into logs.
 
+Only the token Lambda reads these parameters. The runtime role can only invoke that function, which returns a one-hour token scoped to one repository — the container never sees the private key. Set `ALLOWED_REPOSITORIES` on the function to limit which repositories it will issue tokens for.
+
 ### Install or update the AgentCore CLI before opening a session:
 
 ```shell
@@ -65,6 +67,7 @@ The deploy command:
 
 - Builds and publishes the ARM64 runtime image.
 - Deploys the AgentCore runtime.
+- Deploys the Lambda function that mints GitHub App tokens.
 
 If the deploying identity will not open workbench sessions, attach the `AgentCoreShellCallerPolicyArn` stack output to the trusted IAM user or role that will.
 
@@ -150,10 +153,11 @@ This section is a convenience checklist, not authoritative billing guidance and 
 
 Also recommended: create an AWS Budget in the Billing console with an alert threshold so you are notified if spend exceeds a chosen amount.
 
-- No Lambda microVM, VPC, NAT gateway, load balancer, EFS, database, AgentCore Memory, Gateway, alarm, or dashboard is created.
+- No VPC, NAT gateway, load balancer, EFS, database, AgentCore Memory, Gateway, alarm, or dashboard is created.
+- One Lambda function (GitHub token minting, 256 MB, 15 s timeout) runs only when Git requests a credential — a few short invocations per session. Its log group uses the default retention and never expires.
 - AgentCore runtime billing is usage-based.
 - The runtime's 15-minute idle timeout does not apply here, because `/ping` reports `HealthyBusy` for the whole session to stop AgentCore reaping an interactive shell mid-task. A dropped session has still been seen to end on its own, but do not count on that. Stop sessions yourself with `workbench aws stop NAME`.
 - Runtime compute has an eight-hour maximum lifetime.
-- CloudWatch logs retain one day.
+- Runtime CloudWatch logs retain one day.
 - Deployment keeps one tracked workbench image and removes older tracked images.
 - `workbench aws status` checks whether AgentCore reports active runtime sessions.
