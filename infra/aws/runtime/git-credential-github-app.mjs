@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { requestInstallationToken } from "/usr/local/lib/agent-workbench/github-app-token-client.mjs";
 
 const readCredentialRequest = async () => {
   let input = "";
@@ -20,37 +17,6 @@ const readCredentialRequest = async () => {
         return [line.slice(0, separatorIndex), line.slice(separatorIndex + 1)];
       }),
   );
-};
-
-// The App private key lives in the token function, not in this container, so
-// the most this call can return is a one-hour token for a single repository.
-const requestInstallationToken = (owner, repository) => {
-  const responseDirectory = mkdtempSync(join(tmpdir(), "github-app-token-"));
-  const responseFile = join(responseDirectory, "response.json");
-
-  try {
-    execFileSync(
-      "aws",
-      [
-        "lambda",
-        "invoke",
-        "--region",
-        process.env.AWS_REGION,
-        "--function-name",
-        process.env.GITHUB_APP_TOKEN_FUNCTION_NAME,
-        "--cli-binary-format",
-        "raw-in-base64-out",
-        "--payload",
-        JSON.stringify({ owner, repository }),
-        responseFile,
-      ],
-      { stdio: ["ignore", "ignore", "inherit"] },
-    );
-
-    return JSON.parse(readFileSync(responseFile, "utf8"));
-  } finally {
-    rmSync(responseDirectory, { recursive: true, force: true });
-  }
 };
 
 const main = async () => {

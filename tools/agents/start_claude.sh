@@ -149,6 +149,8 @@ cat <<MSG
 
 ✅ sandbox is ready: '"$SANDBOX_NAME"'
 
+Prerequisite: gh (GitHub CLI) must be installed and authenticated here.
+
 Run Claude Code:
 
   claude
@@ -172,6 +174,8 @@ In Claude, log in with your Claude subscription:
 If the browser cannot reach this sandbox, press c to copy the URL,
 sign in on the host, then paste the code back into the terminal.
 Note: Make sure ANTHROPIC_API_KEY is unset, or it overrides subscription auth.
+
+Run /setup-matt-pocock-skills once per repo, if you have not already.
 
 MSG
 EOF
