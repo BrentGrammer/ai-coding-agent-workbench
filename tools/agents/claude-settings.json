@@ -34,6 +34,7 @@
     "failIfUnavailable": true,
     "autoAllowBashIfSandboxed": true,
     "excludedCommands": ["git:*", "hunk:*"],
+    "socatPath": "/usr/local/libexec/socat-ipv4",
     "filesystem": {
       "denyRead": [
         ".env",
@@ -72,8 +73,10 @@
       "allowRead": ["**/.env.template", "**/.env.example"]
     },
     "network": {
+      "allowAllUnixSockets": true,
       "allowedDomains": [
         "api.github.com",
+        "github.com",
         "lambda.us-west-2.amazonaws.com"
       ]
     }

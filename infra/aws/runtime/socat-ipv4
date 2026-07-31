@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+arguments=()
+
+for argument in "$@"; do
+  case "$argument" in
+    TCP-LISTEN:*)
+      argument="TCP4-LISTEN:${argument#TCP-LISTEN:}"
+      ;;
+  esac
+
+  arguments+=("$argument")
+done
+
+exec /usr/bin/socat "${arguments[@]}"

@@ -92,7 +92,7 @@ Use `command-code`, `gemini-cli`, `grok`, or `kilo` as `<agent-value>`.
 
 Beyond installing the skill, Wayfinder needs two things set up in this repo before first use.
 
-1. **`gh` (GitHub CLI)**, installed and able to create/read/close issues. In the AgentCore sandbox this is not `gh auth login` — that would leave a durable token in `~/.config/gh/hosts.yml` inside the sandbox. Instead, the existing `gh` wrapper gets a fresh, repo-scoped, one-hour token from the same GitHub App broker Lambda that the git credential helper uses. Claude's managed network settings allow the Lambda and GitHub API endpoints. The GitHub CLI runs inside the agent's Bash sandbox. The GitHub App private key stays in Lambda, and nothing persists.
+1. **`gh` (GitHub CLI)**, installed and able to create/read/close issues. In the AgentCore sandbox this is not `gh auth login` — that would leave a durable token in `~/.config/gh/hosts.yml` inside the sandbox. Instead, the existing `gh` wrapper gets a fresh, repo-scoped, one-hour token from the same GitHub App broker Lambda that the git credential helper uses. Claude's managed settings use an IPv4-only `socat` wrapper for the sandbox proxy because the generic Linux listener can select unavailable IPv6 and exit. The GitHub App private key stays in Lambda, and nothing persists.
 
    In the local (non-AgentCore) sandbox launched by `tools/agents/start_claude.sh`, this wrapper does not exist — `gh` must be installed and authenticated manually there, and the welcome banner prints a one-line reminder of that prerequisite.
 

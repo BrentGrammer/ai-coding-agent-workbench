@@ -93,6 +93,7 @@ COPY infra/aws/runtime/github-app-token-client.mjs /usr/local/lib/agent-workbenc
 COPY infra/aws/runtime/git-credential-github-app.mjs /usr/local/bin/git-credential-github-app
 COPY infra/aws/runtime/gh-with-github-app /usr/local/bin/gh
 COPY infra/aws/runtime/gh-token.mjs /usr/local/bin/gh-token
+COPY infra/aws/runtime/socat-ipv4 /usr/local/libexec/socat-ipv4
 COPY infra/aws/runtime/bootstrap-repo.sh /usr/local/bin/bootstrap-repo
 COPY infra/aws/runtime/workbench-profile.sh /etc/profile.d/workbench.sh
 COPY runtime/start-herdr /usr/local/bin/start-herdr
@@ -110,6 +111,7 @@ RUN chmod 755 \
       /usr/local/bin/git-credential-github-app \
       /usr/local/bin/gh \
       /usr/local/bin/gh-token \
+      /usr/local/libexec/socat-ipv4 \
       /usr/local/bin/bootstrap-repo \
       /usr/local/bin/deny-protected-file-reads \
       /usr/local/bin/start-herdr \
