@@ -72,7 +72,10 @@
       "allowRead": ["**/.env.template", "**/.env.example"]
     },
     "network": {
-      "allowUnixSockets": ["/tmp/agent-workbench/github-token.sock"]
+      "allowedDomains": [
+        "api.github.com",
+        "lambda.us-west-2.amazonaws.com"
+      ]
     }
   },
   "hooks": {

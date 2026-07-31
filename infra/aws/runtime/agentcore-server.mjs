@@ -1,5 +1,4 @@
 import http from "node:http";
-import { startGitHubTokenRelay } from "/usr/local/lib/agent-workbench/github-token-relay.mjs";
 
 const PORT = 8080;
 const STATUS_HEALTHY_BUSY = "HealthyBusy";
@@ -40,4 +39,3 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(PORT, "0.0.0.0");
-startGitHubTokenRelay();
