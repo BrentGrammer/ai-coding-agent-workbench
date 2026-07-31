@@ -160,17 +160,6 @@ codex() {
     "$@"
 }
 export -f codex
-
-# Mints a fresh, repo-scoped, one-hour token per call instead of a persisted
-# gh login - the same broker Lambda the git credential helper already uses.
-gh() {
-  local remote_url owner_repo
-  remote_url="$(git -C "$WORKSPACE_DIR" remote get-url origin)"
-  owner_repo="${remote_url#https://github.com/}"
-  owner_repo="${owner_repo%.git}"
-  GH_TOKEN="$(gh-token "${owner_repo%%/*}" "${owner_repo#*/}")" command gh "$@"
-}
-export -f gh
 EOF
 
 echo "Workspace ready at $WORKSPACE_DIR."

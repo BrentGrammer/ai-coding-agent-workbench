@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${WORKSPACE_DIR:?WORKSPACE_DIR is required}"
+
+REMOTE_URL="$(git -C "$WORKSPACE_DIR" remote get-url origin)"
+OWNER_REPOSITORY="${REMOTE_URL#https://github.com/}"
+OWNER_REPOSITORY="${OWNER_REPOSITORY%.git}"
+OWNER="${OWNER_REPOSITORY%%/*}"
+REPOSITORY="${OWNER_REPOSITORY#*/}"
+
+GH_TOKEN="$(gh-token "$OWNER" "$REPOSITORY")"
+export GH_TOKEN
+
+exec /usr/local/lib/agent-workbench/gh-cli "$@"

@@ -51,10 +51,11 @@ RUN gh_arch="$(uname -m)" \
     && if [ "$gh_arch" = "x86_64" ]; then gh_arch="amd64"; else gh_arch="arm64"; fi \
     && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/gh_${GH_CLI_VERSION}_linux_${gh_arch}.tar.gz" -o /tmp/gh.tar.gz \
     && tar -xzf /tmp/gh.tar.gz -C /tmp \
-    && mv "/tmp/gh_${GH_CLI_VERSION}_linux_${gh_arch}/bin/gh" /usr/local/bin/gh \
+    && mkdir -p /usr/local/lib/agent-workbench \
+    && mv "/tmp/gh_${GH_CLI_VERSION}_linux_${gh_arch}/bin/gh" /usr/local/lib/agent-workbench/gh-cli \
     && rm -rf /tmp/gh.tar.gz "/tmp/gh_${GH_CLI_VERSION}_linux_${gh_arch}" \
-    && chmod 755 /usr/local/bin/gh \
-    && gh --version
+    && chmod 755 /usr/local/lib/agent-workbench/gh-cli \
+    && /usr/local/lib/agent-workbench/gh-cli --version
 
 RUN useradd --create-home --shell /bin/bash agent \
     && mkdir -p /etc/agent-workbench /home/agent/.local/npm /home/agent/.local/bin \
@@ -90,6 +91,7 @@ USER root
 COPY infra/aws/runtime/agentcore-server.mjs /app/agentcore-server.mjs
 COPY infra/aws/runtime/github-app-token-client.mjs /usr/local/lib/agent-workbench/github-app-token-client.mjs
 COPY infra/aws/runtime/git-credential-github-app.mjs /usr/local/bin/git-credential-github-app
+COPY infra/aws/runtime/gh-with-github-app /usr/local/bin/gh
 COPY infra/aws/runtime/gh-token.mjs /usr/local/bin/gh-token
 COPY infra/aws/runtime/bootstrap-repo.sh /usr/local/bin/bootstrap-repo
 COPY infra/aws/runtime/workbench-profile.sh /etc/profile.d/workbench.sh
@@ -106,6 +108,7 @@ COPY tools/agents/cursor-cli-config.json /etc/agent-workbench/cursor-cli-config.
 
 RUN chmod 755 \
       /usr/local/bin/git-credential-github-app \
+      /usr/local/bin/gh \
       /usr/local/bin/gh-token \
       /usr/local/bin/bootstrap-repo \
       /usr/local/bin/deny-protected-file-reads \
