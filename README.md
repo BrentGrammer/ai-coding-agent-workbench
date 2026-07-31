@@ -261,3 +261,9 @@ This window is keyboard only. Mouse clicks do not work in the new window.
    - `r` reconnects now.
 
    Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are finished.
+
+## Known Issues
+
+- AgentCore session will suddenly exit or end. Cause is not determined, but probably has something to do with the 15 minute timeout for sessions currently set.
+  - Update is in place to auto-reconnect - select `r` if prompted.
+  - Resize the terminal window to redraw and resolve graphics glitches from the session interruption.
