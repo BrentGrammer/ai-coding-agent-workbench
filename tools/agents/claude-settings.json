@@ -70,6 +70,9 @@
         "~/.claude/projects/**"
       ],
       "allowRead": ["**/.env.template", "**/.env.example"]
+    },
+    "network": {
+      "allowUnixSockets": ["/tmp/agent-workbench/github-token.sock"]
     }
   },
   "hooks": {

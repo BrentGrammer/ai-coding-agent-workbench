@@ -34,8 +34,7 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
       )
       ;;
     claude)
-      CLAUDE_AGENTCORE_SETTINGS='{"sandbox":{"network":{"allowUnixSockets":["/tmp/agent-workbench/github-token.sock"]}}}'
-      AGENT_COMMAND=(claude --settings "$CLAUDE_AGENTCORE_SETTINGS")
+      AGENT_COMMAND=(claude)
       ;;
     opencode)
       AGENT_COMMAND=(opencode "$WORKSPACE_DIR")
