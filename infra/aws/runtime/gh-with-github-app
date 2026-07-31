@@ -12,4 +12,11 @@ REPOSITORY="${OWNER_REPOSITORY#*/}"
 GH_TOKEN="$(gh-token "$OWNER" "$REPOSITORY")"
 export GH_TOKEN
 
+for proxy_name in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+  proxy_value="$(printenv "$proxy_name" 2>/dev/null || true)"
+  if [ -n "$proxy_value" ]; then
+    export "$proxy_name=${proxy_value/localhost/127.0.0.1}"
+  fi
+done
+
 exec /usr/local/lib/agent-workbench/gh-cli "$@"

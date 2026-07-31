@@ -32,6 +32,7 @@ infra/aws/runtime/*
 !infra/aws/runtime/gh-with-github-app
 !infra/aws/runtime/gh-token.mjs
 !infra/aws/runtime/git-credential-github-app.mjs
+!infra/aws/runtime/github-token-relay.mjs
 !infra/aws/runtime/github-app-token-client.mjs
 !infra/aws/runtime/install-aws-cli.sh
 !infra/aws/runtime/socat-ipv4

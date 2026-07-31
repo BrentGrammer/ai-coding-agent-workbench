@@ -89,6 +89,7 @@ RUN curl -fsS https://cursor.com/install | bash \
 USER root
 
 COPY infra/aws/runtime/agentcore-server.mjs /app/agentcore-server.mjs
+COPY infra/aws/runtime/github-token-relay.mjs /usr/local/lib/agent-workbench/github-token-relay.mjs
 COPY infra/aws/runtime/github-app-token-client.mjs /usr/local/lib/agent-workbench/github-app-token-client.mjs
 COPY infra/aws/runtime/git-credential-github-app.mjs /usr/local/bin/git-credential-github-app
 COPY infra/aws/runtime/gh-with-github-app /usr/local/bin/gh
@@ -127,6 +128,7 @@ RUN chmod 755 \
       /etc/agent-workbench/cursor-mcp.json \
       /etc/agent-workbench/cursor-cli-config.json \
       /etc/opencode/opencode.json \
+      /usr/local/lib/agent-workbench/github-token-relay.mjs \
       /usr/local/lib/agent-workbench/github-app-token-client.mjs
 
 USER agent
