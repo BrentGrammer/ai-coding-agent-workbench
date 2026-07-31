@@ -34,7 +34,12 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
       )
       ;;
     claude)
-      AGENT_COMMAND=(claude)
+      CLAUDE_AGENTCORE_SETTINGS="$(
+        printf \
+          '{"sandbox":{"network":{"allowedDomains":["api.github.com","lambda.%s.amazonaws.com"]}}}' \
+          "$AWS_REGION"
+      )"
+      AGENT_COMMAND=(claude --settings "$CLAUDE_AGENTCORE_SETTINGS")
       ;;
     opencode)
       AGENT_COMMAND=(opencode "$WORKSPACE_DIR")
