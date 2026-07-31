@@ -92,7 +92,7 @@ Use `command-code`, `gemini-cli`, `grok`, or `kilo` as `<agent-value>`.
 
 Beyond installing the skill, Wayfinder needs two things set up in this repo before first use.
 
-1. **`gh` (GitHub CLI)**, installed and able to create/read/close issues. In the AgentCore sandbox this is not `gh auth login` — that would leave a durable token in `~/.config/gh/hosts.yml` inside the sandbox. Instead, `/usr/local/bin/gh` is an executable wrapper (`infra/aws/runtime/gh-with-github-app`) that fetches a fresh, repo-scoped, one-hour token from the same GitHub App broker Lambda the git credential helper already uses (`infra/aws/runtime/gh-token.mjs`, `infra/aws/runtime/github-app-token-client.mjs`), and sets `GH_TOKEN` for that one call only. Nothing persists. The GitHub CLI binary is stored separately by `infra/aws/runtime/Dockerfile`.
+1. **`gh` (GitHub CLI)**, installed and able to create/read/close issues. In the AgentCore sandbox this is not `gh auth login` — that would leave a durable token in `~/.config/gh/hosts.yml` inside the sandbox. Instead, the existing `gh` wrapper asks the AgentCore process for a fresh, repo-scoped, one-hour token through a private socket (`infra/aws/runtime/gh-token.mjs`, `infra/aws/runtime/github-token-relay.mjs`). The AgentCore process gets the token from the same GitHub App broker Lambda that the git credential helper uses. The GitHub CLI then runs inside the agent's Bash sandbox. The GitHub App private key stays in Lambda, and nothing persists.
 
    In the local (non-AgentCore) sandbox launched by `tools/agents/start_claude.sh`, this wrapper does not exist — `gh` must be installed and authenticated manually there, and the welcome banner prints a one-line reminder of that prerequisite.
 

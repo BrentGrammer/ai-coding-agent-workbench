@@ -33,7 +33,7 @@
     "enabled": true,
     "failIfUnavailable": true,
     "autoAllowBashIfSandboxed": true,
-    "excludedCommands": ["git:*", "gh:*", "hunk:*"],
+    "excludedCommands": ["git:*", "hunk:*"],
     "filesystem": {
       "denyRead": [
         ".env",

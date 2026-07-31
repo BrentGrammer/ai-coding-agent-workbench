@@ -34,11 +34,7 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
       )
       ;;
     claude)
-      CLAUDE_AGENTCORE_SETTINGS="$(
-        printf \
-          '{"sandbox":{"network":{"allowedDomains":["api.github.com","lambda.%s.amazonaws.com"]}}}' \
-          "$AWS_REGION"
-      )"
+      CLAUDE_AGENTCORE_SETTINGS='{"sandbox":{"network":{"allowUnixSockets":["/tmp/agent-workbench/github-token.sock"]}}}'
       AGENT_COMMAND=(claude --settings "$CLAUDE_AGENTCORE_SETTINGS")
       ;;
     opencode)
