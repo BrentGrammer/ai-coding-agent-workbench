@@ -27,6 +27,7 @@
 ## Tools
 
 - Use the Exa MCP server for documentation when it is available.
+IMPORTANT: If Exa hangs and takes longer than 10 seconds to fetch, abandon using it and try something else. Do not wait minutes for it.
 
 ## Agent skills
 
