@@ -98,8 +98,16 @@ for agent_name in claude codex opencode cursor; do
   herdr integration install "$agent_name"
 done
 
-mkdir -p "$HOME/.claude/skills/hunk-review"
-ln -sf "$(hunk skill path)" "$HOME/.claude/skills/hunk-review/SKILL.md"
+hunk_skill_path="$(hunk skill path)"
+for agent_skills_dir in \
+  "$HOME/.claude/skills" \
+  "$HOME/.codex/skills" \
+  "$HOME/.config/opencode/skills" \
+  "$HOME/.cursor/skills"
+do
+  mkdir -p "$agent_skills_dir/hunk-review"
+  ln -sf "$hunk_skill_path" "$agent_skills_dir/hunk-review/SKILL.md"
+done
 
 if claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
   echo "The Matt Pocock skills plugin is already installed."
@@ -130,6 +138,37 @@ fi
 
 install -m 600 /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
 install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
+
+# Cursor and OpenCode get Exa from their config files. Claude and Codex need an install step.
+echo "Installing Exa for Claude Code..."
+if claude plugin list 2>/dev/null | grep -q exa; then
+  echo "Exa plugin already installed."
+elif claude plugin install exa@claude-plugins-official </dev/null 2>/dev/null; then
+  echo "Installed the Exa plugin."
+elif claude mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server already registered."
+else
+  echo "Plugin install did not work, falling back to the MCP server."
+  claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
+fi
+
+if ! claude plugin list 2>/dev/null | grep -q exa &&
+  ! claude mcp list 2>/dev/null | grep -q exa; then
+  echo "WARN: Claude Code has neither the Exa plugin nor the Exa MCP server." >&2
+fi
+
+echo "Registering the Exa MCP server with Codex..."
+if codex mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server already registered."
+else
+  timeout 20 codex mcp add exa --url https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
+fi
+
+if codex mcp get exa >/dev/null 2>&1; then
+  echo "Exa MCP server ready."
+else
+  echo "WARN: Codex does not list the Exa MCP server." >&2
+fi
 
 if [ -n "${GIT_USER_NAME:-}" ]; then
   git -C "$WORKSPACE_DIR" config user.name "$GIT_USER_NAME"
