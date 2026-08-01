@@ -44,6 +44,7 @@ git config --global --add safe.directory "$WORKSPACE_DIR"
 mkdir -p "$HOME/.codex"
 chmod 700 "$HOME/.codex"
 install -m 600 /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
+install -m 600 /etc/agent-workbench/codex-hooks.json "$HOME/.codex/hooks.json"
 
 if [ -d "$WORKSPACE_DIR/.git" ]; then
   CURRENT_REPO_URL="$(git -C "$WORKSPACE_DIR" remote get-url origin)"

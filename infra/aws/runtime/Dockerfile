@@ -76,12 +76,14 @@ RUN npm install -g \
       @anthropic-ai/claude-code@latest \
       @openai/codex@latest \
       opencode-ai@latest \
+      @nizos/probity \
     && cd "$(npm root -g)/opencode-ai" \
     && node postinstall.mjs \
     && hunk --version \
     && claude --version \
     && codex --version \
-    && opencode --version
+    && opencode --version \
+    && npx --yes @nizos/probity --version
 
 RUN curl -fsS https://cursor.com/install | bash \
     && cursor-agent --version
@@ -104,6 +106,8 @@ COPY runtime/deny-protected-file-reads /usr/local/bin/deny-protected-file-reads
 COPY runtime/herdr-config.toml /etc/agent-workbench/herdr-config.toml
 COPY tools/agents/claude-settings.json /etc/claude-code/managed-settings.json
 COPY tools/agents/codex-config.toml /etc/agent-workbench/codex-config.toml
+COPY tools/agents/codex-hooks.json /etc/agent-workbench/codex-hooks.json
+COPY tools/agents/probity.config.ts /etc/agent-workbench/probity.config.ts
 COPY tools/agents/opencode.json /etc/opencode/opencode.json
 COPY tools/agents/cursor-mcp.json /etc/agent-workbench/cursor-mcp.json
 COPY tools/agents/cursor-cli-config.json /etc/agent-workbench/cursor-cli-config.json
@@ -125,6 +129,8 @@ RUN chmod 755 \
       /etc/agent-workbench/herdr-config.toml \
       /etc/claude-code/managed-settings.json \
       /etc/agent-workbench/codex-config.toml \
+      /etc/agent-workbench/codex-hooks.json \
+      /etc/agent-workbench/probity.config.ts \
       /etc/agent-workbench/cursor-mcp.json \
       /etc/agent-workbench/cursor-cli-config.json \
       /etc/opencode/opencode.json \

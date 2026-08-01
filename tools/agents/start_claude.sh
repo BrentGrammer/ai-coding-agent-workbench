@@ -203,6 +203,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   copy_config
   install_exa_tools
   install_matt_pocock_skills_plugin
+  install_probity
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -221,6 +222,7 @@ else
   copy_config
   install_exa_tools
   install_matt_pocock_skills_plugin
+  install_probity
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

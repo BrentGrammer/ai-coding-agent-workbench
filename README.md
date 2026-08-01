@@ -3,17 +3,24 @@
 This project bootstraps Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/) in the Cloud. It also supports running coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses.
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
-The agents also come baked in with [Matt Pocock's skills](https://github.com/mattpocock/skills) (remove their installation in the scripts if not desired).
 
 Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner of this repo, of course). Adjust and edit these files to your needs and preferences. Also review the dot files (`.gemini/, .cline/`, and files in the `/tools/agents/` folder: `codex-config.toml`, `claude-settings.json`, `cursor-mcp.json`, `opencode.json`, `cline-global-settings.json`, etc.) which contain some baked in settings for convenience (statusline content, accept all edits mode, etc.) and change any of them to your liking.
 
-### Tools included
+### Auto-installed tools, skills, and hooks
 
-Remove any of these if not desired:
+Launchers install the items below unless you remove the install steps from the scripts. Nothing here is a prompt you type — skills and hooks load for the listed harnesses automatically.
 
-- Exa MCP Server (for web fetching)
-- Hunk skills (baked into AgentCore setup with Herdr/Hunk)
-- Matt Pocock Skills (baked into most agents/harnesses both in local sbx setup and AgentCore setup)
+| Item | What it does | Local harnesses | AgentCore harnesses | Remove / change |
+| --- | --- | --- | --- | --- |
+| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Cursor only (MCP config in the runtime image). Claude/Codex Exa is not installed by AgentCore bootstrap today. | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. |
+| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering skills (TDD skill docs, Wayfinder, grill flows, and related). Claude uses the Claude plugin; other harnesses get files via `npx skills`. | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi | Claude (plugin), Codex, OpenCode, Cursor | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh` (and AgentCore `bootstrap-repo.sh`). Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`, or the Codex/OpenCode/Cursor block in `bootstrap-repo.sh`. |
+| [Probity](https://github.com/nizos/probity) | PreToolUse hook that enforces TDD (and any rules in the workbench config) before writes and shell commands. Not a skill — it blocks actions that break the rules. | Claude, Codex (also via `start-herdr`) | Claude, Codex | Package + config install: `install_probity` in `sandbox_bootstrap.sh`. Claude hook: `tools/agents/claude-settings.json`. Codex hooks: `tools/agents/codex-hooks.json` + `codex_hooks` in `codex-config.toml`. Config: `tools/agents/probity.config.ts` (hooks point at `/etc/agent-workbench/probity.config.ts`). AgentCore also installs the package in the Dockerfile. |
+| Secret-file deny hook | Blocks reads of `.env` and related secret paths (Claude managed settings) | Claude (and Herdr when it installs Claude settings) | Claude | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
+| [Hunk](https://www.hunk.dev/) review skill | Diff review UI skill for Claude (`hunk-review`) | Herdr local (`start-herdr`) | All AgentCore sessions (bootstrap links the skill for Claude) | `hunk skill path` symlink setup in `start_herdr.sh` / `bootstrap-repo.sh`. |
+
+**Probity detail:** Hooks run on every matching tool call. The workbench config enables `enforceTdd()` for common source file types. You do not ask the agent to “use Probity.” To turn TDD enforcement off, remove or empty the Probity rules in `tools/agents/probity.config.ts`, or remove the Probity PreToolUse entries and `install_probity` calls. AgentCore needs `cd infra/aws && npm run deploy` after those changes.
+
+**Not installed for every launcher:** Gemini, Grok, Kilo, and Command Code do not currently install Matt Pocock skills or Probity. OpenCode and Cursor do not support Probity (Probity only supports Claude Code, Codex, and GitHub Copilot CLI).
 
 ## Choose a path
 

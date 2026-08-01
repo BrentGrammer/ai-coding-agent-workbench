@@ -207,6 +207,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_sandbox_env
   install_or_update
   copy_config
+  install_probity
   install_exa_mcp_server
   install_skills
   update_skills
@@ -225,6 +226,7 @@ else
   configure_sandbox_env
   install_or_update
   copy_config
+  install_probity
   install_exa_mcp_server
   install_skills
   # install_or_update_lean_ctx
