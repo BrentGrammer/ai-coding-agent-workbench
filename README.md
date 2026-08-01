@@ -278,3 +278,4 @@ Launchers install the items below unless you remove the install steps from the s
 - AgentCore session will suddenly exit or end. Cause is not determined, but probably has something to do with the 15 minute timeout for sessions currently set.
   - Update is in place to auto-reconnect - select `r` if prompted.
   - Resize the terminal window to redraw and resolve graphics glitches from the session interruption.
+- When reconnecting to an AgentCore Herdr session, mouse clicks stop working.
