@@ -111,6 +111,22 @@ if ! claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
   echo "WARN: The Matt Pocock skills plugin did not install for Claude Code." >&2
 fi
 
+# Claude uses the plugin above. Codex, OpenCode, and Cursor get skill files via the skills CLI.
+echo "Installing Matt Pocock skills for Codex, OpenCode, and Cursor..."
+if ! (
+  cd "$WORKSPACE_DIR"
+  npx --yes skills@latest add mattpocock/skills \
+    --agent codex \
+    --agent opencode \
+    --agent cursor \
+    --skill '*' \
+    --global \
+    --yes \
+    --copy
+); then
+  echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
+fi
+
 install -m 600 /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
 install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
 
