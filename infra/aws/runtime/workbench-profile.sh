@@ -39,7 +39,7 @@ if [ -f "$SESSION_CONFIG_FILE" ]; then
   printf 'Run:\n  start-herdr\n\n'
   printf 'Herdr keeps your panes and agent in a background server, so they survive a\n'
   printf 'dropped shell. Reattaching runs start-herdr for you.\n\n'
-  printf 'Finish up:\n'
+  printf 'Exiting cleanly:\n'
   printf '  1. Exit the coding agent with /exit or Ctrl+D.\n'
   printf '  2. Press Ctrl+B, release, then press q to detach from Herdr.\n'
   printf '  3. Run exit to close the AgentCore shell. A countdown appears on your own\n'
