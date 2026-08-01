@@ -51,6 +51,8 @@ tools/*
 tools/agents/*
 !tools/agents/claude-settings.json
 !tools/agents/codex-config.toml
+!tools/agents/codex-hooks.json
+!tools/agents/probity.config.ts
 !tools/agents/opencode.json
 !tools/agents/cursor-mcp.json
 !tools/agents/cursor-cli-config.json
