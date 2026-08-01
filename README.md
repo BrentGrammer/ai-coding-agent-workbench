@@ -259,7 +259,7 @@ See also the Hunk skill row in [Auto-installed tools, skills, and hooks](#auto-i
 
 ## Auto-installed tools, skills, and hooks
 
-Launchers install the items below unless you remove the install steps from the scripts. Nothing here is a prompt you type — skills and hooks load for the listed harnesses automatically.
+Launchers install the items below unless you remove the install steps from the scripts.
 
 | Item | What it does | Local harnesses | AgentCore harnesses | Remove / change |
 | --- | --- | --- | --- | --- |
