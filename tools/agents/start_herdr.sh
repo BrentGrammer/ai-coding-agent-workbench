@@ -217,13 +217,16 @@ export PATH="$HOME/.local/bin:$PATH"
 
 if claude plugin list 2>/dev/null | grep -q exa; then
   echo "Exa plugin already installed."
-elif claude plugin install exa@claude-plugins-official </dev/null 2>/dev/null; then
-  echo "Installed the Exa plugin."
-elif claude mcp get exa >/dev/null 2>&1; then
-  echo "Exa MCP server already registered."
 else
-  echo "Plugin install did not work, falling back to the MCP server."
-  claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
+  claude plugin marketplace add anthropics/claude-plugins-official </dev/null >/dev/null 2>&1 || true
+  if claude plugin install exa@claude-plugins-official </dev/null >/dev/null 2>&1; then
+    echo "Installed the Exa plugin."
+  elif claude mcp get exa >/dev/null 2>&1; then
+    echo "Exa MCP server already registered."
+  else
+    echo "Plugin install did not work, falling back to the MCP server."
+    claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
+  fi
 fi
 
 if ! claude plugin list 2>/dev/null | grep -q exa &&
