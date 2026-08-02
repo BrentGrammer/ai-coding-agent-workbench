@@ -178,7 +178,7 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 2. Tailscale: create a free account, sign in to the Mac app.
 3. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
 4. Join the box to your tailnet. Open a shell on the box from the AWS console: EC2 → select the instance → Connect → Session Manager (no local install needed; `workbench ec2 ssm` does the same from the terminal if the session-manager-plugin is installed). On the box: `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
-5. Connect with `start-workbench`, then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+5. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
 6. Set the git identity once on the box: `git config --global user.name` / `user.email` (use the GitHub noreply address).
 7. Run `workbench ec2 update` from the Mac so skill and plugin installs that need agent logins complete.
 8. Recommended hardening, in this order:
