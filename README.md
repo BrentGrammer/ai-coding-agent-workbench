@@ -158,7 +158,7 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 
 ## Cloud
 
-The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached via Tailscale and mosh. State persists on its disk: agent logins, skills, repos, and `node_modules` survive every stop and start. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk. Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
+The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached via Tailscale and mosh. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk. Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
 
 ### Prerequisites
 
