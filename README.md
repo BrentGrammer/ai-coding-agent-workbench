@@ -215,7 +215,7 @@ The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tails
 
 3. In **Settings → Keys**, create an auth key: **Reusable**, **Pre-approved**, tag `tag:workbench`, make sure it is not marked as ephemeral.
 
-4. If tailnet lock is on, sign the key on a trusted device and keep the signed key that this command prints:
+4. If tailnet lock is on, sign the key on a trusted machine (your laptop) and keep the signed key that this command prints:
 
    ```shell
    tailscale lock sign tskey-auth-...
