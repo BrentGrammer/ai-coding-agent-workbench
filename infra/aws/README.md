@@ -10,36 +10,15 @@ This CDK project deploys two stacks: `AgentWorkbenchTokenStack`, the Lambda func
 
 ## Prerequisites
 
-### Create the GitHub App
+Create the GitHub App and the Tailscale auth key first, and store all three parameters below in AWS Systems Manager Parameter Store, in the region where the stack deploys. The steps are in [One-time setup](../../README.md#one-time-setup) in the main README.
 
-One GitHub App provides scalable repository access without maintaining a permanent token for each repository.
+| Parameter                                    | Type           | Value                            |
+| -------------------------------------------- | -------------- | -------------------------------- |
+| `/coding-agent-workbench/github/app-id`      | `String`       | GitHub App ID                    |
+| `/coding-agent-workbench/github/private-key` | `SecureString` | Complete PEM private key         |
+| `/coding-agent-workbench/tailscale/auth-key` | `SecureString` | Signed Tailscale auth key        |
 
-1. Open GitHub **Settings → Developer settings → GitHub Apps → New GitHub App**.
-2. Give the app a unique name and use an appropriate GitHub page as its homepage URL.
-3. Disable **Active** under Webhook because this workbench does not receive webhooks.
-4. Under Repository permissions, set **Contents** to **Read and write**.
-5. Leave callback URLs, user authorization, device flow, post-installation setup, and the IP allow list unset.
-6. Create the app and note its **App ID**.
-7. Generate and download a private key. Do not generate or store a client secret because this workbench does not use OAuth.
-8. If macOS offers to import the PEM file into Keychain, cancel the import.
-9. Choose **Install App** and install it on the personal account or organizations containing the target repositories.
-10. Choose **All repositories** for current and future repositories, or maintain an explicit selected list.
-
-The app generates repository-limited installation tokens when Git needs them. Tokens expire after one hour and refresh automatically on later Git operations.
-
-## Store the GitHub App configuration
-
-Create these parameters in AWS Systems Manager Parameter Store in the region where the stack deploys:
-
-| Parameter                                     | Type           | Value                                     |
-| --------------------------------------------- | -------------- | ----------------------------------------- |
-| `/coding-agent-workbench/github/app-id`       | `String`       | GitHub App ID                             |
-| `/coding-agent-workbench/github/private-key`  | `SecureString` | Complete PEM private key                  |
-| `/coding-agent-workbench/tailscale/auth-key`  | `SecureString` | Signed Tailscale auth key (see below)     |
-
-Do not commit the PEM key, put it in an environment file, or paste it into logs.
-
-Only the token Lambda reads these parameters. The workbench host can only invoke that function, which returns a one-hour token scoped to one repository — the host never sees the private key.
+Only the token Lambda reads these parameters. The workbench host can only invoke that function, which returns a one-hour token scoped to one repository — the host never sees the private key. Tokens expire after one hour and refresh automatically on later Git operations.
 
 Set `ALLOWED_REPOSITORIES` to restrict which repositories can receive tokens:
 
@@ -73,37 +52,9 @@ The deploy command deploys both stacks: the token Lambda and the EC2 workbench i
 
 The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself. `bin/workbench ec2 update` re-runs the setup script for updates.
 
-### One-time auth key setup
+The tailnet policy and the auth key are one-time setup. The steps are in [One-time setup](../../README.md#one-time-setup) in the main README.
 
-1. In the Tailscale admin console, open **Access controls**. Add a tag for the workbench, and a grant that lets your devices reach the workbench:
-
-   ```json
-   "tagOwners": { "tag:workbench": ["autogroup:admin"] },
-   "grants": [
-     { "src": ["autogroup:member"], "dst": ["autogroup:self", "tag:workbench"], "ip": ["*"] }
-   ],
-   "ssh": [
-     { "action": "accept", "src": ["autogroup:member"], "dst": ["tag:workbench"], "users": ["ubuntu", "root"] }
-   ]
-   ```
-
-2. In **Settings → Keys**, create an auth key: **Reusable**, **Pre-approved**, tag `tag:workbench`, make sure it is not marked as ephemeral.
-
-3. Sign the key on a trusted device (your Mac). This makes nodes that join with the key trusted automatically:
-
-   ```shell
-   tailscale lock sign tskey-auth-...
-   ```
-
-4. Put the key that is printed in the terminal (not the original) in Parameter Store:
-
-   ```shell
-   aws ssm put-parameter --type SecureString \
-     --name /coding-agent-workbench/tailscale/auth-key \
-     --value 'tskey-auth-...'
-   ```
-
-Auth keys expire after 90 days at most. That only matters when an instance is rebuilt after expiry — repeat steps 2 to 4 to refresh the key.
+Auth keys expire after 90 days at most. That only matters when an instance is rebuilt after expiry — make a new key and store it again.
 
 ## Rebuild from scratch
 

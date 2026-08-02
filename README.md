@@ -164,9 +164,9 @@ The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 A
 
 - An AWS account, with credentials configured locally and permission to deploy CDK stacks.
 - A [Tailscale](https://tailscale.com/) account. The free personal plan is enough. Sign-in is through a GitHub or Google account, so the tailnet is only as strong as that account.
-- A GitHub App and its SSM parameters, which supply the short-lived repository tokens. See [infra/aws/README.md](./infra/aws/README.md).
+- A GitHub account that can create a GitHub App. The app supplies the short-lived repository tokens. You create it in [One-time setup](#one-time-setup).
 - Node.js on the machine you deploy from.
-- Local tools: `brew install mosh awscli && brew install --cask tailscale`. Add `session-manager-plugin` if you want the `workbench ec2 ssm` back door from your terminal instead of the AWS console.
+- Local tools: `brew install mosh awscli`, and the Tailscale macOS app from either [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`. Both install the same standalone app, which keeps its CLI at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`. Add `session-manager-plugin` if you want the `workbench ec2 ssm` back door from your terminal instead of the AWS console.
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for each coding agent you plan to use.
 
@@ -184,12 +184,78 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 
 ### One-time setup
 
+The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tailscale auth key, and a GitHub App ID and private key. Create them before you deploy. Steps 1 and 2 below make them. Put every parameter in the same region that the stack deploys to.
+
+#### 1. Tailscale access
+
 1. Sign in to the Tailscale app on your local machine.
-2. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
-3. Wait 3 to 5 minutes after the deploy. The box joins your tailnet by itself on first boot, using the auth key from Parameter Store — the one-time key setup and the required SSH policy rule are in [infra/aws/README.md](./infra/aws/README.md). If the box does not appear on the tailnet, use the break-glass path documented there.
-4. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
-5. Set the git identity once on the box: `git config --global user.name` / `user.email`.
-6. Clone your repositories on the box, using the HTTPS URL:
+2. In the Tailscale admin console, open **Access controls**. Add a tag for the workbench, a grant that lets your devices reach the workbench, and an SSH rule for the tag:
+
+   ```json
+   "tagOwners": { "tag:workbench": ["autogroup:admin"] },
+   "grants": [
+     { "src": ["autogroup:member"], "dst": ["autogroup:self", "tag:workbench"], "ip": ["*"] }
+   ],
+   "ssh": [
+     { "action": "accept", "src": ["autogroup:member"], "dst": ["tag:workbench"], "users": ["ubuntu", "root"] }
+   ]
+   ```
+
+   The `ssh` rule is required. The default rule that Tailscale ships covers only your own untagged devices, and the workbench is tagged. If your policy file still has the default allow-all grant (`"src": ["*"], "dst": ["*"]`), remove it.
+
+3. In **Settings → Keys**, create an auth key: **Reusable**, **Pre-approved**, tag `tag:workbench`, make sure it is not marked as ephemeral.
+
+4. If tailnet lock is on, sign the key on a trusted device and keep the signed key that this command prints:
+
+   ```shell
+   tailscale lock sign tskey-auth-...
+   ```
+
+5. Store the key:
+
+   ```shell
+   aws ssm put-parameter --type SecureString \
+     --name /coding-agent-workbench/tailscale/auth-key \
+     --value 'tskey-auth-...'
+   ```
+
+An auth key expires after 90 days at most. That only matters when you rebuild the box after the key expires. Repeat steps 3 to 5 to refresh it.
+
+#### 2. GitHub App
+
+One GitHub App gives repository access without a permanent token for each repository. The box never holds the private key. It can only call the token Lambda, which returns a one-hour token for one repository.
+
+1. Open GitHub **Settings → Developer settings → GitHub Apps → New GitHub App**.
+2. Give the app a unique name and use an appropriate GitHub page as its homepage URL.
+3. Disable **Active** under Webhook, because this workbench does not receive webhooks.
+4. Under Repository permissions, set **Contents** to **Read and write**.
+5. Leave callback URLs, user authorization, device flow, post-installation setup, and the IP allow list unset.
+6. Create the app and note its **App ID**.
+7. Generate and download a private key. Do not generate a client secret, because this workbench does not use OAuth. If macOS offers to import the PEM file into Keychain, cancel the import.
+8. Choose **Install App** and install it on the account or organization that holds your repositories. Choose **All repositories**, or keep an explicit selected list.
+9. Store both values:
+
+   ```shell
+   aws ssm put-parameter --type String \
+     --name /coding-agent-workbench/github/app-id \
+     --value '<app-id>'
+
+   aws ssm put-parameter --type SecureString \
+     --name /coding-agent-workbench/github/private-key \
+     --value file://path/to/private-key.pem
+   ```
+
+Do not commit the PEM key, put it in an environment file, or paste it into logs. Delete the downloaded file after you store it.
+
+#### 3. Deploy and connect
+
+1. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
+2. Wait 3 to 5 minutes after the deploy. The box joins your tailnet by itself on first boot, using the auth key from Parameter Store.
+
+   If SSH fails with `tailnet policy does not permit you to SSH to this node`, the box joined and your policy file is missing the `ssh` rule from step 1. Add it and retry. If the box never appears on the tailnet, get in with `workbench ec2 ssm` and run `sudo tailscale up --ssh`.
+3. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+4. Set the git identity once on the box: `git config --global user.name` / `user.email`.
+5. Clone your repositories on the box, using the HTTPS URL:
 
    ```shell
    mkdir -p ~/workspace
@@ -197,12 +263,16 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
    ```
 
    No credential prompt appears — the box mints a short-lived GitHub token for each Git operation. This only works for HTTPS URLs, not `git@github.com:...` SSH ones.
-7. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
-8. Recommended hardening, in this order:
-   - Confirm MFA on the account behind your Tailscale login (GitHub or Google). The tailnet is only as strong as that account.
-   - Enable [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) so a compromised Tailscale control server cannot add a rogue device. Print each device's key with `tailscale lock` (on the Mac the CLI lives at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). Then, on the box, pass both `tlpub:` keys to one command: `sudo tailscale lock init tlpub:BOX-KEY tlpub:MAC-KEY`. Store the printed disablement secrets somewhere durable outside both devices — an SSM SecureString parameter works well. They are the only recovery if both devices are lost.
-   - Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
-   - Adding a future device needs a signature from a trusted one: `tailscale lock sign <nodekey>`.
+6. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
+
+#### 4. Recommended hardening
+
+Do these in order:
+
+1. Confirm MFA on the account behind your Tailscale login (GitHub or Google). The tailnet is only as strong as that account.
+2. Enable [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) so a compromised Tailscale control server cannot add a rogue device. Print each device's key with `tailscale lock` (on the Mac the CLI lives at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). Then, on the box, pass both `tlpub:` keys to one command: `sudo tailscale lock init tlpub:BOX-KEY tlpub:MAC-KEY`. Store the printed disablement secrets somewhere durable outside both devices — an SSM SecureString parameter works well. They are the only recovery if both devices are lost.
+3. Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
+4. Adding a future device needs a signature from a trusted one: `tailscale lock sign <nodekey>`.
 
 ### Updates
 
