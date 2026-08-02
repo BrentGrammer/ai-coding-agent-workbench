@@ -76,8 +76,10 @@ export class WorkbenchEc2Stack extends cdk.Stack {
           volume: ec2.BlockDeviceVolume.ebs(DISK_GIB, {
             volumeType: ec2.EbsDeviceVolumeType.GP3,
             encrypted: true,
-            // Logins, repos, and skills outlive the instance.
-            deleteOnTermination: false,
+            // The disk dies with the instance. Repos live on GitHub and the
+            // setup script rebuilds everything else; a rebuild only costs
+            // re-running the one-time setup. No orphaned volumes.
+            deleteOnTermination: true,
           }),
         },
       ],
