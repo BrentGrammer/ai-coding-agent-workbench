@@ -1,17 +1,15 @@
 # AI Coding Agent Workbench
 
-This project runs coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses, with Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/). A cloud seat on EC2 is planned in [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20).
+This project runs coding agents two ways:
+
+- **Local** — `sbx` Docker sandbox MicroVMs for a variety of harnesses, with [Herdr](https://herdr.dev/) as an option. See [Local Docker sandboxes](#local-docker-sandboxes).
+- **Cloud** — a persistent EC2 workbench running Claude Code, Codex, Cursor CLI, and OpenCode in Herdr, with [Hunk](https://www.hunk.dev/) for diff review. See [Cloud](#cloud).
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
 
 Launchers also auto-install skills, MCP tools, and hooks for some harnesses. See [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks) for the full list and how to remove them.
 
 Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner of this repo, of course). Adjust and edit these files to your needs and preferences. Also review the dot files (`.gemini/, .cline/`, and files in the `/tools/agents/` folder: `codex-config.toml`, `claude-settings.json`, `cursor-mcp.json`, `opencode.json`, `cline-global-settings.json`, etc.) which contain some baked in settings for convenience (statusline content, accept all edits mode, etc.) and change any of them to your liking.
-
-## Choose a path
-
-- **Local Docker sandboxes** — run agents on your machine with `sbx`. See [Local Docker sandboxes](#local-docker-sandboxes).
-- **Cloud** — a persistent EC2 instance reached over Tailscale and mosh. See [Cloud](#cloud).
 
 ## Platform support
 
