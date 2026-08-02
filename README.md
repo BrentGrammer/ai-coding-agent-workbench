@@ -189,6 +189,13 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
    - Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
    - Adding a future device needs a signature from a trusted one: `tailscale lock sign <nodekey>`.
 
+### Rebuilding the box
+
+The one-time setup above is the full rebuild procedure — everything else is automated by the deploy and the setup script. Two gotchas:
+
+- The old disk survives termination on purpose. Delete the orphaned EBS volume in the console, or it bills ~$2.40/month forever.
+- Agent logins, git identity, and repos lived on that disk. Redo steps 4–7 and re-clone your repos.
+
 ### Updates
 
 - The agent CLIs update themselves on the box.
@@ -200,6 +207,7 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 - **Garbled characters when typing over mosh:** the CLI already forces `TERM=xterm-256color` because Ghostty's terminal type is unknown on the box and its keyboard protocol garbles mosh. If you connect manually, do the same.
 - **Box stopped while you were away:** by design. `start-workbench` brings it back with everything intact.
 - **Tailscale broken or box unreachable:** `workbench ec2 ssm` is the always-available back door; it needs only AWS credentials.
+- **mosh stopped connecting after months of working:** the Tailscale node key expires every 180 days. Renew it over the back door: `workbench ec2 ssm`, then `sudo tailscale up --ssh`. To never see this, disable key expiry for the box in the Tailscale admin console (Machines → the box → Disable key expiry).
 - **GitHub pushes fail:** the token relay logs are on the box: `systemctl status github-token-relay`.
 
 ## Herdr tips
