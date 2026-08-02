@@ -180,7 +180,7 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 4. Join the box to your tailnet. Open a shell on the box from the AWS console: EC2 → select the instance → Connect → Session Manager (no local install needed; `workbench ec2 ssm` does the same from the terminal if the session-manager-plugin is installed). On the box: `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
 5. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
 6. Set the git identity once on the box: `git config --global user.name` / `user.email`.
-7. Run `workbench ec2 update` from the Mac so skill and plugin installs that need agent logins complete.
+7. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
 8. Recommended hardening, in this order:
    - Confirm MFA on the account behind your Tailscale login (GitHub or Google). The tailnet is only as strong as that account.
    - Enable [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) so a compromised Tailscale control server cannot add a rogue device. Print each device's key with `tailscale lock` (on the Mac the CLI lives at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). Then, on the box, pass both `tlpub:` keys to one command: `sudo tailscale lock init tlpub:BOX-KEY tlpub:MAC-KEY`. Store the printed disablement secrets somewhere durable outside both devices — an SSM SecureString parameter works well. They are the only recovery if both devices are lost.
