@@ -160,6 +160,16 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 
 The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached via Tailscale and mosh. State persists on its disk: agent logins, skills, repos, and `node_modules` survive every stop and start. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk. Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
 
+### Prerequisites
+
+- An AWS account, with credentials configured locally and permission to deploy CDK stacks.
+- A [Tailscale](https://tailscale.com/) account. The free personal plan is enough. Sign-in is through a GitHub or Google account, so the tailnet is only as strong as that account.
+- A GitHub App and its SSM parameters, which supply the short-lived repository tokens. See [infra/aws/README.md](./infra/aws/README.md).
+- Node.js on the machine you deploy from.
+- Local tools: `brew install mosh awscli && brew install --cask tailscale`. Add `session-manager-plugin` if you want the `workbench ec2 ssm` back door from your terminal instead of the AWS console.
+- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
+- Login credentials or an API key for each coding agent you plan to use.
+
 ### Daily flow
 
 ```shell
@@ -174,14 +184,13 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 
 ### One-time setup (new Mac or new instance)
 
-1. Mac tools: `brew install mosh awscli && brew install --cask tailscale session-manager-plugin`, plus AWS credentials configured.
-2. Tailscale: create a free account, sign in to the Mac app.
-3. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
-4. Join the box to your tailnet. Open a shell on the box from the AWS console: EC2 → select the instance → Connect → Session Manager (no local install needed; `workbench ec2 ssm` does the same from the terminal if the session-manager-plugin is installed). On the box: `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
-5. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
-6. Set the git identity once on the box: `git config --global user.name` / `user.email`.
-7. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
-8. Recommended hardening, in this order:
+1. Sign in to the Tailscale app on your local machine.
+2. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
+3. Join the box to your tailnet. Open a shell on the box from the AWS console: EC2 → select the instance → Connect → Session Manager (no local install needed; `workbench ec2 ssm` does the same from the terminal if the session-manager-plugin is installed). On the box: `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
+4. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+5. Set the git identity once on the box: `git config --global user.name` / `user.email`.
+6. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
+7. Recommended hardening, in this order:
    - Confirm MFA on the account behind your Tailscale login (GitHub or Google). The tailnet is only as strong as that account.
    - Enable [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) so a compromised Tailscale control server cannot add a rogue device. Print each device's key with `tailscale lock` (on the Mac the CLI lives at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). Then, on the box, pass both `tlpub:` keys to one command: `sudo tailscale lock init tlpub:BOX-KEY tlpub:MAC-KEY`. Store the printed disablement secrets somewhere durable outside both devices — an SSM SecureString parameter works well. They are the only recovery if both devices are lost.
    - Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
