@@ -178,7 +178,7 @@ cd ~/workspace/<your-repo>
 start-herdr [agent]      # claude (default) | codex | opencode | cursor
 ```
 
-Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
+Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
 
 `workbench ec2 <command>` covers the rest: `up`, `down`, `status`, `ssh`, `mosh`, `ssm` (break-glass access without Tailscale), and `update`.
 
