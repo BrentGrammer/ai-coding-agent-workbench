@@ -35,16 +35,61 @@ SESSION_CONFIG_DIR="$PERSISTENT_ROOT/config"
 SESSION_CONFIG_FILE="$SESSION_CONFIG_DIR/session.env"
 PERSISTENT_HOME="$PERSISTENT_ROOT/home"
 
-mkdir -p "$PERSISTENT_HOME" "$PERSISTENT_ROOT/repos" "$SESSION_CONFIG_DIR"
+# AgentCore sets "no new privileges", so sudo/chown-as-root from agent is
+# impossible. Bootstrap runs as agent. If a path is writable, drop leftover
+# unwritable files (e.g. root-owned empty opencode.db) so agents can recreate
+# them. OpenCode needs writable ~/.config/opencode and ~/.local/share/opencode
+# (https://github.com/anomalyco/opencode/issues/8126).
+clear_unwritable_files() {
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+  find "$dir" -xdev -type f ! -writable -delete 2>/dev/null || true
+}
+
+ensure_writable_dir() {
+  local dir="$1"
+  mkdir -p "$dir"
+  local probe="$dir/.workbench-write-test"
+  if ! touch "$probe" 2>/dev/null; then
+    echo "ERROR: Cannot write to $dir as $(id -un)." >&2
+    return 1
+  fi
+  rm -f "$probe"
+  clear_unwritable_files "$dir"
+}
+
+install_agent_file() {
+  local src="$1" dest="$2" mode="${3:-600}"
+  mkdir -p "$(dirname "$dest")"
+  if [ -e "$dest" ] && [ ! -w "$dest" ]; then
+    rm -f "$dest" 2>/dev/null || true
+  fi
+  install -m "$mode" "$src" "$dest"
+}
+
+mkdir_for_agent() {
+  local path
+  for path in "$@"; do
+    mkdir -p "$path"
+    chmod 700 "$path" 2>/dev/null || true
+  done
+}
+
+mkdir_for_agent "$PERSISTENT_HOME" "$PERSISTENT_ROOT/repos" "$SESSION_CONFIG_DIR"
+ensure_writable_dir "$PERSISTENT_HOME"
+ensure_writable_dir "$PERSISTENT_ROOT/repos"
+ensure_writable_dir "$SESSION_CONFIG_DIR"
 
 export HOME="$PERSISTENT_HOME"
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
 git config --global --add safe.directory "$WORKSPACE_DIR"
-mkdir -p "$HOME/.codex"
-chmod 700 "$HOME/.codex"
-install -m 600 /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
-install -m 600 /etc/agent-workbench/codex-hooks.json "$HOME/.codex/hooks.json"
+mkdir_for_agent "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.local/share/opencode"
+ensure_writable_dir "$HOME/.codex"
+ensure_writable_dir "$HOME/.config/opencode"
+ensure_writable_dir "$HOME/.local/share/opencode"
+install_agent_file /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
+install_agent_file /etc/agent-workbench/codex-hooks.json "$HOME/.codex/hooks.json"
 
 if [ -d "$WORKSPACE_DIR/.git" ]; then
   CURRENT_REPO_URL="$(git -C "$WORKSPACE_DIR" remote get-url origin)"
@@ -93,8 +138,7 @@ for agent_name in claude codex opencode cursor; do
       ;;
   esac
 
-  mkdir -p "$agent_config_dir"
-  chmod 700 "$agent_config_dir"
+  mkdir_for_agent "$agent_config_dir"
   herdr integration install "$agent_name"
 done
 
@@ -102,6 +146,7 @@ hunk_skill_path="$(hunk skill path)"
 for agent_skills_dir in \
   "$HOME/.claude/skills" \
   "$HOME/.codex/skills" \
+  "$HOME/.agents/skills" \
   "$HOME/.config/opencode/skills" \
   "$HOME/.cursor/skills"
 do
@@ -136,8 +181,21 @@ if ! (
   echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
 fi
 
-install -m 600 /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
-install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
+# Codex discovers user skills from ~/.agents/skills. The skills CLI still installs
+# Codex globals under ~/.codex/skills, so link those skill folders for discovery.
+echo "Linking Codex skills into ~/.agents/skills for discovery..."
+mkdir -p "$HOME/.agents/skills"
+for skill_dir in "$HOME/.codex/skills"/*; do
+  [ -d "$skill_dir" ] || continue
+  skill_name="$(basename "$skill_dir")"
+  case "$skill_name" in
+    .system) continue ;;
+  esac
+  ln -sfn "$skill_dir" "$HOME/.agents/skills/$skill_name"
+done
+
+install_agent_file /etc/agent-workbench/cursor-mcp.json "$HOME/.cursor/mcp.json"
+install_agent_file /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
 
 # Cursor and OpenCode get Exa from their config files. Claude and Codex need an install step.
 echo "Installing Exa for Claude Code..."
@@ -220,5 +278,10 @@ codex() {
 }
 export -f codex
 EOF
+
+# Drop unwritable leftovers so OpenCode can open its DB on first run.
+ensure_writable_dir "$HOME/.config/opencode"
+ensure_writable_dir "$HOME/.local/share/opencode"
+ensure_writable_dir "$HOME/.codex"
 
 echo "Workspace ready at $WORKSPACE_DIR."

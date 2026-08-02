@@ -211,6 +211,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_exa_mcp_server
   install_skills
   update_skills
+  link_codex_skills_for_discovery
   # install_or_update_lean_ctx
   usage_instructions
 
@@ -229,6 +230,7 @@ else
   install_probity
   install_exa_mcp_server
   install_skills
+  link_codex_skills_for_discovery
   # install_or_update_lean_ctx
   usage_instructions
 

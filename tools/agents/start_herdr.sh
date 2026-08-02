@@ -123,8 +123,17 @@ cd "$(npm root -g)/opencode-ai"
 node postinstall.mjs
 cd "$HOME"
 
-mkdir -p "$HOME/.claude/skills/hunk-review"
-ln -sf "$(hunk skill path)" "$HOME/.claude/skills/hunk-review/SKILL.md"
+hunk_skill_path="$(hunk skill path)"
+for agent_skills_dir in \
+  "$HOME/.claude/skills" \
+  "$HOME/.codex/skills" \
+  "$HOME/.agents/skills" \
+  "$HOME/.config/opencode/skills" \
+  "$HOME/.cursor/skills"
+do
+  mkdir -p "$agent_skills_dir/hunk-review"
+  ln -sf "$hunk_skill_path" "$agent_skills_dir/hunk-review/SKILL.md"
+done
 
 if command -v claude >/dev/null 2>&1; then
   claude update || true
@@ -264,6 +273,7 @@ install_exa_tools
 install_matt_pocock_skills_plugin
 install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
 install_probity
+link_codex_skills_for_discovery
 
 echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"
 
