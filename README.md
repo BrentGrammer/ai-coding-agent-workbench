@@ -186,11 +186,19 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 
 1. Sign in to the Tailscale app on your local machine.
 2. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
-3. Join the box to your tailnet. Open a shell on the box from the AWS console: EC2 → select the instance → Connect → Session Manager (no local install needed; `workbench ec2 ssm` does the same from the terminal if the session-manager-plugin is installed). On the box: `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
+3. Wait 3 to 5 minutes after the deploy. The box joins your tailnet by itself on first boot, using the auth key from Parameter Store — the one-time key setup and the required SSH policy rule are in [infra/aws/README.md](./infra/aws/README.md). If the box does not appear on the tailnet, use the break-glass path documented there.
 4. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
 5. Set the git identity once on the box: `git config --global user.name` / `user.email`.
-6. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
-7. Recommended hardening, in this order:
+6. Clone your repositories on the box, using the HTTPS URL:
+
+   ```shell
+   mkdir -p ~/workspace
+   git clone https://github.com/<owner>/<repo>.git ~/workspace/<repo>
+   ```
+
+   No credential prompt appears — the box mints a short-lived GitHub token for each Git operation. This only works for HTTPS URLs, not `git@github.com:...` SSH ones.
+7. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
+8. Recommended hardening, in this order:
    - Confirm MFA on the account behind your Tailscale login (GitHub or Google). The tailnet is only as strong as that account.
    - Enable [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) so a compromised Tailscale control server cannot add a rogue device. Print each device's key with `tailscale lock` (on the Mac the CLI lives at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). Then, on the box, pass both `tlpub:` keys to one command: `sudo tailscale lock init tlpub:BOX-KEY tlpub:MAC-KEY`. Store the printed disablement secrets somewhere durable outside both devices — an SSM SecureString parameter works well. They are the only recovery if both devices are lost.
    - Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
