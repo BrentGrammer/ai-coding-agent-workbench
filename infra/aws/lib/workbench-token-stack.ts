@@ -8,7 +8,7 @@ const GITHUB_APP_ID_PARAMETER_NAME = "/coding-agent-workbench/github/app-id";
 const GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME =
   "/coding-agent-workbench/github/private-key";
 
-export class WorkbenchRuntimeStack extends cdk.Stack {
+export class WorkbenchTokenStack extends cdk.Stack {
   public readonly githubTokenFunction: lambda.Function;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
