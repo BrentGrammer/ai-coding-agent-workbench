@@ -158,7 +158,7 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 
 ## Cloud
 
-The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached via Tailscale and mosh. State persists on its disk: agent logins, skills, repos, and `node_modules` survive every stop and start. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk (~$2.40/month). Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
+The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached via Tailscale and mosh. State persists on its disk: agent logins, skills, repos, and `node_modules` survive every stop and start. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk. Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
 
 ### Daily flow
 
@@ -191,7 +191,7 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 
 The one-time setup above is the full rebuild procedure — everything else is automated by the deploy and the setup script. Two gotchas:
 
-- The old disk survives termination on purpose. Delete the orphaned EBS volume in the console, or it bills ~$2.40/month forever.
+- The old disk survives termination on purpose. Delete the orphaned EBS volume in the console, or it keeps billing forever.
 - Agent logins, git identity, and repos lived on that disk. Redo steps 4–7 and re-clone your repos.
 
 ### Updates
