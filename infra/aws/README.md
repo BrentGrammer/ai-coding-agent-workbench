@@ -89,6 +89,8 @@ The instance boots with no inbound ports. On first boot it reads a Tailscale aut
 
    If your policy file still has the default allow-all grant (`"src": ["*"], "dst": ["*"]`), remove it — with it in place, a stolen auth key could join a device that reaches your whole tailnet.
 
+   The `ssh` rule above is required, not optional. Tailscale's default policy ships with one `ssh` rule whose destination is `autogroup:self`, which only covers your own untagged devices. The workbench is tagged, so that default rule never matches it. Without the rule above, the box joins the tailnet and accepts TCP connections, but every SSH attempt fails with `tailnet policy does not permit you to SSH to this node`. Keep the default rule if you want; add this one next to it.
+
    Tagged nodes have no node key expiry, so you never re-authenticate a running instance.
 
 2. In **Settings → Keys**, create an auth key: **Reusable**, **Pre-approved**, tag `tag:workbench`, not ephemeral. Ephemeral nodes leave the tailnet when they go offline, and this instance stops itself when idle, so ephemeral would break the stable name.
@@ -113,7 +115,9 @@ Auth keys expire after 90 days at most. That only matters when an instance is re
 
 ### If auto-join fails
 
-The break-glass path is the old manual one:
+If the box is on the tailnet but SSH fails with `tailnet policy does not permit you to SSH to this node`, auto-join worked — your policy file is missing the `ssh` rule for `tag:workbench`. Add the rule from step 1 above and retry. The change applies as soon as you save.
+
+If the box never appears on the tailnet, the break-glass path is the old manual one:
 
 ```shell
 bin/workbench ec2 ssm
