@@ -88,5 +88,5 @@ Also recommended: create an AWS Budget in the Billing console with an alert thre
 
 - No new VPC, NAT gateway, load balancer, EFS, database, or dashboard is created. The instance uses the default VPC.
 - One Lambda function (GitHub token minting, 256 MB, 15 s timeout) runs only when Git requests a credential — a few short invocations per session. Its log group uses the default retention and never expires.
-- One t4g.large instance bills only while running. Two mechanisms stop it when idle: an on-box timer (15 minutes with no client) and a CloudWatch alarm (CPU under 5% for 6 hours). A stopped instance bills only its 30 GB disk, about $2.40 per month.
-- The public IPv4 address bills about $0.005 per hour while the instance runs.
+- One t4g.large instance bills only while running. Two mechanisms stop it when idle: an on-box timer (15 minutes with no client) and a CloudWatch alarm (CPU under 5% for 6 hours). A stopped instance bills only its 30 GB disk.
+- The public IPv4 address bills hourly while the instance runs.
