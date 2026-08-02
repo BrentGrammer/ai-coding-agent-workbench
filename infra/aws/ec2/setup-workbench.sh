@@ -46,6 +46,10 @@ APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
 
+echo "== AppArmor profile for bwrap"
+install -m 644 "$REPO_DIR/infra/aws/ec2/apparmor-bwrap" /etc/apparmor.d/bwrap
+apparmor_parser --replace /etc/apparmor.d/bwrap
+
 echo "== Node $NODE_MAJOR"
 if ! command -v node >/dev/null 2>&1 ||
   [ "$(node --version | sed 's/^v//' | cut -d. -f1)" != "$NODE_MAJOR" ]; then

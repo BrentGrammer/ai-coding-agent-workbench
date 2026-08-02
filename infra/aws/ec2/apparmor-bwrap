@@ -1,0 +1,14 @@
+# Ubuntu 24.04 blocks unprivileged user namespaces by default
+# (kernel.apparmor_restrict_unprivileged_userns=1), which stops bubblewrap
+# from starting and kills the Claude Code OS sandbox. This profile grants
+# only bwrap the userns permission, the same way Ubuntu's own ch-run and
+# crun profiles do, instead of turning the restriction off system-wide.
+# Background: docs/research/secret-file-protection.md
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+
+  include if exists <local/bwrap>
+}
