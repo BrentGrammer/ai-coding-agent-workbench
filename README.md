@@ -180,7 +180,17 @@ start-herdr [agent]      # claude (default) | codex | opencode | cursor
 
 Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
 
-`workbench ec2 <command>` covers the rest: `up`, `down`, `status`, `ssh`, `mosh`, `ssm` (break-glass access without Tailscale), and `update`.
+`workbench ec2 <command>` covers the rest. `start-workbench` already does `up` then `mosh`, so you only need these when you want one part on its own:
+
+- `up` — Starts the box and waits until it runs. Use it to warm the box up before you connect.
+- `down` — Stops the box now, instead of waiting for the 15-minute idle timer. A stopped box bills only its disk.
+- `status` — Prints the state, instance type, start time, and public IP in a table. Use it to check whether the box is running.
+- `ssh` — Opens a shell over Tailscale. Use it for a short command, or when mosh acts up.
+- `mosh` — Opens a shell over Tailscale that survives Wi-Fi drops and laptop sleep. This is the normal way to connect.
+- `ssm` — Opens a shell through AWS Systems Manager instead of Tailscale. This is the break-glass path for when the box is not on the tailnet. It needs `session-manager-plugin` installed locally.
+- `update` — Pulls this repo on the box and re-runs the setup script. See [Updates](#updates).
+
+`ssh`, `mosh`, and `update` find the box by its tailnet hostname. Override the host with `WORKBENCH_EC2_HOST` and the login user with `WORKBENCH_EC2_USER`.
 
 ### One-time setup
 
