@@ -1,6 +1,6 @@
 # Workbench AWS Stack
 
-This CDK stack deploys the Lambda function that mints short-lived GitHub App installation tokens for the workbench. The Bedrock AgentCore runtime was removed in Phase 1 of [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20). The EC2 workbench that replaces it arrives in Phase 2 and uses this Lambda unchanged.
+This CDK project deploys two stacks: `AgentWorkbenchStack`, the Lambda function that mints short-lived GitHub App installation tokens, and `AgentWorkbenchEc2Stack`, the persistent EC2 workbench instance. The instance never holds the GitHub App private key — it can only invoke the token Lambda.
 
 [AWS CDK (Cloud Development Kit)](https://github.com/aws/aws-cdk) is AWS's open source Infrastructure as Code tool for deploying and managing AWS resources.
 
@@ -66,7 +66,19 @@ Then deploy:
 npm run deploy
 ```
 
-The deploy command deploys the Lambda function that mints GitHub App tokens.
+The deploy command deploys both stacks: the token Lambda and the EC2 workbench instance.
+
+## First connection to a new instance
+
+The instance boots with no inbound ports. Connect once over SSM and join your tailnet:
+
+```shell
+bin/workbench ec2 ssm
+sudo tailscale up --ssh
+exit
+```
+
+Approve the login link in the browser. After that, daily use is `bin/workbench ec2 mosh` from the repo root, and `bin/workbench ec2 update` re-runs the setup script for updates.
 
 ## Cost controls
 
@@ -74,5 +86,7 @@ This section is a convenience checklist, not authoritative billing guidance and 
 
 Also recommended: create an AWS Budget in the Billing console with an alert threshold so you are notified if spend exceeds a chosen amount.
 
-- No VPC, NAT gateway, load balancer, EFS, database, alarm, or dashboard is created.
+- No new VPC, NAT gateway, load balancer, EFS, database, or dashboard is created. The instance uses the default VPC.
 - One Lambda function (GitHub token minting, 256 MB, 15 s timeout) runs only when Git requests a credential — a few short invocations per session. Its log group uses the default retention and never expires.
+- One t4g.large instance bills only while running. Two mechanisms stop it when idle: an on-box timer (15 minutes with no client) and a CloudWatch alarm (CPU under 5% for 6 hours). A stopped instance bills only its 30 GB disk, about $2.40 per month.
+- The public IPv4 address bills about $0.005 per hour while the instance runs.

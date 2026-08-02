@@ -137,45 +137,6 @@ fi
 '
 }
 
-# Global Probity package + workbench config. Hooks point at the config path with
-# --config so target repos do not need their own file.
-install_probity() {
-  local workbench_root="${WORKBENCH_ROOT:?WORKBENCH_ROOT is required}"
-  local probity_config="$workbench_root/tools/agents/probity.config.ts"
-  local codex_hooks="$workbench_root/tools/agents/codex-hooks.json"
-
-  echo "Installing Probity for Claude Code and Codex..."
-
-  if [ ! -f "$probity_config" ]; then
-    echo "WARN: No workbench Probity config at $probity_config" >&2
-    return
-  fi
-
-  install_file_into_sandbox "$probity_config" \
-    /etc/agent-workbench/probity.config.ts 644 755 root:root
-
-  if [ -f "$codex_hooks" ]; then
-    install_file_into_sandbox "$codex_hooks" /home/agent/.codex/hooks.json
-  else
-    echo "WARN: No workbench Codex hooks at $codex_hooks" >&2
-  fi
-
-  if ! sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-source /etc/sandbox-persistent.sh 2>/dev/null || true
-
-if ! command -v npm >/dev/null 2>&1; then
-  echo "WARN: npm is not installed; skipping Probity package install." >&2
-  exit 0
-fi
-
-npm install -g @nizos/probity
-npx --yes @nizos/probity --version
-'; then
-    echo "WARN: Could not install Probity." >&2
-  fi
-}
-
 # Codex discovers user skills from ~/.agents/skills. Global Codex installs still
 # land in ~/.codex/skills, so link those folders for discovery.
 link_codex_skills_for_discovery() {

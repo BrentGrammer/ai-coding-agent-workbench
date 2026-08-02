@@ -11,7 +11,7 @@ Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner o
 ## Choose a path
 
 - **Local Docker sandboxes** — run agents on your machine with `sbx`. See [Local Docker sandboxes](#local-docker-sandboxes).
-- **Cloud** — under migration from Bedrock AgentCore to a persistent EC2 instance. See [Cloud](#cloud).
+- **Cloud** — a persistent EC2 instance reached over Tailscale and mosh. See [Cloud](#cloud).
 
 ## Platform support
 
@@ -160,7 +160,7 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 
 ## Cloud
 
-The Bedrock AgentCore path was removed in Phase 1 of [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20). Its replacement, a persistent EC2 instance reached over Tailscale and mosh, arrives in Phase 2 of that issue. Until then, the local Docker sandbox launchers are the only working path.
+The cloud seat is a persistent EC2 instance reached over Tailscale and mosh: the `AgentWorkbenchEc2Stack` CDK stack, the `infra/aws/ec2/setup-workbench.sh` setup script, and the `workbench ec2` CLI (`up`, `down`, `status`, `ssh`, `mosh`, `ssm`, `update`). It is built but not yet through the acceptance checklist in [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20). This section gets its full rewrite when that checklist passes.
 
 The GitHub App token Lambda stays deployed and unchanged. See [infra/aws/README.md](./infra/aws/README.md).
 
@@ -201,10 +201,7 @@ Launchers install the items below unless you remove the install steps from the s
 | --- | --- | --- | --- |
 | [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. OpenCode: `tools/agents/opencode.json`. |
 | [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh`. Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`. |
-| [Probity](https://github.com/nizos/probity) | Hooks that enforce TDD with the harness | Claude, Codex (also via `start-herdr`) | Package + config install: `install_probity` in `sandbox_bootstrap.sh`. Claude hook: `tools/agents/claude-settings.json`. Codex hooks: `tools/agents/codex-hooks.json` + `codex_hooks` in `codex-config.toml`. Config: `tools/agents/probity.config.ts` (hooks point at `/etc/agent-workbench/probity.config.ts`). |
 | Secret-file deny hook | Blocks agent reads of `.env` and related secret files | Claude (and Herdr when it installs Claude settings) | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
 | [Hunk](https://www.hunk.dev/) review skill | Lets the agent open and act on Hunk diff review comments | Herdr local (`start-herdr`) | `hunk skill path` symlink setup in `start_herdr.sh` (Codex also via `~/.agents/skills`). |
 
-**Probity detail:** Hooks run on every matching tool call. The workbench config enables `enforceTdd()` for common source file types. You do not ask the agent to “use Probity.” To turn TDD enforcement off, remove or empty the Probity rules in `tools/agents/probity.config.ts`, or remove the Probity PreToolUse entries and `install_probity` calls.
-
-**Not installed for every launcher:** Gemini, Grok, Kilo, and Command Code do not currently install Matt Pocock skills or Probity. OpenCode and Cursor do not support Probity (Probity only supports Claude Code, Codex, and GitHub Copilot CLI).
+**Not installed for every launcher:** Gemini, Grok, Kilo, and Command Code do not currently install Matt Pocock skills.

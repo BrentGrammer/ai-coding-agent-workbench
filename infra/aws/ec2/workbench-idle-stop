@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Runs from a systemd timer every 5 minutes. After three checks in a row with
+# no client, the box shuts down, which stops the EC2 instance.
+set -euo pipefail
+
+IDLE_CHECK_LIMIT=3
+BOOT_GRACE_SECONDS=600
+COUNT_FILE=/run/agent-workbench/idle-count
+
+mkdir -p /run/agent-workbench
+
+uptime_seconds="$(cut -d. -f1 /proc/uptime)"
+if [ "$uptime_seconds" -lt "$BOOT_GRACE_SECONDS" ]; then
+  exit 0
+fi
+
+client_is_connected() {
+  # Tailscale carries both ssh and mosh, so an active peer means a client.
+  if tailscale status --json 2>/dev/null |
+    jq -e '[.Peer[]? | select(.Active)] | length > 0' >/dev/null; then
+    return 0
+  fi
+
+  if pgrep -f ssm-session-worker >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ -n "$(ss -Hn state established '( sport = :22 )')" ]; then
+    return 0
+  fi
+
+  return 1
+}
+
+if client_is_connected; then
+  echo 0 > "$COUNT_FILE"
+  exit 0
+fi
+
+idle_count="$(( $(cat "$COUNT_FILE" 2>/dev/null || echo 0) + 1 ))"
+echo "$idle_count" > "$COUNT_FILE"
+
+if [ "$idle_count" -ge "$IDLE_CHECK_LIMIT" ]; then
+  echo "No client for $idle_count checks. Stopping the instance."
+  systemctl poweroff
+fi

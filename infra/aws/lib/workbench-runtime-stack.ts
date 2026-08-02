@@ -9,13 +9,15 @@ const GITHUB_APP_PRIVATE_KEY_PARAMETER_NAME =
   "/coding-agent-workbench/github/private-key";
 
 export class WorkbenchRuntimeStack extends cdk.Stack {
+  public readonly githubTokenFunction: lambda.Function;
+
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const githubTokenFunction = this.createGitHubTokenFunction();
+    this.githubTokenFunction = this.createGitHubTokenFunction();
 
     new cdk.CfnOutput(this, "GitHubAppTokenFunctionName", {
-      value: githubTokenFunction.functionName,
+      value: this.githubTokenFunction.functionName,
     });
   }
 

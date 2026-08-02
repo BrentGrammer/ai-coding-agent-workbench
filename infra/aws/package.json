@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "scripts": {
     "build": "tsc",
-    "deploy": "cdk deploy AgentWorkbenchStack",
-    "diff": "cdk diff AgentWorkbenchStack",
-    "synth": "cdk synth AgentWorkbenchStack"
+    "deploy": "cdk deploy AgentWorkbenchStack AgentWorkbenchEc2Stack",
+    "diff": "cdk diff AgentWorkbenchStack AgentWorkbenchEc2Stack",
+    "synth": "cdk synth AgentWorkbenchStack AgentWorkbenchEc2Stack"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.261.0",

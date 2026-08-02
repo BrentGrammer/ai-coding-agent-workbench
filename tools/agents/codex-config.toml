@@ -2,9 +2,6 @@ model_verbosity = "low"
 
 default_permissions = "protected-workspace"
 
-[features]
-codex_hooks = true
-
 [analytics]
 enabled = false
 

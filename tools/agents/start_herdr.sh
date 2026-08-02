@@ -272,7 +272,6 @@ install_integrations
 install_exa_tools
 install_matt_pocock_skills_plugin
 install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
-install_probity
 link_codex_skills_for_discovery
 
 echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"
