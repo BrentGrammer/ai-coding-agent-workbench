@@ -70,7 +70,7 @@ allow_network() {
 }
 
 install_runtime_files() {
-  install_file_into_sandbox "$WORKBENCH_ROOT/runtime/start-herdr" /usr/local/bin/start-herdr 755 755 root:root
+  install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-session" /usr/local/bin/herdr-session 755 755 root:root
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-pane" /usr/local/bin/herdr-pane 755 755 root:root
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/workbench-pane-shell" /usr/local/bin/workbench-pane-shell 755 755 root:root
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-config.toml" /etc/agent-workbench/herdr-config.toml 644 755 root:root
@@ -282,4 +282,4 @@ sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
     WORKBENCH_SESSION="$SANDBOX_NAME" \
     WORKBENCH_AGENT="$WORKBENCH_AGENT" \
     HERDR_CONFIG_PATH=/etc/agent-workbench/herdr-config.toml \
-  bash -lc start-herdr
+  bash -lc herdr-session

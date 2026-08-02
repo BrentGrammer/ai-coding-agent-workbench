@@ -108,7 +108,7 @@ fi
 echo "== Workbench files"
 install -d -m 755 /etc/agent-workbench /etc/claude-code /usr/local/libexec
 
-install -m 755 "$REPO_DIR/runtime/start-herdr" /usr/local/bin/start-herdr
+install -m 755 "$REPO_DIR/runtime/herdr-session" /usr/local/bin/herdr-session
 install -m 755 "$REPO_DIR/runtime/herdr-pane" /usr/local/bin/herdr-pane
 install -m 755 "$REPO_DIR/runtime/workbench-pane-shell" /usr/local/bin/workbench-pane-shell
 install -m 755 "$REPO_DIR/runtime/deny-protected-file-reads" /usr/local/bin/deny-protected-file-reads
@@ -122,7 +122,8 @@ install -m 644 "$REPO_DIR/infra/aws/runtime/github-token-relay.mjs" /usr/local/l
 install -m 644 "$REPO_DIR/infra/aws/runtime/github-app-token-client.mjs" /usr/local/lib/agent-workbench/github-app-token-client.mjs
 install -m 644 "$REPO_DIR/infra/aws/ec2/github-token-relay-service.mjs" /usr/local/lib/agent-workbench/github-token-relay-service.mjs
 
-install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-open" /usr/local/bin/workbench-open
+install -m 755 "$REPO_DIR/infra/aws/ec2/start-herdr" /usr/local/bin/start-herdr
+rm -f /usr/local/bin/workbench-open
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop
 
 install -m 644 "$REPO_DIR/tools/agents/claude-settings.json" /etc/claude-code/managed-settings.json
@@ -278,4 +279,4 @@ echo "== Done"
 if ! tailscale status >/dev/null 2>&1; then
   echo "NOTE: Tailscale is not connected yet. Run once: sudo tailscale up --ssh"
 fi
-echo "The workbench is ready. Connect, cd into a repo under ~/workspace, then run: workbench-open [agent]"
+echo "The workbench is ready. Connect, cd into a repo under ~/workspace, then run: start-herdr [agent]"
