@@ -182,7 +182,7 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 
 `workbench ec2 <command>` covers the rest: `up`, `down`, `status`, `ssh`, `mosh`, `ssm` (break-glass access without Tailscale), and `update`.
 
-### One-time setup (new Mac or new instance)
+### One-time setup
 
 1. Sign in to the Tailscale app on your local machine.
 2. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
