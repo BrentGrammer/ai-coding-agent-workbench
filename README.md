@@ -166,7 +166,7 @@ The cloud seat is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reac
 
 ```shell
 start-workbench          # starts the box if stopped, connects with mosh
-cd ~/repos/<your-repo>
+cd ~/workspace/<your-repo>
 workbench-open [agent]   # claude (default) | codex | opencode | cursor
 ```
 

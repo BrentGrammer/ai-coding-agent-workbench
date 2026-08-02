@@ -144,7 +144,7 @@ set -euo pipefail
 
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH"
-mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/repos"
+mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 
 # The npm prefix is user-owned so the agents can update themselves later.
 npm install -g \
@@ -259,4 +259,4 @@ echo "== Done"
 if ! tailscale status >/dev/null 2>&1; then
   echo "NOTE: Tailscale is not connected yet. Run once: sudo tailscale up --ssh"
 fi
-echo "The workbench is ready. Connect, cd into a repo under ~/repos, then run: workbench-open [agent]"
+echo "The workbench is ready. Connect, cd into a repo under ~/workspace, then run: workbench-open [agent]"
