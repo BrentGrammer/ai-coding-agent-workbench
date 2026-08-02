@@ -12,6 +12,8 @@ CODEX_VERSION=0.146.0
 OPENCODE_VERSION=1.18.11
 
 WORKBENCH_USER=ubuntu
+GIT_USER_NAME="Brent Marquez"
+GIT_USER_EMAIL="35240225+BrentGrammer@users.noreply.github.com"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -69,6 +71,22 @@ fi
 echo "== Tailscale"
 command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh
 systemctl enable --now tailscaled
+if ! tailscale status >/dev/null 2>&1; then
+  [ -f /etc/agent-workbench/workbench.env ] && . /etc/agent-workbench/workbench.env
+  tailscale_auth_key="$(aws ssm get-parameter \
+    --region "${AWS_REGION:-}" \
+    --name /coding-agent-workbench/tailscale/auth-key \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text 2>/dev/null || true)"
+  if [ -n "$tailscale_auth_key" ]; then
+    tailscale up --ssh --hostname agent-workbench --auth-key "$tailscale_auth_key" ||
+      echo "WARN: Tailscale did not accept the stored auth key. Join by hand: sudo tailscale up --ssh" >&2
+  else
+    echo "WARN: No auth key at /coding-agent-workbench/tailscale/auth-key. Join by hand: sudo tailscale up --ssh" >&2
+  fi
+  unset tailscale_auth_key
+fi
 
 echo "== gh $GH_CLI_VERSION"
 install -d -m 755 /usr/local/lib/agent-workbench
@@ -135,6 +153,8 @@ systemctl start workbench-idle-stop.timer
 echo "== Agent CLIs and skills for $WORKBENCH_USER"
 sudo -u "$WORKBENCH_USER" -H \
   env REPO_DIR="$REPO_DIR" \
+  GIT_USER_NAME="$GIT_USER_NAME" \
+  GIT_USER_EMAIL="$GIT_USER_EMAIL" \
   HUNK_VERSION="$HUNK_VERSION" \
   CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
   CODEX_VERSION="$CODEX_VERSION" \
@@ -248,11 +268,10 @@ if ! codex mcp get exa >/dev/null 2>&1; then
   echo "WARN: Codex does not list the Exa MCP server." >&2
 fi
 
-if [ -z "$(git config --global user.name || true)" ]; then
-  echo "NOTE: Set your git identity once:"
-  echo "  git config --global user.name 'Your Name'"
-  echo "  git config --global user.email 'you@example.com'"
-fi
+git config --global user.name >/dev/null 2>&1 ||
+  git config --global user.name "$GIT_USER_NAME"
+git config --global user.email >/dev/null 2>&1 ||
+  git config --global user.email "$GIT_USER_EMAIL"
 USER_SETUP
 
 echo "== Done"

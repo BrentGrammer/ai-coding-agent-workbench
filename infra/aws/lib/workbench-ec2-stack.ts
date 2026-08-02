@@ -10,6 +10,7 @@ import { Construct } from "constructs";
 const INSTANCE_TYPE = "t4g.large";
 const DISK_GIB = 30;
 const INSTANCE_NAME = "agent-workbench-ec2";
+const TAILSCALE_AUTH_KEY_PARAMETER = "/coding-agent-workbench/tailscale/auth-key";
 const REPO_URL = "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
 const UBUNTU_2404_ARM64_AMI_PARAMETER =
   "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id";
@@ -40,6 +41,18 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
     );
     props.githubTokenFunction.grantInvoke(role);
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["ssm:GetParameter"],
+        resources: [
+          this.formatArn({
+            service: "ssm",
+            resource: "parameter",
+            resourceName: TAILSCALE_AUTH_KEY_PARAMETER.replace(/^\//, ""),
+          }),
+        ],
+      }),
+    );
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(

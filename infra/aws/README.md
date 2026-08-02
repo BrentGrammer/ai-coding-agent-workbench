@@ -31,10 +31,11 @@ The app generates repository-limited installation tokens when Git needs them. To
 
 Create these parameters in AWS Systems Manager Parameter Store in the region where the stack deploys:
 
-| Parameter                                    | Type           | Value                    |
-| -------------------------------------------- | -------------- | ------------------------ |
-| `/coding-agent-workbench/github/app-id`      | `String`       | GitHub App ID            |
-| `/coding-agent-workbench/github/private-key` | `SecureString` | Complete PEM private key |
+| Parameter                                     | Type           | Value                                     |
+| --------------------------------------------- | -------------- | ----------------------------------------- |
+| `/coding-agent-workbench/github/app-id`       | `String`       | GitHub App ID                             |
+| `/coding-agent-workbench/github/private-key`  | `SecureString` | Complete PEM private key                  |
+| `/coding-agent-workbench/tailscale/auth-key`  | `SecureString` | Signed Tailscale auth key (see below)     |
 
 Do not commit the PEM key, put it in an environment file, or paste it into logs.
 
@@ -68,9 +69,51 @@ npm run deploy
 
 The deploy command deploys both stacks: the token Lambda and the EC2 workbench instance.
 
-## First connection to a new instance
+## Tailscale auto-join
 
-The instance boots with no inbound ports. Connect once over SSM and join your tailnet:
+The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself — no SSM session, no browser login, no per-node tailnet lock signature. Daily use is `bin/workbench ec2 mosh` from the repo root, and `bin/workbench ec2 update` re-runs the setup script for updates.
+
+### One-time auth key setup
+
+1. In the Tailscale admin console, open **Access controls**. Add a tag for the workbench, and a grant that lets your devices reach the workbench but does not let the workbench (or anything else holding its auth key) reach your devices:
+
+   ```json
+   "tagOwners": { "tag:workbench": ["autogroup:admin"] },
+   "grants": [
+     { "src": ["autogroup:member"], "dst": ["autogroup:self", "tag:workbench"], "ip": ["*"] }
+   ],
+   "ssh": [
+     { "action": "accept", "src": ["autogroup:member"], "dst": ["tag:workbench"], "users": ["ubuntu", "root"] }
+   ]
+   ```
+
+   If your policy file still has the default allow-all grant (`"src": ["*"], "dst": ["*"]`), remove it — with it in place, a stolen auth key could join a device that reaches your whole tailnet.
+
+   Tagged nodes have no node key expiry, so you never re-authenticate a running instance.
+
+2. In **Settings → Keys**, create an auth key: **Reusable**, **Pre-approved**, tag `tag:workbench`, not ephemeral. Ephemeral nodes leave the tailnet when they go offline, and this instance stops itself when idle, so ephemeral would break the stable name.
+
+3. If tailnet lock is on, sign the key on a trusted device (your Mac). This makes nodes that join with the key trusted automatically:
+
+   ```shell
+   tailscale lock sign tskey-auth-...
+   ```
+
+   Store the signed key that this command prints, not the original.
+
+4. Put the key in Parameter Store:
+
+   ```shell
+   aws ssm put-parameter --type SecureString \
+     --name /coding-agent-workbench/tailscale/auth-key \
+     --value 'tskey-auth-...'
+   ```
+
+Auth keys expire after 90 days at most. That only matters when an instance is rebuilt after expiry — repeat steps 2 to 4 to refresh the key.
+
+### If auto-join fails
+
+The break-glass path is the old manual one:
 
 ```shell
 bin/workbench ec2 ssm
@@ -78,7 +121,9 @@ sudo tailscale up --ssh
 exit
 ```
 
-Approve the login link in the browser. After that, daily use is `bin/workbench ec2 mosh` from the repo root, and `bin/workbench ec2 update` re-runs the setup script for updates.
+Approve the login link in the browser. With tailnet lock on, also run `tailscale lock status` on the box to get the node key, then sign it from your Mac: `tailscale lock sign nodekey:...`
+
+After an instance replacement, remove the dead machine in the Tailscale admin console. `bin/workbench` finds the new node by hostname even while the old one lingers, but the corpse keeps the MagicDNS name and clutters the machine list.
 
 ## Cost controls
 

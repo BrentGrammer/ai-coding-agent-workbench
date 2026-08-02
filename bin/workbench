@@ -2,8 +2,22 @@
 set -euo pipefail
 
 INSTANCE_NAME_TAG="agent-workbench-ec2"
-CONNECT_HOST="${WORKBENCH_EC2_HOST:-agent-workbench}"
 CONNECT_USER="${WORKBENCH_EC2_USER:-ubuntu}"
+
+# After a rebuild, a dead tailnet node can still hold the agent-workbench
+# MagicDNS name and the new node gets agent-workbench-1. Find the online node
+# by its hostname instead, so connections survive instance replacement.
+find_connect_host() {
+  if [ -n "${WORKBENCH_EC2_HOST:-}" ]; then
+    echo "$WORKBENCH_EC2_HOST"
+    return
+  fi
+  local ip
+  ip="$(tailscale status --json 2>/dev/null |
+    jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty' \
+      2>/dev/null || true)"
+  echo "${ip:-agent-workbench}"
+}
 
 usage() {
   cat <<'EOF'
@@ -19,7 +33,7 @@ Commands:
   update  Re-run the setup script on the box and refresh skills
 
 Environment:
-  WORKBENCH_EC2_HOST  Tailscale hostname (default: agent-workbench)
+  WORKBENCH_EC2_HOST  Tailscale host override (default: found with tailscale status)
   WORKBENCH_EC2_USER  Login user (default: ubuntu)
 EOF
   exit 1
@@ -51,7 +65,7 @@ case "${2:-}" in
     echo "Starting $instance_id..."
     aws ec2 wait instance-running --instance-ids "$instance_id"
     echo "Running. Connect with: workbench ec2 mosh"
-    echo "First time on a new instance: workbench ec2 ssm, then: sudo tailscale up --ssh"
+    echo "A new instance joins the tailnet by itself on first boot. Give it a few minutes."
     ;;
   down)
     instance_id="$(find_instance_id)"
@@ -67,10 +81,10 @@ case "${2:-}" in
   ssh)
     # Ghostty's own TERM is unknown on the box and its keyboard protocol
     # garbles mosh, so connect with the plain terminal type.
-    exec env TERM=xterm-256color ssh "$CONNECT_USER@$CONNECT_HOST"
+    exec env TERM=xterm-256color ssh "$CONNECT_USER@$(find_connect_host)"
     ;;
   mosh)
-    exec env TERM=xterm-256color mosh "$CONNECT_USER@$CONNECT_HOST"
+    exec env TERM=xterm-256color mosh "$CONNECT_USER@$(find_connect_host)"
     ;;
   ssm)
     exec aws ssm start-session --target "$(find_instance_id)"
@@ -78,7 +92,7 @@ case "${2:-}" in
   update)
     # /opt/agent-workbench is root-owned machine config, not a working copy.
     # Hard reset to origin/main so the box cannot run a stale or local branch.
-    exec ssh "$CONNECT_USER@$CONNECT_HOST" \
+    exec ssh "$CONNECT_USER@$(find_connect_host)" \
       'sudo git -C /opt/agent-workbench fetch --prune origin main \
         && sudo git -C /opt/agent-workbench reset --hard origin/main \
         && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
