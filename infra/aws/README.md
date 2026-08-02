@@ -71,7 +71,7 @@ The deploy command deploys both stacks: the token Lambda and the EC2 workbench i
 
 ## Tailscale auto-join
 
-The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself — no SSM session, no browser login, no per-node tailnet lock signature. Daily use is `bin/workbench ec2 mosh` from the repo root, and `bin/workbench ec2 update` re-runs the setup script for updates.
+The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself — no SSM session, no browser login, no per-node tailnet lock signature. Daily use is `start-workbench` from any directory — it starts the box if it is stopped and connects. `bin/workbench ec2 update` re-runs the setup script for updates.
 
 ### One-time auth key setup
 
@@ -123,7 +123,28 @@ exit
 
 Approve the login link in the browser. With tailnet lock on, also run `tailscale lock status` on the box to get the node key, then sign it from your Mac: `tailscale lock sign nodekey:...`
 
-After an instance replacement, remove the dead machine in the Tailscale admin console. `bin/workbench` finds the new node by hostname even while the old one lingers, but the corpse keeps the MagicDNS name and clutters the machine list.
+## Rebuild from scratch
+
+The instance and its disk are disposable.
+
+1. Destroy the instance stack. The token stack can stay.
+
+   ```shell
+   cd infra/aws
+   npx cdk destroy AgentWorkbenchEc2Stack
+   ```
+
+2. Deploy. This recreates the instance stack.
+
+   ```shell
+   npm run deploy
+   ```
+
+3. Wait 3 to 5 minutes after the deploy finishes so first boot can join the tailnet.
+
+4. Connect with `start-workbench`. Then log in each agent once on the new box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+
+After the rebuild, the dead machine record can stay in the Tailscale admin console. `start-workbench` finds the new node by hostname.
 
 ## Cost controls
 
