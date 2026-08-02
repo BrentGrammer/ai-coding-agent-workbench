@@ -11,5 +11,5 @@ new WorkbenchRuntimeStack(app, "AgentWorkbenchStack", {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION,
   },
-  description: "Generic coding-agent workbench on Bedrock AgentCore Runtime.",
+  description: "GitHub App token Lambda for the coding-agent workbench.",
 });

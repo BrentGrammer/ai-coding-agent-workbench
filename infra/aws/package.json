@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "build": "tsc",
-    "deploy": "node scripts/deploy.mjs",
+    "deploy": "cdk deploy AgentWorkbenchStack",
     "diff": "cdk diff AgentWorkbenchStack",
     "synth": "cdk synth AgentWorkbenchStack"
   },

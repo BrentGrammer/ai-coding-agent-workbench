@@ -1,6 +1,6 @@
 # AI Coding Agent Workbench
 
-This project bootstraps Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/) in the Cloud. It also supports running coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses.
+This project runs coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses, with Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/). A cloud seat on EC2 is planned in [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20).
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
 
@@ -11,7 +11,7 @@ Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner o
 ## Choose a path
 
 - **Local Docker sandboxes** — run agents on your machine with `sbx`. See [Local Docker sandboxes](#local-docker-sandboxes).
-- **Cloud (AWS Bedrock AgentCore)** — run the Herdr workbench on AWS Bedrock AgentCore. See [Cloud (AWS Bedrock AgentCore)](#cloud-aws-bedrock-agentcore).
+- **Cloud** — under migration from Bedrock AgentCore to a persistent EC2 instance. See [Cloud](#cloud).
 
 ## Platform support
 
@@ -21,7 +21,7 @@ Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner o
 
 ## Install launcher commands (PATH)
 
-Convenience commands in the `bin` folder bootstrap local Docker sandbox agents and AgentCore sessions (`start-herdr`, `start-claude`, `start-agentcore`, `workbench`, and others).
+Convenience commands in the `bin` folder bootstrap local Docker sandbox agents (`start-herdr`, `start-claude`, and others).
 
 Run the installer once to add the commands to PATH:
 
@@ -158,71 +158,13 @@ Each agent stores its login inside the reused local sandbox. For OpenCode with a
 
 Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current changes. The `hunk-review` skill install is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
-## Cloud (AWS Bedrock AgentCore)
+## Cloud
 
-### Prerequisites
+The Bedrock AgentCore path was removed in Phase 1 of [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20). Its replacement, a persistent EC2 instance reached over Tailscale and mosh, arrives in Phase 2 of that issue. Until then, the local Docker sandbox launchers are the only working path.
 
-- [Docker Desktop](https://docs.docker.com/desktop/)
-- An AWS Account and a IAM user with sufficient permissions.
-- AWS CLI with credentials (run `aws configure`) for the target account and region.
-- Node.js and npm.
-- AgentCore CLI 0.24.1 or newer.
-- A GitHub account with your project repo and a GitHub App installed for the target repository with **Contents: Read and write** permission.
-- The GitHub App ID and private key stored in AWS Systems Manager Parameter Store.
+The GitHub App token Lambda stays deployed and unchanged. See [infra/aws/README.md](./infra/aws/README.md).
 
-See [Deploy AgentCore](./infra/aws/README.md) for GitHub App setup, Parameter Store, and stack deployment.
-
-### Deploy AWS Resources for Bedrock AgentCore Use
-
-AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](./infra/aws/README.md) before the first cloud launch.
-
-### Configure the environment
-
-Before starting, copy the environment template from the project root:
-
-```shell
-cp .env.template .env
-```
-
-Edit `.env`. These two values are the only ones it needs:
-
-```shell
-GITHUB_REPOSITORY_URL=https://github.com/owner/repository.git
-AWS_REGION=YOUR_AWS_REGION
-```
-
-#### GitHub App Tokens
-
-Note: The GitHub App private key stays inside the a lambda function to get a token and never reaches the agent container. The container can only ask that function for an installation token, which GitHub expires in one hour and scopes to one repository. To limit which repositories the container may ask for, set `ALLOWED_REPOSITORIES` on the function to a comma-separated list of `owner/repository` values. Leave it unset to allow any repository the App is installed on.
-
-#### GitHub Repos
-
-To use AgentCore with another repository, change only `GITHUB_REPOSITORY_URL` in `.env`, then run `start-agentcore` normally. The GitHub App must be installed for the new repository.
-
-### Start AgentCore
-
-Choose the primary agent:
-
-```shell
-start-agentcore claude
-start-agentcore codex
-start-agentcore cursor
-start-agentcore opencode
-```
-
-The argument selects the agent that starts automatically. All four agents and their Herdr integrations are available in the environment.
-
-At the AgentCore shell prompt, run:
-
-```shell
-start-herdr
-```
-
-This opens the primary agent full-screen with Hunk in a hidden pane. To add another agent:
-
-1. Press `Ctrl+B`, then `z` to show all panes.
-2. Press `Ctrl+B`, then `v` to create a pane.
-3. Run `claude`, `codex`, `cursor-agent`, or `opencode` in the new pane.
+## Herdr tips
 
 ### Closing a empty pane in Herdr
 
@@ -250,32 +192,19 @@ See also the Hunk skill row in [Auto-installed tools, skills, and hooks](#auto-i
 
 1. Exit the coding agent with `/exit` or `Ctrl+D`.
 2. Exit Herdr with `Ctrl+B`, then `q`.
-3. Run `exit` at the AgentCore shell. A countdown appears on your own machine with three choices:
-   - `s` stops the session and ends its billing.
-   - `l` leaves it running so you can reconnect later.
-   - `r` reconnects now.
-
-   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are finished.
 
 ## Auto-installed tools, skills, and hooks
 
 Launchers install the items below unless you remove the install steps from the scripts.
 
-| Item | What it does | Local harnesses | AgentCore harnesses | Remove / change |
-| --- | --- | --- | --- | --- |
-| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Claude, Codex, Cursor, OpenCode | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`; AgentCore: `bootstrap-repo.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`; AgentCore: `bootstrap-repo.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. OpenCode: `tools/agents/opencode.json`. |
-| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi | Claude (plugin), Codex, OpenCode, Cursor | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh` (and AgentCore `bootstrap-repo.sh`). Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`, or the Codex/OpenCode/Cursor block in `bootstrap-repo.sh`. |
-| [Probity](https://github.com/nizos/probity) | Hooks that enforce TDD with the harness | Claude, Codex (also via `start-herdr`) | Claude, Codex | Package + config install: `install_probity` in `sandbox_bootstrap.sh`. Claude hook: `tools/agents/claude-settings.json`. Codex hooks: `tools/agents/codex-hooks.json` + `codex_hooks` in `codex-config.toml`. Config: `tools/agents/probity.config.ts` (hooks point at `/etc/agent-workbench/probity.config.ts`). AgentCore also installs the package in the Dockerfile. |
-| Secret-file deny hook | Blocks agent reads of `.env` and related secret files | Claude (and Herdr when it installs Claude settings) | Claude | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
-| [Hunk](https://www.hunk.dev/) review skill | Lets the agent open and act on Hunk diff review comments | Herdr local (`start-herdr`) | Claude, Codex, Cursor, OpenCode | `hunk skill path` symlink setup in `start_herdr.sh` / `bootstrap-repo.sh` (Codex also via `~/.agents/skills`). |
+| Item | What it does | Local harnesses | Remove / change |
+| --- | --- | --- | --- |
+| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. OpenCode: `tools/agents/opencode.json`. |
+| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh`. Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`. |
+| [Probity](https://github.com/nizos/probity) | Hooks that enforce TDD with the harness | Claude, Codex (also via `start-herdr`) | Package + config install: `install_probity` in `sandbox_bootstrap.sh`. Claude hook: `tools/agents/claude-settings.json`. Codex hooks: `tools/agents/codex-hooks.json` + `codex_hooks` in `codex-config.toml`. Config: `tools/agents/probity.config.ts` (hooks point at `/etc/agent-workbench/probity.config.ts`). |
+| Secret-file deny hook | Blocks agent reads of `.env` and related secret files | Claude (and Herdr when it installs Claude settings) | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
+| [Hunk](https://www.hunk.dev/) review skill | Lets the agent open and act on Hunk diff review comments | Herdr local (`start-herdr`) | `hunk skill path` symlink setup in `start_herdr.sh` (Codex also via `~/.agents/skills`). |
 
-**Probity detail:** Hooks run on every matching tool call. The workbench config enables `enforceTdd()` for common source file types. You do not ask the agent to “use Probity.” To turn TDD enforcement off, remove or empty the Probity rules in `tools/agents/probity.config.ts`, or remove the Probity PreToolUse entries and `install_probity` calls. AgentCore needs `cd infra/aws && npm run deploy` after those changes.
+**Probity detail:** Hooks run on every matching tool call. The workbench config enables `enforceTdd()` for common source file types. You do not ask the agent to “use Probity.” To turn TDD enforcement off, remove or empty the Probity rules in `tools/agents/probity.config.ts`, or remove the Probity PreToolUse entries and `install_probity` calls.
 
 **Not installed for every launcher:** Gemini, Grok, Kilo, and Command Code do not currently install Matt Pocock skills or Probity. OpenCode and Cursor do not support Probity (Probity only supports Claude Code, Codex, and GitHub Copilot CLI).
-
-## Known Issues
-
-- AgentCore session will suddenly exit or end. Cause is not determined, but probably has something to do with the 15 minute timeout for sessions currently set.
-  - Update is in place to auto-reconnect - select `r` if prompted.
-  - Resize the terminal window to redraw and resolve graphics glitches from the session interruption.
-- When reconnecting to an AgentCore Herdr session, mouse clicks stop working.
