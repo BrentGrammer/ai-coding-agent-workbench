@@ -193,14 +193,6 @@ Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops 
 - `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
 - OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
 
-### Cloud troubleshooting
-
-- **Garbled characters when typing over mosh:** the CLI already forces `TERM=xterm-256color` because Ghostty's terminal type is unknown on the box and its keyboard protocol garbles mosh. If you connect manually, do the same.
-- **Box stopped while you were away:** by design. `start-workbench` brings it back with everything intact.
-- **Tailscale broken or box unreachable:** `workbench ec2 ssm` is the always-available back door; it needs only AWS credentials.
-- **mosh stopped connecting after months of working:** the Tailscale node key expires every 180 days. Renew it over the back door: `workbench ec2 ssm`, then `sudo tailscale up --ssh`. To never see this, disable key expiry for the box in the Tailscale admin console (Machines → the box → Disable key expiry).
-- **GitHub pushes fail:** the token relay logs are on the box: `systemctl status github-token-relay`.
-
 ## Herdr tips
 
 ### Closing a empty pane in Herdr
