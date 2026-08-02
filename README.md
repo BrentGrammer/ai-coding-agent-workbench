@@ -229,7 +229,7 @@ The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tails
      --value 'tskey-auth-...'
    ```
 
-An auth key expires after 90 days at most. That only matters when you rebuild the box after the key expires. Repeat steps 3 to 5 to refresh it.
+An auth key expires after 90 days. That only matters when you rebuild the box after the key expires. Repeat steps 3 to 5 to refresh it.
 
 #### 2. GitHub App
 
