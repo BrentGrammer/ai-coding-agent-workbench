@@ -65,10 +65,12 @@ case "${2:-}" in
       --output table
     ;;
   ssh)
-    exec ssh "$CONNECT_USER@$CONNECT_HOST"
+    # Ghostty's own TERM is unknown on the box and its keyboard protocol
+    # garbles mosh, so connect with the plain terminal type.
+    exec env TERM=xterm-256color ssh "$CONNECT_USER@$CONNECT_HOST"
     ;;
   mosh)
-    exec mosh "$CONNECT_USER@$CONNECT_HOST"
+    exec env TERM=xterm-256color mosh "$CONNECT_USER@$CONNECT_HOST"
     ;;
   ssm)
     exec aws ssm start-session --target "$(find_instance_id)"

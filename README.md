@@ -160,9 +160,43 @@ Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current 
 
 ## Cloud
 
-The cloud seat is a persistent EC2 instance reached over Tailscale and mosh: the `AgentWorkbenchEc2Stack` CDK stack, the `infra/aws/ec2/setup-workbench.sh` setup script, and the `workbench ec2` CLI (`up`, `down`, `status`, `ssh`, `mosh`, `ssm`, `update`). It is built but not yet through the acceptance checklist in [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20). This section gets its full rewrite when that checklist passes.
+The cloud seat is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached over Tailscale and mosh. State persists on its disk: agent logins, skills, repos, and `node_modules` survive every stop and start. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk (~$2.40/month). Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
 
-The GitHub App token Lambda stays deployed and unchanged. See [infra/aws/README.md](./infra/aws/README.md).
+### Daily flow
+
+```shell
+start-workbench          # starts the box if stopped, connects with mosh
+cd ~/repos/<your-repo>
+workbench-open [agent]   # claude (default) | codex | opencode | cursor
+```
+
+Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
+
+`workbench ec2 <command>` covers the rest: `up`, `down`, `status`, `ssh`, `mosh`, `ssm` (break-glass access without Tailscale), and `update`.
+
+### One-time setup (new Mac or new instance)
+
+1. Mac tools: `brew install mosh awscli && brew install --cask tailscale session-manager-plugin`, plus AWS credentials configured.
+2. Tailscale: create a free account, sign in to the Mac app.
+3. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
+4. Join the box to your tailnet: `workbench ec2 ssm`, then on the box `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
+5. Connect with `start-workbench`, then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+6. Set the git identity once on the box: `git config --global user.name` / `user.email` (use the GitHub noreply address).
+7. Run `workbench ec2 update` from the Mac so skill and plugin installs that need agent logins complete.
+8. Recommended hardening: MFA on the account behind your Tailscale login, and [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) (`tailscale lock init` with both devices' `tlpub` keys — run from the box, save the disablement secrets).
+
+### Updates
+
+- The agent CLIs update themselves on the box.
+- `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when you feel like it.
+- Ubuntu security patches install unattended.
+
+### Cloud troubleshooting
+
+- **Garbled characters when typing over mosh:** the CLI already forces `TERM=xterm-256color` because Ghostty's terminal type is unknown on the box and its keyboard protocol garbles mosh. If you connect manually, do the same.
+- **Box stopped while you were away:** by design. `start-workbench` brings it back with everything intact.
+- **Tailscale broken or box unreachable:** `workbench ec2 ssm` is the always-available back door; it needs only AWS credentials.
+- **GitHub pushes fail:** the token relay logs are on the box: `systemctl status github-token-relay`.
 
 ## Herdr tips
 
