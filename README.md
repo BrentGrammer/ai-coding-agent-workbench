@@ -221,7 +221,7 @@ The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tails
    tailscale lock sign tskey-auth-...
    ```
 
-5. Store the key:
+5. Store the key that's printed in the terminal after the above command:
 
    ```shell
    aws ssm put-parameter --type SecureString \
