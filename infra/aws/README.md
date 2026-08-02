@@ -71,7 +71,7 @@ The deploy command deploys both stacks: the token Lambda and the EC2 workbench i
 
 ## Tailscale auto-join
 
-The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself — no SSM session, no browser login, no per-node tailnet lock signature. Daily use is `start-workbench` from any directory — it starts the box if it is stopped and connects. `bin/workbench ec2 update` re-runs the setup script for updates.
+The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself. `bin/workbench ec2 update` re-runs the setup script for updates.
 
 ### One-time auth key setup
 
