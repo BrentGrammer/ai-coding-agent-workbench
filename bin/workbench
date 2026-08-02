@@ -76,8 +76,12 @@ case "${2:-}" in
     exec aws ssm start-session --target "$(find_instance_id)"
     ;;
   update)
+    # /opt/agent-workbench is root-owned machine config, not a working copy.
+    # Hard reset to origin/main so the box cannot run a stale or local branch.
     exec ssh "$CONNECT_USER@$CONNECT_HOST" \
-      'cd ~/agent-workbench && git pull --ff-only && sudo bash infra/aws/ec2/setup-workbench.sh'
+      'sudo git -C /opt/agent-workbench fetch --prune origin main \
+        && sudo git -C /opt/agent-workbench reset --hard origin/main \
+        && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
     ;;
   *)
     usage

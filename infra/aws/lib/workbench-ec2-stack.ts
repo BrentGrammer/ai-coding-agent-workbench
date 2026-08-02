@@ -51,8 +51,11 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       "export DEBIAN_FRONTEND=noninteractive",
       "apt-get update",
       "apt-get install -y git",
-      `[ -d /home/ubuntu/agent-workbench/.git ] || sudo -u ubuntu git clone ${REPO_URL} /home/ubuntu/agent-workbench`,
-      "bash /home/ubuntu/agent-workbench/infra/aws/ec2/setup-workbench.sh",
+      // Root-owned machine config, not a working copy. The agent user runs as
+      // ubuntu and must not be able to edit what the update command sudo-runs.
+      `[ -d /opt/agent-workbench/.git ] || git clone --branch main ${REPO_URL} /opt/agent-workbench`,
+      "chown -R root:root /opt/agent-workbench",
+      "bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh",
     );
 
     const instance = new ec2.Instance(this, "WorkbenchInstance", {
