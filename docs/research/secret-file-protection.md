@@ -165,119 +165,36 @@ means shell-side tests do not measure the sandbox.
 
 ## Layer 3 died on the EC2 workbench (found and fixed 2026-08-02)
 
-**Bubblewrap could not start on the EC2 box, so the only layer this document
-treats as a real wall was not running.** Fixed the same day with an AppArmor
-profile — see "The fix" at the end of this section.
+Ubuntu 24.04 blocks unprivileged user namespaces by default
+(`kernel.apparmor_restrict_unprivileged_userns = 1`). Bubblewrap needs one to
+start, so on the EC2 box every sandboxed Bash command died with
+`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`. The packages
+were installed correctly; the kernel refused to let them run. While it was
+down:
 
-### What was observed
+- **No wall.** The hook is a text matcher and the deny rules do not cover
+  Bash, so nothing stopped a disguised read like `cat server.pe*`.
+- **The agent could reach root.** `no_new_privs` comes from bwrap, so `sudo`
+  from the agent's Bash tool ran with no password (confirmed). An approved
+  command could have edited the hook or the managed settings.
+- **`failIfUnavailable: true` did not catch it.** Claude started anyway and
+  fell back to a permission prompt per command. Do not rely on that setting to
+  surface a broken sandbox — and every-command prompts breed the fatigue that
+  gets them approved blindly.
 
-Every sandboxed Bash command fails before it runs, including commands that
-touch no network and no protected file:
+**The fix:** `infra/aws/ec2/apparmor-bwrap` — Ubuntu's own six-line `ch-run`
+profile shape, granting only `/usr/bin/bwrap` the `userns` permission.
+`setup-workbench.sh` installs and loads it, so rebuilds and `workbench ec2
+update` keep it. The alternative, turning the sysctl off, was rejected: it
+weakens every process on the box. Scope note: the profile is
+`flags=(unconfined)` — it grants the permission, it does not confine bwrap.
 
-```
-bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
-```
-
-Two direct tests on the box, both failed:
-
-```
-bwrap --unshare-net --dev-bind / / true
-  → bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
-bwrap --dev-bind / / true
-  → bwrap: setting up uid map: Permission denied
-```
-
-### The cause
-
-Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor:
-
-```
-kernel.apparmor_restrict_unprivileged_userns = 1
-```
-
-Bubblewrap needs an unprivileged user namespace. With the restriction on, it
-cannot make one, so it exits at startup. This is an Ubuntu default, not a
-setting anyone in this repo chose. `setup-workbench.sh` installs `bubblewrap`
-and `socat` correctly; the packages are present and the kernel refuses to let
-them work.
-
-### Why this matters
-
-The scorecard below marks Layer 3 verified, and the Layer 1 and Layer 2
-sections both state plainly that they cannot stand alone:
-
-- Layer 1, the hook, is a text matcher. `cat server.pe*` walks past it.
-- Layer 2, the deny rules, do not apply to the Bash tool at all.
-
-Layer 3 is what catches the disguised glob. Without it, the documented bypass
-table in the Layer 1 section has nothing behind it.
-
-**The agent can also reach root.** The sbx section below closes with "the agent
-cannot escalate to root" because bubblewrap sets `no_new_privs`. That protection
-comes from the same dead binary. Confirmed on the EC2 box 2026-08-02: `sudo`
-from the agent's own Bash tool ran with no password prompt. So the box holds a
-second, larger version of this hole — an agent that gets a command approved can
-`sudo cat` any file, edit the hook, or rewrite the managed settings.
-
-### Two things worth knowing
-
-1. **`failIfUnavailable: true` did not stop startup.** The managed settings at
-   `/etc/claude-code/managed-settings.json` are installed, identical to
-   `tools/agents/claude-settings.json`, and active — the session's own deny
-   list and allowed domains match the file. The document claims this setting
-   makes Claude refuse to start and say why. On this box Claude started, and
-   the sandbox instead failed per command with a fallback to a permission
-   prompt. Treat the earlier claim as unproven on Linux hosts with broken
-   namespaces, not as a guarantee.
-2. **The visible failure mode is a prompt, not a silent hole.** A sandboxed
-   command fails closed and the operator is asked to approve running it
-   unsandboxed. That is Layer 0 territory — operator attention, not a control —
-   and approving becomes routine because *every* command asks, including
-   harmless ones. Prompt fatigue is the real risk here.
-
-### The fix: an AppArmor profile for bwrap (applied and verified 2026-08-02)
-
-Two options were considered:
-
-- **Rejected: turn the restriction off system-wide** with
-  `kernel.apparmor_restrict_unprivileged_userns=0`. One sysctl, but it removes
-  the hardening default for every process on the box, forever.
-- **Applied: an AppArmor profile that grants only `bwrap` the `userns`
-  permission.** This is the mechanism Ubuntu built for exactly this — it ships
-  the same profile shape for `ch-run`, `crun`, and about twenty other tools,
-  just not for `bwrap`. `infra/aws/ec2/apparmor-bwrap` is Ubuntu's own `ch-run`
-  profile with the names changed. `setup-workbench.sh` installs it to
-  `/etc/apparmor.d/bwrap` and loads it with `apparmor_parser --replace`, so
-  rebuilt boxes get it and `workbench ec2 update` refreshes it.
-
-Honest scope note: the profile uses `flags=(unconfined)`, so it does not
-confine `bwrap` — it only grants the permission and attaches a name. The gain
-over the sysctl is that only processes executing `/usr/bin/bwrap` get
-namespaces, not everything. On a single-user box that gap is small; the profile
-is still preferred because it is declarative, survives upgrades, and leaves the
-kernel default on.
-
-### Verified after the fix (2026-08-02, on the EC2 box)
-
-- All three `bwrap` self-tests pass, including the doc's
-  `bwrap --ro-bind / / --dev /dev true` → exit 0.
-- Sandboxed commands run again through Claude's Bash tool, no prompts.
-- **The middle-row test passed:** operator created a decoy `server.pem`, agent
-  ran `cat server.pe*` through its Bash tool → `cat: server.pem: Permission
-  denied`. The glob expanded (the file was seen) and the OS refused the read.
-  That is the wall itself.
-- **The sudo hole is closed:** inside the sandbox, `sudo -n true` fails with
-  `The "no new privileges" flag is set`. The EC2 box now has the same
-  no-escalation guarantee as sbx.
-- Layer 1 confirmed too: the hook blocked every literal `server.pem` reference
-  during testing, including an attempt where the glob still contained the
-  protected prefix `~/.ssh/`.
-
-One test artifact worth remembering: the first run of the test returned
-`cat: 'server.pe*': No such file or directory` — which turned out to mean the
-decoy had been created in the wrong directory, not that anything was blocked.
-A real denial reads `Permission denied` with the expanded filename. Confirm the
-decoy exists from the operator side before interpreting a null result.
+**Verified after the fix, on the box:** `bwrap --ro-bind / / --dev /dev true`
+exits 0; the middle-row test passed (`cat server.pe*` through the agent's Bash
+tool → `Permission denied`); and `sudo -n true` in the sandbox dies with
+`no new privileges` — the same no-escalation guarantee as sbx. Test gotcha: a
+missing decoy produces `No such file or directory`, which looks like a block
+but proves nothing. A real denial names the file and says `Permission denied`.
 
 ---
 
