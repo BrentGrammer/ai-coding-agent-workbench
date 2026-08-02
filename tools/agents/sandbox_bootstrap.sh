@@ -137,6 +137,26 @@ fi
 '
 }
 
+# Codex discovers user skills from ~/.agents/skills. Global Codex installs still
+# land in ~/.codex/skills, so link those folders for discovery.
+link_codex_skills_for_discovery() {
+  echo "Linking Codex skills into ~/.agents/skills for discovery..."
+
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+
+mkdir -p "$HOME/.agents/skills"
+for skill_dir in "$HOME/.codex/skills"/*; do
+  [ -d "$skill_dir" ] || continue
+  skill_name="$(basename "$skill_dir")"
+  case "$skill_name" in
+    .system) continue ;;
+  esac
+  ln -sfn "$skill_dir" "$HOME/.agents/skills/$skill_name"
+done
+'
+}
+
 allow_exa_mcp_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" mcp.exa.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" auth.exa.ai:443

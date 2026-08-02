@@ -1,24 +1,85 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+INSTANCE_NAME_TAG="agent-workbench-ec2"
+CONNECT_HOST="${WORKBENCH_EC2_HOST:-agent-workbench}"
+CONNECT_USER="${WORKBENCH_EC2_USER:-ubuntu}"
 
-show_usage() {
-  echo "Usage:"
-  echo "  $0 aws REPO_URL [--ref REF] [--agent codex|claude|opencode|cursor] [--keep NAME]"
-  echo "  $0 aws reconnect NAME [--new-shell]"
-  echo "  $0 aws stop NAME"
-  echo "  $0 aws status"
+usage() {
+  cat <<'EOF'
+Usage: workbench ec2 <command>
+
+Commands:
+  up      Start the instance and wait until it runs
+  down    Stop the instance now
+  status  Show instance state, type, and uptime
+  ssh     Connect with ssh over Tailscale
+  mosh    Connect with mosh over Tailscale
+  ssm     Connect with SSM (break-glass, no Tailscale needed)
+  update  Re-run the setup script on the box and refresh skills
+
+Environment:
+  WORKBENCH_EC2_HOST  Tailscale hostname (default: agent-workbench)
+  WORKBENCH_EC2_USER  Login user (default: ubuntu)
+EOF
+  exit 1
 }
 
-case "${1:-}" in
-  aws)
-    shift
-    exec node "$REPO_ROOT/infra/aws/scripts/workbench.mjs" "$@"
+find_instance_id() {
+  local instance_id
+  instance_id="$(aws ec2 describe-instances \
+    --filters \
+      "Name=tag:Name,Values=$INSTANCE_NAME_TAG" \
+      "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+    --query 'Reservations[].Instances[].InstanceId' \
+    --output text)"
+
+  if [ -z "$instance_id" ] || [ "$instance_id" = "None" ]; then
+    echo "ERROR: No instance found with tag Name=$INSTANCE_NAME_TAG. Deploy the stack first." >&2
+    exit 1
+  fi
+
+  echo "$instance_id"
+}
+
+[ "${1:-}" = "ec2" ] || usage
+
+case "${2:-}" in
+  up)
+    instance_id="$(find_instance_id)"
+    aws ec2 start-instances --instance-ids "$instance_id" >/dev/null
+    echo "Starting $instance_id..."
+    aws ec2 wait instance-running --instance-ids "$instance_id"
+    echo "Running. Connect with: workbench ec2 mosh"
+    echo "First time on a new instance: workbench ec2 ssm, then: sudo tailscale up --ssh"
+    ;;
+  down)
+    instance_id="$(find_instance_id)"
+    aws ec2 stop-instances --instance-ids "$instance_id" >/dev/null
+    echo "Stopping $instance_id."
+    ;;
+  status)
+    instance_id="$(find_instance_id)"
+    aws ec2 describe-instances --instance-ids "$instance_id" \
+      --query 'Reservations[0].Instances[0].{State:State.Name,Type:InstanceType,StartedAt:LaunchTime,PublicIp:PublicIpAddress}' \
+      --output table
+    ;;
+  ssh)
+    # Ghostty's own TERM is unknown on the box and its keyboard protocol
+    # garbles mosh, so connect with the plain terminal type.
+    exec env TERM=xterm-256color ssh "$CONNECT_USER@$CONNECT_HOST"
+    ;;
+  mosh)
+    exec env TERM=xterm-256color mosh "$CONNECT_USER@$CONNECT_HOST"
+    ;;
+  ssm)
+    exec aws ssm start-session --target "$(find_instance_id)"
+    ;;
+  update)
+    exec ssh "$CONNECT_USER@$CONNECT_HOST" \
+      'cd ~/agent-workbench && git pull --ff-only && sudo bash infra/aws/ec2/setup-workbench.sh'
     ;;
   *)
-    show_usage
-    exit 1
+    usage
     ;;
 esac

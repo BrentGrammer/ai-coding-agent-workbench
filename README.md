@@ -1,24 +1,17 @@
 # AI Coding Agent Workbench
 
-This project bootstraps Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/) in the Cloud. It also supports running coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses.
+This project runs coding agents locally with `sbx` Docker sandbox MicroVMs for a variety of harnesses, with Claude Code, Codex, Cursor CLI and OpenCode in [Herdr](https://herdr.dev/) using [Hunk](https://www.hunk.dev/). A cloud seat on EC2 is planned in [issue #20](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/20).
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
-The agents also come baked in with [Matt Pocock's skills](https://github.com/mattpocock/skills) (remove their installation in the scripts if not desired).
+
+Launchers also auto-install skills, MCP tools, and hooks for some harnesses. See [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks) for the full list and how to remove them.
 
 Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner of this repo, of course). Adjust and edit these files to your needs and preferences. Also review the dot files (`.gemini/, .cline/`, and files in the `/tools/agents/` folder: `codex-config.toml`, `claude-settings.json`, `cursor-mcp.json`, `opencode.json`, `cline-global-settings.json`, etc.) which contain some baked in settings for convenience (statusline content, accept all edits mode, etc.) and change any of them to your liking.
-
-### Tools included
-
-Remove any of these if not desired:
-
-- Exa MCP Server (for web fetching)
-- Hunk skills (baked into AgentCore setup with Herdr/Hunk)
-- Matt Pocock Skills (baked into most agents/harnesses both in local sbx setup and AgentCore setup)
 
 ## Choose a path
 
 - **Local Docker sandboxes** — run agents on your machine with `sbx`. See [Local Docker sandboxes](#local-docker-sandboxes).
-- **Cloud (AWS Bedrock AgentCore)** — run the Herdr workbench on AWS Bedrock AgentCore. See [Cloud (AWS Bedrock AgentCore)](#cloud-aws-bedrock-agentcore).
+- **Cloud** — a persistent EC2 instance reached over Tailscale and mosh. See [Cloud](#cloud).
 
 ## Platform support
 
@@ -28,7 +21,7 @@ Remove any of these if not desired:
 
 ## Install launcher commands (PATH)
 
-Convenience commands in the `bin` folder bootstrap local Docker sandbox agents and AgentCore sessions (`start-herdr`, `start-claude`, `start-agentcore`, `workbench`, and others).
+Convenience commands in the `bin` folder bootstrap local Docker sandbox agents (`start-herdr`, `start-claude`, and others).
 
 Run the installer once to add the commands to PATH:
 
@@ -52,7 +45,7 @@ It checks for command collisions, confirms the profile change, and creates a bac
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for the coding agent you plan to use.
 
-Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional.
+Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. For skills, MCP tools, and hooks installed on top of those CLIs, see [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
 ### Start locally
 
@@ -133,7 +126,7 @@ The agent then works on a git clone inside the sandbox. The tradeoff: using this
 
 ### Security findings
 
-The workbench layers several controls to stop agents from reading secrets: instructions, a PreToolUse hook, permission deny rules, and an OS sandbox. Read more: [docs/research/secret-file-protection.md](docs/research/secret-file-protection.md).
+The workbench layers several controls to stop agents from reading secrets: instructions, a PreToolUse hook, permission deny rules, and an OS sandbox. The deny hook is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks). Read more: [docs/research/secret-file-protection.md](docs/research/secret-file-protection.md).
 
 ### Terminal and IDE options
 
@@ -163,73 +156,61 @@ Each agent stores its login inside the reused local sandbox. For OpenCode with a
 
 ### Hunk tips
 
-Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current changes.
+Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current changes. The `hunk-review` skill install is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
-## Cloud (AWS Bedrock AgentCore)
+## Cloud
 
-### Prerequisites
+The cloud seat is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached over Tailscale and mosh. State persists on its disk: agent logins, skills, repos, and `node_modules` survive every stop and start. The box stops itself after 15 minutes with no client connected, and a stopped box bills only its disk (~$2.40/month). Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
 
-- [Docker Desktop](https://docs.docker.com/desktop/)
-- An AWS Account and a IAM user with sufficient permissions.
-- AWS CLI with credentials (run `aws configure`) for the target account and region.
-- Node.js and npm.
-- AgentCore CLI 0.24.1 or newer.
-- A GitHub account with your project repo and a GitHub App installed for the target repository with **Contents: Read and write** permission.
-- The GitHub App ID and private key stored in AWS Systems Manager Parameter Store.
-
-See [Deploy AgentCore](./infra/aws/README.md) for GitHub App setup, Parameter Store, and stack deployment.
-
-### Deploy AWS Resources for Bedrock AgentCore Use
-
-AWS CDK is installed locally from the project's `/infra/aws` folder with `npm install`. Complete [Deploy AgentCore](./infra/aws/README.md) before the first cloud launch.
-
-### Configure the environment
-
-Before starting, copy the environment template from the project root:
+### Daily flow
 
 ```shell
-cp .env.template .env
+start-workbench          # starts the box if stopped, connects with mosh
+cd ~/workspace/<your-repo>
+workbench-open [agent]   # claude (default) | codex | opencode | cursor
 ```
 
-Edit `.env`. These two values are the only ones it needs:
+Work, then walk away. mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
 
-```shell
-GITHUB_REPOSITORY_URL=https://github.com/owner/repository.git
-AWS_REGION=YOUR_AWS_REGION
-```
+`workbench ec2 <command>` covers the rest: `up`, `down`, `status`, `ssh`, `mosh`, `ssm` (break-glass access without Tailscale), and `update`.
 
-#### GitHub App Tokens
+### One-time setup (new Mac or new instance)
 
-Note: The GitHub App private key stays inside the a lambda function to get a token and never reaches the agent container. The container can only ask that function for an installation token, which GitHub expires in one hour and scopes to one repository. To limit which repositories the container may ask for, set `ALLOWED_REPOSITORIES` on the function to a comma-separated list of `owner/repository` values. Leave it unset to allow any repository the App is installed on.
+1. Mac tools: `brew install mosh awscli && brew install --cask tailscale session-manager-plugin`, plus AWS credentials configured.
+2. Tailscale: create a free account, sign in to the Mac app.
+3. Deploy the stacks — see [infra/aws/README.md](./infra/aws/README.md).
+4. Join the box to your tailnet: `workbench ec2 ssm`, then on the box `sudo tailscale up --ssh`, approve the link in the browser, `exit`.
+5. Connect with `start-workbench`, then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+6. Set the git identity once on the box: `git config --global user.name` / `user.email` (use the GitHub noreply address).
+7. Run `workbench ec2 update` from the Mac so skill and plugin installs that need agent logins complete.
+8. Recommended hardening, in this order:
+   - Confirm MFA on the account behind your Tailscale login (GitHub or Google). The tailnet is only as strong as that account.
+   - Enable [tailnet lock](https://tailscale.com/kb/1226/tailnet-lock) so a compromised Tailscale control server cannot add a rogue device. Print each device's key with `tailscale lock` (on the Mac the CLI lives at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`). Then, on the box, pass both `tlpub:` keys to one command: `sudo tailscale lock init tlpub:BOX-KEY tlpub:MAC-KEY`. Store the printed disablement secrets somewhere durable outside both devices — an SSM SecureString parameter works well. They are the only recovery if both devices are lost.
+   - Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
+   - Adding a future device needs a signature from a trusted one: `tailscale lock sign <nodekey>`.
 
-#### GitHub Repos
+### Rebuilding the box
 
-To use AgentCore with another repository, change only `GITHUB_REPOSITORY_URL` in `.env`, then run `start-agentcore` normally. The GitHub App must be installed for the new repository.
+The one-time setup above is the full rebuild procedure — everything else is automated by the deploy and the setup script. Two gotchas:
 
-### Start AgentCore
+- The old disk survives termination on purpose. Delete the orphaned EBS volume in the console, or it bills ~$2.40/month forever.
+- Agent logins, git identity, and repos lived on that disk. Redo steps 4–7 and re-clone your repos.
 
-Choose the primary agent:
+### Updates
 
-```shell
-start-agentcore claude
-start-agentcore codex
-start-agentcore cursor
-start-agentcore opencode
-```
+- The agent CLIs update themselves on the box.
+- `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when you feel like it.
+- Ubuntu security patches install unattended.
 
-The argument selects the agent that starts automatically. All four agents and their Herdr integrations are available in the environment.
+### Cloud troubleshooting
 
-At the AgentCore shell prompt, run:
+- **Garbled characters when typing over mosh:** the CLI already forces `TERM=xterm-256color` because Ghostty's terminal type is unknown on the box and its keyboard protocol garbles mosh. If you connect manually, do the same.
+- **Box stopped while you were away:** by design. `start-workbench` brings it back with everything intact.
+- **Tailscale broken or box unreachable:** `workbench ec2 ssm` is the always-available back door; it needs only AWS credentials.
+- **mosh stopped connecting after months of working:** the Tailscale node key expires every 180 days. Renew it over the back door: `workbench ec2 ssm`, then `sudo tailscale up --ssh`. To never see this, disable key expiry for the box in the Tailscale admin console (Machines → the box → Disable key expiry).
+- **GitHub pushes fail:** the token relay logs are on the box: `systemctl status github-token-relay`.
 
-```shell
-start-herdr
-```
-
-This opens the primary agent full-screen with Hunk in a hidden pane. To add another agent:
-
-1. Press `Ctrl+B`, then `z` to show all panes.
-2. Press `Ctrl+B`, then `v` to create a pane.
-3. Run `claude`, `codex`, `cursor-agent`, or `opencode` in the new pane.
+## Herdr tips
 
 ### Closing a empty pane in Herdr
 
@@ -251,19 +232,22 @@ This window is keyboard only. Mouse clicks do not work in the new window.
 2. Put the cursor on a line and press `c` to leave a comment.
 3. Tell the agent: `read my hunk comments and fix them`.`
 
+See also the Hunk skill row in [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
+
 ### Exit cleanly
 
 1. Exit the coding agent with `/exit` or `Ctrl+D`.
 2. Exit Herdr with `Ctrl+B`, then `q`.
-3. Run `exit` at the AgentCore shell. A countdown appears on your own machine with three choices:
-   - `s` stops the session and ends its billing.
-   - `l` leaves it running so you can reconnect later.
-   - `r` reconnects now.
 
-   Doing nothing reconnects you, because a dropped connection looks the same as a deliberate exit. Press `s` when you are finished.
+## Auto-installed tools, skills, and hooks
 
-## Known Issues
+Launchers install the items below unless you remove the install steps from the scripts.
 
-- AgentCore session will suddenly exit or end. Cause is not determined, but probably has something to do with the 15 minute timeout for sessions currently set.
-  - Update is in place to auto-reconnect - select `r` if prompted.
-  - Resize the terminal window to redraw and resolve graphics glitches from the session interruption.
+| Item | What it does | Local harnesses | Remove / change |
+| --- | --- | --- | --- |
+| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. OpenCode: `tools/agents/opencode.json`. |
+| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh`. Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`. |
+| Secret-file deny hook | Blocks agent reads of `.env` and related secret files | Claude (and Herdr when it installs Claude settings) | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
+| [Hunk](https://www.hunk.dev/) review skill | Lets the agent open and act on Hunk diff review comments | Herdr local (`start-herdr`) | `hunk skill path` symlink setup in `start_herdr.sh` (Codex also via `~/.agents/skills`). |
+
+**Not installed for every launcher:** Gemini, Grok, Kilo, and Command Code do not currently install Matt Pocock skills.

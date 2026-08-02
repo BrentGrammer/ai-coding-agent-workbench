@@ -2,9 +2,13 @@
 
 Research notes on stopping agents (Claude Code and friends) from reading
 `.env` files, private keys, and credential stores inside the two sandboxed
-environments this repo ships: **AgentCore** (cloud) and **sbx** (local Docker).
+environments this repo ships: the **EC2 workbench** (cloud) and **sbx** (local
+Docker). The EC2 workbench replaced AgentCore in issue #20.
 
-Last verified: 2026-07-21, Claude Code 2.1.217.
+Last verified: 2026-07-21, Claude Code 2.1.217. EC2 findings added 2026-08-02.
+
+Layer 3 was found dead on the EC2 workbench on 2026-08-02 and fixed the same
+day with an AppArmor profile. See "Layer 3 died on the EC2 workbench".
 
 ---
 
@@ -141,7 +145,9 @@ the hook — returns **Permission denied** through Claude's Bash tool.
 - `bubblewrap` **and** `socat`. With only bubblewrap, the `bwrap` self-test
   passes but Claude still refuses with `socat not installed`. Install both.
 - Unprivileged user namespaces must be enabled on the host. Verify with:
-  `bwrap --ro-bind / / --dev /dev true; echo $?` (0 = works).
+  `bwrap --ro-bind / / --dev /dev true; echo $?` (0 = works). **Ubuntu 24.04
+  blocks this by default and therefore ships with Layer 3 dead. See the next
+  section.**
 
 **`failIfUnavailable` must be `true`.** With `false`, a missing dependency makes
 Claude start with **no sandbox at all, silently**. The danger is not the missing
@@ -157,19 +163,59 @@ means shell-side tests do not measure the sandbox.
 
 ---
 
+## Layer 3 died on the EC2 workbench (found and fixed 2026-08-02)
+
+Ubuntu 24.04 blocks unprivileged user namespaces by default
+(`kernel.apparmor_restrict_unprivileged_userns = 1`). Bubblewrap needs one to
+start, so on the EC2 box every sandboxed Bash command died with
+`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`. The packages
+were installed correctly; the kernel refused to let them run. While it was
+down:
+
+- **No wall.** The hook is a text matcher and the deny rules do not cover
+  Bash, so nothing stopped a disguised read like `cat server.pe*`.
+- **The agent could reach root.** `no_new_privs` comes from bwrap, so `sudo`
+  from the agent's Bash tool ran with no password (confirmed). An approved
+  command could have edited the hook or the managed settings.
+- **`failIfUnavailable: true` did not catch it.** Claude started anyway and
+  fell back to a permission prompt per command. Do not rely on that setting to
+  surface a broken sandbox — and every-command prompts breed the fatigue that
+  gets them approved blindly.
+
+**The fix:** `infra/aws/ec2/apparmor-bwrap` — Ubuntu's own six-line `ch-run`
+profile shape, granting only `/usr/bin/bwrap` the `userns` permission.
+`setup-workbench.sh` installs and loads it, so rebuilds and `workbench ec2
+update` keep it. The alternative, turning the sysctl off, was rejected: it
+weakens every process on the box. Scope note: the profile is
+`flags=(unconfined)` — it grants the permission, it does not confine bwrap.
+
+**Verified after the fix, on the box:** `bwrap --ro-bind / / --dev /dev true`
+exits 0; the middle-row test passed (`cat server.pe*` through the agent's Bash
+tool → `Permission denied`); and `sudo -n true` in the sandbox dies with
+`no new privileges` — the same no-escalation guarantee as sbx. Test gotcha: a
+missing decoy produces `No such file or directory`, which looks like a block
+but proves nothing. A real denial names the file and says `Permission denied`.
+
+---
+
 ## Environment scorecard
 
-| Control               | AgentCore              | sbx                                  |
-| --------------------- | ---------------------- | ------------------------------------ |
-| Real `.env` present?  | No (fresh git clone)   | **Yes (mounts your workdir)**        |
-| Layer 0 (CLAUDE.md)   | ✅                     | ✅                                   |
-| Layer 1 (hook)        | ✅ verified            | ✅ verified                          |
-| Layer 2 (deny rules)  | ✅ verified            | ✅ verified                          |
-| Layer 3 (bubblewrap)  | ✅ verified            | ✅ verified                          |
-| Configs tamper-proof? | ✅ no sudo, root-owned | ✅ agent cannot escalate (see below) |
+| Control               | EC2 workbench            | sbx                                  | AgentCore (removed)    |
+| --------------------- | ------------------------ | ------------------------------------ | ---------------------- |
+| Real `.env` present?  | No (fresh git clone)     | **Yes (mounts your workdir)**        | No (fresh git clone)   |
+| Layer 0 (CLAUDE.md)   | ✅                       | ✅                                   | ✅                     |
+| Layer 1 (hook)        | ✅ verified 2026-08-02   | ✅ verified                          | ✅ verified            |
+| Layer 2 (deny rules)  | ⚠️ installed, not tested | ✅ verified                          | ✅ verified            |
+| Layer 3 (bubblewrap)  | ✅ verified 2026-08-02   | ✅ verified                          | ✅ verified            |
+| Configs tamper-proof? | ✅ sudo dies in sandbox  | ✅ agent cannot escalate (see below) | ✅ no sudo, root-owned |
 
-Both environments verified end-to-end. sbx holds a live secret, so it got the
-most scrutiny.
+AgentCore was removed in issue #20 and the EC2 workbench replaced it. Its column
+is kept only because the verified results below were gathered there.
+
+The EC2 Layer 3 and sudo results are from after the AppArmor fix above — the box
+shipped with both broken. Layer 2 remains the one untested layer on EC2: the
+managed settings are installed and active, but no `Read`-tool probe of a denied
+path has been run there yet.
 
 **sbx results (2026-07-21):** all layers confirmed. Layer 0 — both Sonnet 5 and
 Haiku 4.5 declined and flagged the injection. Layer 1 — the hook blocked

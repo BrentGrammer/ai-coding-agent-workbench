@@ -16,6 +16,7 @@ SOCKET_ID="$(stat -Lc '%i' "${HERDR_SOCKET_PATH:-}" 2>/dev/null || printf 'curre
 WORKSPACE_MARKER="$RUNTIME_DIR/$SOCKET_ID-$HERDR_WORKSPACE_ID"
 
 mkdir -p "$RUNTIME_DIR"
+# Herdr sets XDG_* to its private dirs. Drop them so agents use $HOME instead.
 unset XDG_CONFIG_HOME XDG_STATE_HOME
 
 if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then

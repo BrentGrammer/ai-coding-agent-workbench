@@ -1,0 +1,6 @@
+[Unit]
+Description=Stop the workbench instance when no client is connected
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/workbench-idle-stop

@@ -123,8 +123,17 @@ cd "$(npm root -g)/opencode-ai"
 node postinstall.mjs
 cd "$HOME"
 
-mkdir -p "$HOME/.claude/skills/hunk-review"
-ln -sf "$(hunk skill path)" "$HOME/.claude/skills/hunk-review/SKILL.md"
+hunk_skill_path="$(hunk skill path)"
+for agent_skills_dir in \
+  "$HOME/.claude/skills" \
+  "$HOME/.codex/skills" \
+  "$HOME/.agents/skills" \
+  "$HOME/.config/opencode/skills" \
+  "$HOME/.cursor/skills"
+do
+  mkdir -p "$agent_skills_dir/hunk-review"
+  ln -sf "$hunk_skill_path" "$agent_skills_dir/hunk-review/SKILL.md"
+done
 
 if command -v claude >/dev/null 2>&1; then
   claude update || true
@@ -217,13 +226,16 @@ export PATH="$HOME/.local/bin:$PATH"
 
 if claude plugin list 2>/dev/null | grep -q exa; then
   echo "Exa plugin already installed."
-elif claude plugin install exa@claude-plugins-official </dev/null 2>/dev/null; then
-  echo "Installed the Exa plugin."
-elif claude mcp get exa >/dev/null 2>&1; then
-  echo "Exa MCP server already registered."
 else
-  echo "Plugin install did not work, falling back to the MCP server."
-  claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
+  claude plugin marketplace add anthropics/claude-plugins-official </dev/null >/dev/null 2>&1 || true
+  if claude plugin install exa@claude-plugins-official </dev/null >/dev/null 2>&1; then
+    echo "Installed the Exa plugin."
+  elif claude mcp get exa >/dev/null 2>&1; then
+    echo "Exa MCP server already registered."
+  else
+    echo "Plugin install did not work, falling back to the MCP server."
+    claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
+  fi
 fi
 
 if ! claude plugin list 2>/dev/null | grep -q exa &&
@@ -260,6 +272,7 @@ install_integrations
 install_exa_tools
 install_matt_pocock_skills_plugin
 install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
+link_codex_skills_for_discovery
 
 echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"
 
