@@ -143,6 +143,8 @@ if sandboxExists "$SANDBOX_NAME"; then
 	# Copy updated MCP config to the existing sandbox
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
+	install_skill_creator "$REPO_ROOT" antigravity-cli
+	install_no_mistakes "$REPO_ROOT" antigravity-cli
 	usage_instructions
 else
 	echo "🆕 Creating new sandbox: $SANDBOX_NAME"
@@ -166,6 +168,8 @@ else
 
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
+	install_skill_creator "$REPO_ROOT" antigravity-cli
+	install_no_mistakes "$REPO_ROOT" antigravity-cli
 	usage_instructions
 fi
 

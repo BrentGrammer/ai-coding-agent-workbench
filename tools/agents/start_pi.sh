@@ -50,6 +50,8 @@ if sandboxExists "$SANDBOX_NAME"; then
     configure_sandbox_env
     install_pi_cli
     install_matt_pocock_skills "$REPO_ROOT" pi
+    install_skill_creator "$REPO_ROOT" pi
+    install_no_mistakes "$REPO_ROOT" pi
 
     sbx run "$SANDBOX_NAME"
 else
@@ -67,6 +69,8 @@ else
     install_node_lts
     install_pi_cli
     install_matt_pocock_skills "$REPO_ROOT" pi
+    install_skill_creator "$REPO_ROOT" pi
+    install_no_mistakes "$REPO_ROOT" pi
 
     configure_sandbox_env
 

@@ -128,6 +128,8 @@ if sandboxExists "$SANDBOX_NAME"; then
   copy_cursor_mcp_config
   usage_instructions
   install_matt_pocock_skills "$REPO_ROOT" cursor
+  install_skill_creator "$REPO_ROOT" cursor
+  install_no_mistakes "$REPO_ROOT" cursor
 
   sbx run "$SANDBOX_NAME"
 else
@@ -148,6 +150,8 @@ else
   copy_cursor_mcp_config
   usage_instructions
   install_matt_pocock_skills "$REPO_ROOT" cursor
+  install_skill_creator "$REPO_ROOT" cursor
+  install_no_mistakes "$REPO_ROOT" cursor
 
   sbx run "$SANDBOX_NAME"
 fi

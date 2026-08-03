@@ -242,7 +242,7 @@ if ! (
   echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
 fi
 
-echo "Installing gh-axi and npm-axi skills..."
+echo "Installing gh-axi, npm-axi, skill-creator, and no-mistakes skills..."
 if ! (
   cd "$HOME"
   npx --yes skills@latest add kunchenguid/gh-axi \
@@ -263,8 +263,26 @@ if ! (
     --global \
     --yes \
     --copy
+  npx --yes skills@latest add anthropics/skills \
+    --skill skill-creator \
+    --agent claude-code \
+    --agent codex \
+    --agent opencode \
+    --agent cursor \
+    --global \
+    --yes \
+    --copy
+  npx --yes skills@latest add kunchenguid/no-mistakes \
+    --skill no-mistakes \
+    --agent claude-code \
+    --agent codex \
+    --agent opencode \
+    --agent cursor \
+    --global \
+    --yes \
+    --copy
 ); then
-  echo "WARN: Could not install gh-axi or npm-axi skills." >&2
+  echo "WARN: Could not install gh-axi, npm-axi, skill-creator, or no-mistakes skills." >&2
 fi
 
 echo "Setting up gh-axi and npm-axi session hooks..."

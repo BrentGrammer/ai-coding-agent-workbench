@@ -325,9 +325,13 @@ See also the Hunk skill row in [Auto-installed tools, skills, and hooks](#auto-i
 
 Launchers install the items below unless you remove the install steps from the scripts.
 
-| Item | What it does | Local harnesses | Remove / change |
+| Item | What it does | Where | Remove / change |
 | --- | --- | --- | --- |
-| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. OpenCode: `tools/agents/opencode.json`. |
-| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi, Grok, Kilo, Command Code | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh`. Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`. |
-| Secret-file deny hook | Blocks agent reads of `.env` and related secret files | Claude (and Herdr when it installs Claude settings) | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
-| [Hunk](https://www.hunk.dev/) review skill | Lets the agent open and act on Hunk diff review comments | Herdr local (`start-herdr`) | `hunk skill path` symlink setup in `start_herdr.sh` (Codex also via `~/.agents/skills`). |
+| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch | Claude, Codex, Cursor, Cline, Herdr | `install_exa_tools` / agent MCP configs |
+| [Matt Pocock skills](https://github.com/mattpocock/skills) | Workflow skills (e.g. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr | `install_matt_pocock_skills(_plugin)` in `sandbox_bootstrap.sh` / `start_*.sh` |
+| [gh-axi](https://github.com/kunchenguid/gh-axi) | Agent-friendly `gh` wrapper (TOON output) | EC2 | `setup-workbench.sh` npm pin + skills/hooks |
+| [npm-axi](https://github.com/SSBrouhard/npm-axi) | Agent-friendly npm registry CLI | EC2 | `setup-workbench.sh` npm pin + skills/hooks |
+| [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Create and refine agent skills | EC2 + local agents above (not Gemini) | `install_skill_creator` / `setup-workbench.sh` |
+| [no-mistakes](https://github.com/kunchenguid/no-mistakes) | Validate/ship gate before push/PR/CI | EC2 + local agents above (not Gemini) | `install_no_mistakes` / `setup-workbench.sh` |
+| Secret-file deny hook | Blocks reads of `.env` and related files | Claude, Herdr | `runtime/deny-protected-file-reads`, `claude-settings.json` |
+| [Hunk](https://www.hunk.dev/) review skill | Act on Hunk diff review comments | Herdr (local + EC2) | `hunk skill path` symlink in setup / `start_herdr.sh` |
