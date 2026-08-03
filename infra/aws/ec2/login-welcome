@@ -5,7 +5,4 @@ Clone repos under ~/workspace (https clone only), then start Herdr:
   cd ~/workspace/<your-repo>
   start-herdr [claude|codex|opencode|cursor]
 
-GitHub and npm helpers (prefer these in agent sessions):
 
-  gh-axi ...
-  npm-axi ...
