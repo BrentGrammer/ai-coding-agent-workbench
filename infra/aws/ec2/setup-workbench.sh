@@ -228,6 +228,8 @@ if ! claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
 fi
 
 echo "Installing Matt Pocock skills for Codex, OpenCode, and Cursor..."
+# stdin is redirected from /dev/null because this whole block is piped to
+# `bash -s`; without it `npx skills` reads and eats the rest of the script.
 if ! (
   cd "$HOME"
   npx --yes skills@latest add mattpocock/skills \
@@ -238,7 +240,7 @@ if ! (
     --global \
     --yes \
     --copy
-); then
+) </dev/null; then
   echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
 fi
 
@@ -281,13 +283,13 @@ if ! (
     --global \
     --yes \
     --copy
-); then
+) </dev/null; then
   echo "WARN: Could not install gh-axi, npm-axi, skill-creator, or no-mistakes skills." >&2
 fi
 
 echo "Setting up gh-axi and npm-axi session hooks..."
-gh-axi setup hooks || echo "WARN: Could not set up gh-axi session hooks." >&2
-npm-axi setup hooks || echo "WARN: Could not set up npm-axi session hooks." >&2
+gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2
+npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2
 
 # Codex discovers user skills from ~/.agents/skills, but the skills CLI
 # installs them under ~/.codex/skills. Link them for discovery.
