@@ -26,6 +26,8 @@
 
 ## Tools
 
+- Use `gh-axi` instead of `gh` for GitHub operations (issues, PRs, runs, releases, labels, search).
+- Use `npm-axi` for npm registry lookups (search, view, versions, downloads).
 - Use the Exa MCP server for documentation when it is available.
 IMPORTANT: If Exa hangs and takes longer than 10 seconds to fetch, abandon using it and try something else. Do not wait minutes for it.
 

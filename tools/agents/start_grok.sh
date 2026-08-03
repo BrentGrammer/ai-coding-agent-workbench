@@ -23,6 +23,7 @@ allow_grok_network() {
 	allow_system_update_network
 	allow_vendor_docs_network
 	allow_exa_mcp_network
+	allow_skills_marketplace_network
 
 	# Grok Build installer / updates
 	sbx policy allow network --sandbox "$SANDBOX_NAME" x.ai:443
@@ -85,6 +86,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 	allow_grok_network
 	configure_sandbox_env
 	sync_files_to_sandbox
+	install_matt_pocock_skills "$REPO_ROOT" grok
 
 	sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
@@ -126,6 +128,7 @@ else
 	echo "SUCCESS: Installed Grok Build"
 
 	sync_files_to_sandbox
+	install_matt_pocock_skills "$REPO_ROOT" grok
 fi
 
 ###############################################################################
