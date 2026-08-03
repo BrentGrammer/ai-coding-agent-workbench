@@ -158,6 +158,11 @@ Run Claude Code:
 
   claude
 
+with model:
+
+  claude --model claude-opus-4-8
+  `/model claude-opus-4-8`
+
 Bypass all permissions:
 
   claude --permission-mode bypassPermissions
