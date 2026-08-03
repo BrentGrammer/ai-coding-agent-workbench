@@ -23,6 +23,7 @@ openLocalWorkspace
 allow_network() {
   allow_system_update_network
   allow_vendor_docs_network
+  allow_skills_marketplace_network
 
   sbx policy allow network --sandbox "$SANDBOX_NAME" kilo.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" app.kilo.ai:443
@@ -136,6 +137,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_kilo_env
   install_or_update
   copy_config
+  install_matt_pocock_skills "$REPO_ROOT" kilo
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -151,6 +153,7 @@ else
   configure_kilo_env
   install_or_update
   copy_config
+  install_matt_pocock_skills "$REPO_ROOT" kilo
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

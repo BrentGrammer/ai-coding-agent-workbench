@@ -24,6 +24,7 @@ allow_network() {
   allow_system_update_network
   allow_vendor_docs_network
   allow_exa_mcp_network
+  allow_skills_marketplace_network
 #   allow_serena_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.commandcode.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" commandcode.ai:443
@@ -85,6 +86,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_sandbox_env
   install_or_update
   copy_config
+  install_matt_pocock_skills "$REPO_ROOT" command-code
 
   usage_instructions
   sbx run "$SANDBOX_NAME"
@@ -100,6 +102,7 @@ else
   install_node_lts
   install_or_update
   copy_config
+  install_matt_pocock_skills "$REPO_ROOT" command-code
 
   usage_instructions
   sbx run "$SANDBOX_NAME"

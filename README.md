@@ -328,8 +328,6 @@ Launchers install the items below unless you remove the install steps from the s
 | Item | What it does | Local harnesses | Remove / change |
 | --- | --- | --- | --- |
 | [Exa](https://exa.ai/) MCP / plugin | Web search and fetch for the agent | Claude, Codex, Cursor, Cline (and Claude again via `start-herdr`) | Claude: `install_exa_tools` in `start_claude.sh` / `start_herdr.sh`. Codex: `install_exa_mcp_server` in `start_codex.sh`. Cursor/Cline: `tools/agents/cursor-mcp.json`, `tools/agents/cline-mcp-settings.json`. OpenCode: `tools/agents/opencode.json`. |
-| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh`. Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`. |
+| [Matt Pocock skills](https://github.com/mattpocock/skills) | Engineering workflow skills (i.e. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity CLI, Pi, Grok, Kilo, Command Code | Claude: `install_matt_pocock_skills_plugin` in `sandbox_bootstrap.sh`. Others: `install_matt_pocock_skills` / `install_skills` in the matching `start_*.sh`. |
 | Secret-file deny hook | Blocks agent reads of `.env` and related secret files | Claude (and Herdr when it installs Claude settings) | Hook binary + settings: `runtime/deny-protected-file-reads`, `tools/agents/claude-settings.json`, `runtime/install-claude-settings`. |
 | [Hunk](https://www.hunk.dev/) review skill | Lets the agent open and act on Hunk diff review comments | Herdr local (`start-herdr`) | `hunk skill path` symlink setup in `start_herdr.sh` (Codex also via `~/.agents/skills`). |
-
-**Not installed for every launcher:** Gemini, Grok, Kilo, and Command Code do not currently install Matt Pocock skills.

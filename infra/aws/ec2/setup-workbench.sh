@@ -10,6 +10,8 @@ HUNK_VERSION=0.17.3
 CLAUDE_CODE_VERSION=2.1.220
 CODEX_VERSION=0.146.0
 OPENCODE_VERSION=1.18.11
+GH_AXI_VERSION=0.1.29
+NPM_AXI_VERSION=0.1.1
 
 WORKBENCH_USER=ubuntu
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -156,6 +158,8 @@ sudo -u "$WORKBENCH_USER" -H \
   CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
   CODEX_VERSION="$CODEX_VERSION" \
   OPENCODE_VERSION="$OPENCODE_VERSION" \
+  GH_AXI_VERSION="$GH_AXI_VERSION" \
+  NPM_AXI_VERSION="$NPM_AXI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
@@ -168,12 +172,16 @@ npm install -g \
   "hunkdiff@${HUNK_VERSION}" \
   "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
   "@openai/codex@${CODEX_VERSION}" \
-  "opencode-ai@${OPENCODE_VERSION}"
+  "opencode-ai@${OPENCODE_VERSION}" \
+  "gh-axi@${GH_AXI_VERSION}" \
+  "npm-axi@${NPM_AXI_VERSION}"
 (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
 hunk --version
 claude --version
 codex --version
 opencode --version
+gh-axi --version
+npm-axi --version
 
 command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
 
@@ -232,6 +240,35 @@ if ! (
 ); then
   echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
 fi
+
+echo "Installing gh-axi and npm-axi skills..."
+if ! (
+  cd "$HOME"
+  npx --yes skills@latest add kunchenguid/gh-axi \
+    --skill gh-axi \
+    --agent claude-code \
+    --agent codex \
+    --agent opencode \
+    --agent cursor \
+    --global \
+    --yes \
+    --copy
+  npx --yes skills@latest add SSBrouhard/npm-axi \
+    --skill npm-axi \
+    --agent claude-code \
+    --agent codex \
+    --agent opencode \
+    --agent cursor \
+    --global \
+    --yes \
+    --copy
+); then
+  echo "WARN: Could not install gh-axi or npm-axi skills." >&2
+fi
+
+echo "Setting up gh-axi and npm-axi session hooks..."
+gh-axi setup hooks || echo "WARN: Could not set up gh-axi session hooks." >&2
+npm-axi setup hooks || echo "WARN: Could not set up npm-axi session hooks." >&2
 
 # Codex discovers user skills from ~/.agents/skills, but the skills CLI
 # installs them under ~/.codex/skills. Link them for discovery.
