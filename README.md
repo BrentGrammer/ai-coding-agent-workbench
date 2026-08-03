@@ -3,7 +3,7 @@
 This project runs coding agents two ways:
 
 - **Local** — `sbx` Docker sandbox MicroVMs for a variety of harnesses, with [Herdr](https://herdr.dev/) as an option. See [Local Docker sandboxes](#local-docker-sandboxes).
-- **Cloud** — a persistent EC2 workbench running Claude Code, Codex, Cursor CLI, and OpenCode in Herdr, with [Hunk](https://www.hunk.dev/) for diff review. See [Cloud](#cloud).
+- **Cloud** — a persistent AWS EC2 dev box running Claude Code, Codex, Cursor CLI, and OpenCode in Herdr, with [Hunk](https://www.hunk.dev/) for diff review. See [Cloud](#cloud).
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
 
