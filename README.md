@@ -196,7 +196,7 @@ Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you 
 
 ### One-time setup
 
-The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tailscale auth key, and a GitHub App ID and private key. Create them before you deploy. Steps 1 and 2 below make them. Put every parameter in the same region that the stack deploys to.
+The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tailscale auth key, and a GitHub App ID and private key. Create them before you deploy following Steps 1 and 2 below.
 
 #### 1. Tailscale access
 
@@ -274,7 +274,7 @@ Do not commit the PEM key, put it in an environment file, or paste it into logs.
    git clone https://github.com/<owner>/<repo>.git ~/workspace/<repo>
    ```
 
-   No credential prompt appears — the box mints a short-lived GitHub token for each Git operation. This only works for HTTPS URLs, not `git@github.com:...` SSH ones.
+   No credential prompt appears — the box mints a short-lived GitHub token for each Git operation via the AWS Lambda setup in CDK. This only works for HTTPS URLs, not `git@github.com:...` SSH ones.
 6. Run `workbench ec2 update` once from a local terminal. The first-boot setup ran before any agent was logged in, so the skill and plugin installs that need a logged-in agent were skipped. This run completes them.
 
 #### 4. Recommended hardening
