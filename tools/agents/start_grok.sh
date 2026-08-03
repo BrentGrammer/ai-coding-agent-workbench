@@ -87,6 +87,8 @@ if sandboxExists "$SANDBOX_NAME"; then
 	configure_sandbox_env
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" grok
+	install_skill_creator "$REPO_ROOT" grok
+	install_no_mistakes "$REPO_ROOT" grok
 
 	sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
@@ -129,6 +131,8 @@ else
 
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" grok
+	install_skill_creator "$REPO_ROOT" grok
+	install_no_mistakes "$REPO_ROOT" grok
 fi
 
 ###############################################################################

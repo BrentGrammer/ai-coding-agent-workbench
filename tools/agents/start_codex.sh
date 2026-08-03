@@ -114,6 +114,9 @@ install_skills() {
       --yes \
       --copy
   "
+
+  install_skill_creator "$REPO_ROOT" codex
+  install_no_mistakes "$REPO_ROOT" codex
 }
 
 update_skills() {

@@ -115,6 +115,60 @@ npx --yes skills@latest add mattpocock/skills \
   fi
 }
 
+install_skill_creator() {
+  local workspace_dir="$1"
+  shift
+
+  local agent_flags=()
+  local agent_slug
+  for agent_slug in "$@"; do
+    agent_flags+=(--agent "$agent_slug")
+  done
+
+  echo "Installing skill-creator for: $*"
+
+  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
+
+npx --yes skills@latest add anthropics/skills \
+  --skill skill-creator \
+  ${agent_flags[*]} \
+  --global \
+  --yes \
+  --copy
+"; then
+    echo "WARN: Could not install skill-creator for: $*" >&2
+  fi
+}
+
+install_no_mistakes() {
+  local workspace_dir="$1"
+  shift
+
+  local agent_flags=()
+  local agent_slug
+  for agent_slug in "$@"; do
+    agent_flags+=(--agent "$agent_slug")
+  done
+
+  echo "Installing no-mistakes for: $*"
+
+  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
+
+npx --yes skills@latest add kunchenguid/no-mistakes \
+  --skill no-mistakes \
+  ${agent_flags[*]} \
+  --global \
+  --yes \
+  --copy
+"; then
+    echo "WARN: Could not install no-mistakes for: $*" >&2
+  fi
+}
+
 # The skills repo doubles as a Claude Code plugin marketplace, so Claude gets the
 # plugin rather than files copied into its skills directory.
 install_matt_pocock_skills_plugin() {

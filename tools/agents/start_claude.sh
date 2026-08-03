@@ -44,6 +44,7 @@ allow_network() {
 
   allow_vendor_docs_network
   allow_exa_mcp_network
+  allow_skills_marketplace_network
 }
 
 get_anthropic_api_key() {
@@ -201,6 +202,8 @@ if sandboxExists "$SANDBOX_NAME"; then
   copy_config
   install_exa_tools
   install_matt_pocock_skills_plugin
+  install_skill_creator "$REPO_ROOT" claude-code
+  install_no_mistakes "$REPO_ROOT" claude-code
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -219,6 +222,8 @@ else
   copy_config
   install_exa_tools
   install_matt_pocock_skills_plugin
+  install_skill_creator "$REPO_ROOT" claude-code
+  install_no_mistakes "$REPO_ROOT" claude-code
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

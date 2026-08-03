@@ -68,6 +68,8 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_cline_cli
   sync_cline_settings
   install_matt_pocock_skills "$REPO_ROOT" cline
+  install_skill_creator "$REPO_ROOT" cline
+  install_no_mistakes "$REPO_ROOT" cline
   
   sbx run "$SANDBOX_NAME"
 else
@@ -84,6 +86,8 @@ else
   configure_sandbox_env
   sync_cline_settings
   install_matt_pocock_skills "$REPO_ROOT" cline
+  install_skill_creator "$REPO_ROOT" cline
+  install_no_mistakes "$REPO_ROOT" cline
   
   echo "✅ Setup complete! Dropping you into the sandbox."
   echo "!!! REMINDER: Run 'cline auth' (requires registering a cline account on their site), then 'cline' to start the CLI."
