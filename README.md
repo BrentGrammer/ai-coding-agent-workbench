@@ -163,10 +163,12 @@ The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 A
 ### Prerequisites
 
 - An AWS account, with credentials configured locally and permission to deploy CDK stacks.
-- A [Tailscale](https://tailscale.com/) account. The free personal plan is enough. Sign-in is through a GitHub or Google account, so the tailnet is only as strong as that account.
+- A [Tailscale](https://tailscale.com/) account. The free personal plan is enough.
 - A GitHub account that can create a GitHub App. The app supplies the short-lived repository tokens. You create it in [One-time setup](#one-time-setup).
 - Node.js on the machine you deploy from.
-- Local tools: `brew install mosh awscli`, and the Tailscale macOS app from either [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`. Both install the same standalone app, which keeps its CLI at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`. Add `session-manager-plugin` if you want the `workbench ec2 ssm` back door from your terminal instead of the AWS console.
+- Local tools: 
+  - `brew install mosh awscli` 
+  - Tailscale macOS app from either [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`.
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for each coding agent you plan to use.
 
