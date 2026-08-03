@@ -1,0 +1,21 @@
+------ Cloud workbench ------
+
+Repos under ~/workspace, then start Herdr:
+
+  cd ~/workspace/<your-repo>
+  start-herdr [claude|codex|opencode|cursor]
+
+Default agent is claude. Example:
+
+  start-herdr
+  start-herdr cursor
+  start-herdr codex ~/workspace/other-repo
+
+GitHub and npm helpers (prefer these in agent sessions):
+
+  gh-axi ...
+  npm-axi ...
+
+Clone a repo (HTTPS only — the box mints tokens for you):
+
+  git clone https://github.com/<owner>/<repo>.git ~/workspace/<repo>

@@ -132,6 +132,7 @@ install -m 644 "$REPO_DIR/tools/agents/cursor-mcp.json" /etc/agent-workbench/cur
 install -m 644 "$REPO_DIR/tools/agents/cursor-cli-config.json" /etc/agent-workbench/cursor-cli-config.json
 
 install -m 644 "$REPO_DIR/infra/aws/ec2/agent-workbench-profile.sh" /etc/profile.d/agent-workbench.sh
+install -m 644 "$REPO_DIR/infra/aws/ec2/login-welcome" /etc/agent-workbench/login-welcome
 
 echo "== Swap"
 if [ ! -f /swapfile ]; then

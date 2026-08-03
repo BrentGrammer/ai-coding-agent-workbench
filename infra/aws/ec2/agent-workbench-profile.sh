@@ -22,3 +22,12 @@ case ":$PATH:" in
   *":$HOME/.local/npm/bin:"*) ;;
   *) export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH" ;;
 esac
+
+# Interactive login shells only (ssh/mosh). Herdr panes are non-login and skip this.
+case $- in
+  *i*)
+    if [ -t 1 ] && [ -f /etc/agent-workbench/login-welcome ]; then
+      cat /etc/agent-workbench/login-welcome
+    fi
+    ;;
+esac
