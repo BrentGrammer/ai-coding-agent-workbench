@@ -11,7 +11,10 @@ const INSTANCE_TYPE = "t4g.large";
 const DISK_GIB = 30;
 const INSTANCE_NAME = "agent-workbench-ec2";
 const TAILSCALE_AUTH_KEY_PARAMETER = "/coding-agent-workbench/tailscale/auth-key";
-const REPO_URL = "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
+// Cloned to /opt/agent-workbench on first boot to run the setup script.
+// Override with CDK context: -c repoUrl=https://github.com/you/fork.git
+const DEFAULT_REPO_URL =
+  "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
 const UBUNTU_2404_ARM64_AMI_PARAMETER =
   "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id";
 
@@ -22,6 +25,9 @@ export interface WorkbenchEc2StackProps extends cdk.StackProps {
 export class WorkbenchEc2Stack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WorkbenchEc2StackProps) {
     super(scope, id, props);
+
+    const repoUrl =
+      (this.node.tryGetContext("repoUrl") as string) ?? DEFAULT_REPO_URL;
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
@@ -66,7 +72,7 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       "apt-get install -y git",
       // Root-owned machine config, not a working copy. The agent user runs as
       // ubuntu and must not be able to edit what the update command sudo-runs.
-      `[ -d /opt/agent-workbench/.git ] || git clone --branch main ${REPO_URL} /opt/agent-workbench`,
+      `[ -d /opt/agent-workbench/.git ] || git clone --branch main ${repoUrl} /opt/agent-workbench`,
       "chown -R root:root /opt/agent-workbench",
       "bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh",
     );

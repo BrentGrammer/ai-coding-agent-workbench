@@ -46,6 +46,12 @@ Then deploy:
 npm run deploy
 ```
 
+Forked repositories: pass `repoUrl` so the instance clones your fork instead of the upstream repo:
+
+```shell
+npx cdk deploy --all -c repoUrl=https://github.com/<you>/ai-coding-agent-workbench.git
+```
+
 The deploy command deploys both stacks: the token Lambda and the EC2 workbench instance.
 
 ## Tailscale auto-join

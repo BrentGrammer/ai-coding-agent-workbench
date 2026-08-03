@@ -12,8 +12,6 @@ CODEX_VERSION=0.146.0
 OPENCODE_VERSION=1.18.11
 
 WORKBENCH_USER=ubuntu
-GIT_USER_NAME="Brent Marquez"
-GIT_USER_EMAIL="35240225+BrentGrammer@users.noreply.github.com"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -154,8 +152,6 @@ systemctl start workbench-idle-stop.timer
 echo "== Agent CLIs and skills for $WORKBENCH_USER"
 sudo -u "$WORKBENCH_USER" -H \
   env REPO_DIR="$REPO_DIR" \
-  GIT_USER_NAME="$GIT_USER_NAME" \
-  GIT_USER_EMAIL="$GIT_USER_EMAIL" \
   HUNK_VERSION="$HUNK_VERSION" \
   CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
   CODEX_VERSION="$CODEX_VERSION" \
@@ -269,10 +265,12 @@ if ! codex mcp get exa >/dev/null 2>&1; then
   echo "WARN: Codex does not list the Exa MCP server." >&2
 fi
 
-git config --global user.name >/dev/null 2>&1 ||
-  git config --global user.name "$GIT_USER_NAME"
-git config --global user.email >/dev/null 2>&1 ||
-  git config --global user.email "$GIT_USER_EMAIL"
+if ! git config --global user.name >/dev/null 2>&1 ||
+   ! git config --global user.email >/dev/null 2>&1; then
+  echo "NOTE: Set your git identity on the box:"
+  echo "  git config --global user.name 'Your Name'"
+  echo "  git config --global user.email 'you@example.com'"
+fi
 USER_SETUP
 
 echo "== Done"
