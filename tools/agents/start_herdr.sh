@@ -110,7 +110,7 @@ case "$(uname -m)" in
     ;;
 esac
 
-curl -fsSL "https://github.com/ogulcancelik/herdr/releases/download/v0.7.4/herdr-linux-${herdr_arch}" \
+curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v0.8.0/herdr-linux-${herdr_arch}" \
   -o "$HOME/.local/bin/herdr"
 chmod 755 "$HOME/.local/bin/herdr"
 
