@@ -110,9 +110,15 @@ case "$(uname -m)" in
     ;;
 esac
 
-curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v0.8.0/herdr-linux-${herdr_arch}" \
-  -o "$HOME/.local/bin/herdr"
-chmod 755 "$HOME/.local/bin/herdr"
+herdr_version="0.8.0"
+herdr_tmp="$(mktemp "$HOME/.local/bin/herdr.XXXXXX")"
+trap "rm -f \"$herdr_tmp\"" EXIT
+curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v${herdr_version}/herdr-linux-${herdr_arch}" \
+  -o "$herdr_tmp"
+chmod 755 "$herdr_tmp"
+"$herdr_tmp" --version | grep -q "$herdr_version"
+mv -f "$herdr_tmp" "$HOME/.local/bin/herdr"
+trap - EXIT
 
 npm install -g \
   "hunkdiff@0.17.3" \

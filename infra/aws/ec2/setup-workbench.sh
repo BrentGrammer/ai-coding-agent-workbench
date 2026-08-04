@@ -100,8 +100,13 @@ fi
 
 echo "== Herdr $HERDR_VERSION"
 if ! /usr/local/bin/herdr --version 2>/dev/null | grep -q "$HERDR_VERSION"; then
-  curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v${HERDR_VERSION}/herdr-linux-aarch64" -o /usr/local/bin/herdr
-  chmod 755 /usr/local/bin/herdr
+  herdr_tmp="$(mktemp /usr/local/bin/herdr.XXXXXX)"
+  trap 'rm -f "$herdr_tmp"' EXIT
+  curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v${HERDR_VERSION}/herdr-linux-aarch64" -o "$herdr_tmp"
+  chmod 755 "$herdr_tmp"
+  "$herdr_tmp" --version | grep -q "$HERDR_VERSION"
+  mv -f "$herdr_tmp" /usr/local/bin/herdr
+  trap - EXIT
   /usr/local/bin/herdr --version
 fi
 
