@@ -340,4 +340,4 @@ echo "== Done"
 if ! tailscale status >/dev/null 2>&1; then
   echo "NOTE: Tailscale is not connected yet. Run once: sudo tailscale up --ssh"
 fi
-echo "The workbench is ready. Connect, cd into a repo under ~/workspace, then run: start-herdr [agent]"
+echo "The workbench is ready. Run start-workbench which connects, cd into a repo under ~/workspace, then run: start-herdr [agent]"
