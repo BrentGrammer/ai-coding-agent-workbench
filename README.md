@@ -298,16 +298,6 @@ Do these in order:
 
 - `Ctrl-B`, then `x`
 
-### Second monitor
-
-1. Open a terminal window on the other monitor and run `start-new-herdr-window`.
-2. Press `Ctrl+B`, then `q`.
-3. Run `herdr-pane`, then pick a pane by number. It fills that window on its own.
-
-Both windows share one session. Closing this one leaves everything running.
-
-This window is keyboard only. Mouse clicks do not work in the new window.
-
 ### Review with Hunk
 
 1. In a pane (`Ctrl+B`, then `v`), run `hunk diff --agent-notes`. (optionally add `--watch`)
@@ -320,6 +310,15 @@ See also the Hunk skill row in [Auto-installed tools, skills, and hooks](#auto-i
 
 1. Exit the coding agent with `/exit` or `Ctrl+D`.
 2. Exit Herdr with `Ctrl+B`, then `q`.
+
+### Troubleshooting
+
+If you see `error: nested herdr is disabled by default`:
+
+1. Run `herdr server stop`.
+2. Reconnect to the EC2 box.
+3. Run `cd ~/workspace/<your-repo>`.
+4. Run `start-herdr`.
 
 ## Auto-installed tools, skills, and hooks
 

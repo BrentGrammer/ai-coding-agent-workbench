@@ -32,14 +32,13 @@ Simplification has a ceiling while the workbench stays on AgentCore. The disconn
 
 ## Delete list (no behavior change)
 
-1. **`installPaneHelper` in `infra/aws/scripts/workbench.mjs:781-809`** base64-injects `runtime/herdr-pane` into the session. The Dockerfile already ships it at `/usr/local/bin/herdr-pane` (line 103). Dead weight, about 40 lines.
-2. **Three overlapping "is it still billing?" tools:** `tools/scripts/check_agentcore_sessions.sh` (227 lines of CloudWatch forensics, referenced nowhere), `tools/scripts/probe_saved_sessions.mjs`, and `workbench aws status`. Keep one — fold the probe into `status`, delete the rest. About 250 lines.
-3. **Codex telemetry is disabled in three places:** `tools/agents/codex-config.toml`, the exported `codex()` function in `bootstrap-repo.sh:268-280`, and the flags in `runtime/workbench-pane-shell:26-35`. The config file is installed to `~/.codex/config.toml` — keep only it.
-4. **The in-container AWS CLI exists only to run `aws lambda invoke`** (`github-app-token-client.mjs`). Replace that call with `@aws-sdk/client-lambda` in the relay. That deletes `install-aws-cli.sh`, the GPG key file, and about 130 MB of image. Also collapse the two token paths (git → client directly, gh → socket → relay → client) into one path through the relay.
-5. **`infra/aws/scripts/enable-mmdsv2.mjs` (138 lines):** check whether `AWS::BedrockAgentCore::Runtime` now accepts `MetadataConfiguration` in CloudFormation. If yes, the script becomes one property in the stack.
-6. **`infra/aws/scripts/prune-workbench-images.mjs` (96 lines):** replace with `npx cdk gc` or an ECR lifecycle rule.
-7. **Three wrappers deep to reach one script** (`bin/start-agentcore` → `start-agentcore.sh` → `bin/workbench` → node). One is enough.
-8. **`steps-to-test-agentcore`** is a stray note file at the repo root — move it into `docs/` or delete it.
+1. **Three overlapping "is it still billing?" tools:** `tools/scripts/check_agentcore_sessions.sh` (227 lines of CloudWatch forensics, referenced nowhere), `tools/scripts/probe_saved_sessions.mjs`, and `workbench aws status`. Keep one — fold the probe into `status`, delete the rest. About 250 lines.
+2. **Codex telemetry is disabled in three places:** `tools/agents/codex-config.toml`, the exported `codex()` function in `bootstrap-repo.sh:268-280`, and the flags in `runtime/workbench-pane-shell:26-35`. The config file is installed to `~/.codex/config.toml` — keep only it.
+3. **The in-container AWS CLI exists only to run `aws lambda invoke`** (`github-app-token-client.mjs`). Replace that call with `@aws-sdk/client-lambda` in the relay. That deletes `install-aws-cli.sh`, the GPG key file, and about 130 MB of image. Also collapse the two token paths (git → client directly, gh → socket → relay → client) into one path through the relay.
+4. **`infra/aws/scripts/enable-mmdsv2.mjs` (138 lines):** check whether `AWS::BedrockAgentCore::Runtime` now accepts `MetadataConfiguration` in CloudFormation. If yes, the script becomes one property in the stack.
+5. **`infra/aws/scripts/prune-workbench-images.mjs` (96 lines):** replace with `npx cdk gc` or an ECR lifecycle rule.
+6. **Three wrappers deep to reach one script** (`bin/start-agentcore` → `start-agentcore.sh` → `bin/workbench` → node). One is enough.
+7. **`steps-to-test-agentcore`** is a stray note file at the repo root — move it into `docs/` or delete it.
 
 The CDK stack itself is fine. The GitHub App token Lambda is good design and carries over to any platform.
 

@@ -112,9 +112,9 @@ fi
 
 echo "== Workbench files"
 install -d -m 755 /etc/agent-workbench /etc/claude-code /usr/local/libexec
+rm -f /usr/local/bin/herdr-pane
 
 install -m 755 "$REPO_DIR/runtime/herdr-session" /usr/local/bin/herdr-session
-install -m 755 "$REPO_DIR/runtime/herdr-pane" /usr/local/bin/herdr-pane
 install -m 755 "$REPO_DIR/runtime/workbench-pane-shell" /usr/local/bin/workbench-pane-shell
 install -m 755 "$REPO_DIR/runtime/deny-protected-file-reads" /usr/local/bin/deny-protected-file-reads
 install -m 644 "$REPO_DIR/runtime/herdr-config.toml" /etc/agent-workbench/herdr-config.toml
