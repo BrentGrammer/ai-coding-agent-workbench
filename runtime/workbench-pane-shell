@@ -22,8 +22,7 @@ unset XDG_CONFIG_HOME XDG_STATE_HOME
 if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
   case "$WORKBENCH_AGENT" in
     codex)
-      AGENT_COMMAND=(
-        codex
+      AGENT_ARGS=(
         --sandbox danger-full-access
         --cd "$WORKSPACE_DIR"
         -c analytics.enabled=false
@@ -35,13 +34,13 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
       )
       ;;
     claude)
-      AGENT_COMMAND=(claude)
+      AGENT_ARGS=()
       ;;
     opencode)
-      AGENT_COMMAND=(opencode "$WORKSPACE_DIR")
+      AGENT_ARGS=("$WORKSPACE_DIR")
       ;;
     cursor)
-      AGENT_COMMAND=(cursor-agent --workspace "$WORKSPACE_DIR")
+      AGENT_ARGS=(--workspace "$WORKSPACE_DIR")
       ;;
     *)
       echo "ERROR: Unsupported agent: $WORKBENCH_AGENT"
@@ -50,17 +49,28 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
       ;;
   esac
 
-  if ! herdr agent start primary \
-    --cwd "$WORKSPACE_DIR" \
-    --workspace "$HERDR_WORKSPACE_ID" \
-    --split right \
-    --focus \
-    -- "${AGENT_COMMAND[@]}"; then
+  if ! AGENT_PANE="$(
+    herdr pane split \
+      --current \
+      --direction right \
+      --cwd "$WORKSPACE_DIR" \
+      --focus |
+      jq -er '.result.pane.pane_id'
+  )"; then
     rmdir "$WORKSPACE_MARKER"
     exit 1
   fi
 
-  herdr pane zoom --on >/dev/null
+  if ! herdr agent start primary \
+    --kind "$WORKBENCH_AGENT" \
+    --pane "$AGENT_PANE" \
+    -- "${AGENT_ARGS[@]}"; then
+    herdr pane close "$AGENT_PANE" 2>/dev/null || true
+    rmdir "$WORKSPACE_MARKER"
+    exit 1
+  fi
+
+  herdr pane zoom "$AGENT_PANE" --on >/dev/null
   exec hunk diff
 fi
 
