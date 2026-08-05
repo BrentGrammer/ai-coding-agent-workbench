@@ -73,13 +73,15 @@ allow_codex_oauth_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" challenges.cloudflare.com:443
 }
 
-update_opencode() {
-  echo "Updating OpenCode inside sandbox..."
+install_pinned_opencode() {
+  echo "Installing pinned OpenCode inside sandbox..."
 
   sbx exec -d "$SANDBOX_NAME" bash -c '
 set -euo pipefail
 
-npm install -g opencode-ai@latest
+npm install -g opencode-ai@1.18.11 --ignore-scripts
+
+(cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
 
 opencode --version
 '
@@ -92,7 +94,7 @@ install_skills() {
     set -euo pipefail
     cd '$REPO_ROOT'
 
-    npx --yes skills@latest add mattpocock/skills \
+    npx --yes skills@1.5.20 add mattpocock/skills \
       --agent opencode \
       --skill '*' \
       --global \
@@ -102,17 +104,6 @@ install_skills() {
 
   install_skill_creator "$REPO_ROOT" opencode
   install_no_mistakes "$REPO_ROOT" opencode
-}
-
-update_skills() {
-  echo "Updating Matt Pocock skills..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc "
-    set -euo pipefail
-    cd '$REPO_ROOT'
-
-    npx --yes skills@latest update -g -y
-  "
 }
 
 copy_config() {
@@ -131,7 +122,7 @@ install_codex_auth_plugin() {
 
   sbx exec "$SANDBOX_NAME" bash -lc "
     set -euo pipefail
-    npx --yes opencode-openai-codex-auth@latest
+    npx --yes opencode-openai-codex-auth@4.4.0
   "
 
   echo "Codex auth plugin installed. Run 'opencode auth login' inside the sandbox to authenticate."
@@ -192,9 +183,8 @@ if sandboxExists "$SANDBOX_NAME"; then
 
   allow_opencode_network
   configure_sandbox_env
-  update_opencode
+  install_pinned_opencode
   install_skills
-  update_skills
 
   allow_codex_oauth_network
   copy_config
@@ -210,7 +200,7 @@ else
   upgrade_system_packages
   install_node_lts
   configure_sandbox_env
-  update_opencode
+  install_pinned_opencode
   install_skills
 
   allow_codex_oauth_network

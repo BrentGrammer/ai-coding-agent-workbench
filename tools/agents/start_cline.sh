@@ -40,7 +40,7 @@ install_cline_cli() {
 set -euo pipefail
 
 if ! command -v cline >/dev/null 2>&1; then
-  sudo npm install -g cline --ignore-scripts --allow-git=none
+  sudo npm install -g cline@3.0.46 --ignore-scripts --allow-git=none
 fi
 "
 }

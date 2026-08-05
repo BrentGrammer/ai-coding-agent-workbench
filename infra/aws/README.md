@@ -31,7 +31,7 @@ npm run deploy
 
 ```shell
 cd infra/aws
-npm install
+npm ci --ignore-scripts
 ```
 
 If this account and region have not been bootstrapped for CDK, run this once before deployment:
