@@ -35,9 +35,9 @@ install_pi_cli() {
     sbx exec "$SANDBOX_NAME" bash -c "
 set -euo pipefail
 
-  sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+  sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.82.1
 
-pi install npm:pi-web-access
+pi install npm:pi-web-access@0.14.0
 "
 }
 

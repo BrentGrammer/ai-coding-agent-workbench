@@ -119,10 +119,10 @@ chmod 755 "$herdr_tmp"
 mv -f "$herdr_tmp" "$HOME/.local/bin/herdr"
 trap - EXIT
 
-npm install -g \
+npm install -g --ignore-scripts \
   "hunkdiff@0.17.3" \
-  @openai/codex@latest \
-  opencode-ai@latest
+  "@openai/codex@0.146.0" \
+  "opencode-ai@1.18.11"
 
 cd "$(npm root -g)/opencode-ai"
 node postinstall.mjs

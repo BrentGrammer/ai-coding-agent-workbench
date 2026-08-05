@@ -12,6 +12,7 @@ CODEX_VERSION=0.146.0
 OPENCODE_VERSION=1.18.11
 GH_AXI_VERSION=0.1.29
 NPM_AXI_VERSION=0.1.1
+SKILLS_CLI_VERSION=1.5.20
 
 WORKBENCH_USER=ubuntu
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -166,6 +167,7 @@ sudo -u "$WORKBENCH_USER" -H \
   OPENCODE_VERSION="$OPENCODE_VERSION" \
   GH_AXI_VERSION="$GH_AXI_VERSION" \
   NPM_AXI_VERSION="$NPM_AXI_VERSION" \
+  SKILLS_CLI_VERSION="$SKILLS_CLI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
@@ -174,7 +176,7 @@ export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH"
 mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 
 # The npm prefix is user-owned so the agents can update themselves later.
-npm install -g \
+npm install -g --ignore-scripts \
   "hunkdiff@${HUNK_VERSION}" \
   "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
   "@openai/codex@${CODEX_VERSION}" \
@@ -237,7 +239,7 @@ echo "Installing Matt Pocock skills for Codex, OpenCode, and Cursor..."
 # `bash -s`; without it `npx skills` reads and eats the rest of the script.
 if ! (
   cd "$HOME"
-  npx --yes skills@latest add mattpocock/skills \
+  npx --yes "skills@${SKILLS_CLI_VERSION}" add mattpocock/skills \
     --agent codex \
     --agent opencode \
     --agent cursor \
@@ -252,7 +254,7 @@ fi
 echo "Installing gh-axi, npm-axi, skill-creator, and no-mistakes skills..."
 if ! (
   cd "$HOME"
-  npx --yes skills@latest add kunchenguid/gh-axi \
+  npx --yes "skills@${SKILLS_CLI_VERSION}" add kunchenguid/gh-axi \
     --skill gh-axi \
     --agent claude-code \
     --agent codex \
@@ -261,7 +263,7 @@ if ! (
     --global \
     --yes \
     --copy
-  npx --yes skills@latest add SSBrouhard/npm-axi \
+  npx --yes "skills@${SKILLS_CLI_VERSION}" add SSBrouhard/npm-axi \
     --skill npm-axi \
     --agent claude-code \
     --agent codex \
@@ -270,7 +272,7 @@ if ! (
     --global \
     --yes \
     --copy
-  npx --yes skills@latest add anthropics/skills \
+  npx --yes "skills@${SKILLS_CLI_VERSION}" add anthropics/skills \
     --skill skill-creator \
     --agent claude-code \
     --agent codex \
@@ -279,7 +281,7 @@ if ! (
     --global \
     --yes \
     --copy
-  npx --yes skills@latest add kunchenguid/no-mistakes \
+  npx --yes "skills@${SKILLS_CLI_VERSION}" add kunchenguid/no-mistakes \
     --skill no-mistakes \
     --agent claude-code \
     --agent codex \

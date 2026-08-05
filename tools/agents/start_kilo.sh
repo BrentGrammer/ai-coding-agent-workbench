@@ -57,8 +57,8 @@ EOF
 '
 }
 
-install_or_update() {
-  echo "Installing/updating Kilo Code CLI..."
+install_pinned_kilo() {
+  echo "Installing pinned Kilo Code CLI..."
 
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
@@ -69,7 +69,7 @@ export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.local}"
 
 mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
 
-npm install -g @kilocode/cli --ignore-scripts
+npm install -g @kilocode/cli@7.4.15 --ignore-scripts
 
 if ! grep "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null; then
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
@@ -135,7 +135,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   allow_network
   configure_sandbox_env
   configure_kilo_env
-  install_or_update
+  install_pinned_kilo
   copy_config
   install_matt_pocock_skills "$REPO_ROOT" kilo
   install_skill_creator "$REPO_ROOT" kilo
@@ -153,7 +153,7 @@ else
   install_node_lts
   configure_sandbox_env
   configure_kilo_env
-  install_or_update
+  install_pinned_kilo
   copy_config
   install_matt_pocock_skills "$REPO_ROOT" kilo
   install_skill_creator "$REPO_ROOT" kilo

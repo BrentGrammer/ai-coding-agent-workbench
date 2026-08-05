@@ -41,8 +41,8 @@ allow_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" auth.openai.com:443
 }
 
-install_or_update() {
-  echo "Installing/updating Codex CLI..."
+install_pinned_codex() {
+  echo "Installing pinned Codex CLI..."
 
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
@@ -54,11 +54,9 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-sudo npm install -g @openai/codex@latest --ignore-scripts
+sudo npm install -g @openai/codex@0.146.0 --ignore-scripts
 
 codex --version
-
-codex update
 '
 }
 
@@ -107,7 +105,7 @@ install_skills() {
     set -euo pipefail
     cd '$REPO_ROOT'
 
-    npx --yes skills@latest add mattpocock/skills \
+    npx --yes skills@1.5.20 add mattpocock/skills \
       --agent codex \
       --skill '*' \
       --global \
@@ -126,47 +124,9 @@ update_skills() {
     set -euo pipefail
     cd '$REPO_ROOT'
 
-    npx --yes skills@latest update -g -y
+    npx --yes skills@1.5.20 update -g -y
   "
 }
-
-# install_or_update_lean_ctx() {
-#   echo "Installing/updating LeanCTX..."
-
-#   sbx exec "$SANDBOX_NAME" bash -lc '
-# set -u
-
-# echo "Installing LeanCTX package..."
-
-# if ! command -v npm >/dev/null 2>&1; then
-#   echo "WARN: npm is not installed; skipping LeanCTX."
-#   exit 0
-# fi
-
-# sudo npm install -g lean-ctx-bin@latest || {
-#   echo "WARN: lean-ctx-bin install failed; continuing without LeanCTX."
-#   exit 0
-# }
-
-# sudo npm rebuild -g lean-ctx-bin || true
-
-# if ! command -v lean-ctx >/dev/null 2>&1; then
-#   echo "WARN: lean-ctx binary not found after install; continuing without LeanCTX."
-#   exit 0
-# fi
-
-# lean-ctx --version || true
-# lean-ctx doctor --fix || true
-
-# lean-ctx init --agent codex --mode hybrid || {
-#   echo "WARN: lean-ctx init failed; continuing without LeanCTX MCP integration."
-#   exit 0
-# }
-# lean-ctx doctor || true
-
-# echo "LeanCTX setup complete."
-# '
-# }
 
 usage_instructions() {
   sbx exec "$SANDBOX_NAME" bash -c '
@@ -178,10 +138,6 @@ cat <<MSG
 Run Codex:
 
   codex
-
-Update codex:
-
-  codex update
 
 Use Skills in Codex:
   
@@ -208,13 +164,12 @@ if sandboxExists "$SANDBOX_NAME"; then
 
   allow_network
   configure_sandbox_env
-  install_or_update
+  install_pinned_codex
   copy_config
   install_exa_mcp_server
   install_skills
   update_skills
   link_codex_skills_for_discovery
-  # install_or_update_lean_ctx
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -227,12 +182,11 @@ else
   upgrade_system_packages
   install_node_lts
   configure_sandbox_env
-  install_or_update
+  install_pinned_codex
   copy_config
   install_exa_mcp_server
   install_skills
   link_codex_skills_for_discovery
-  # install_or_update_lean_ctx
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

@@ -80,7 +80,7 @@ install_gemini_cli() {
 set -euo pipefail
 
 if ! command -v gemini >/dev/null 2>&1; then
-  sudo npm install -g @google/gemini-cli --ignore-scripts --allow-git=none
+  sudo npm install -g @google/gemini-cli@0.51.0 --ignore-scripts --allow-git=none
 fi
 "
 }

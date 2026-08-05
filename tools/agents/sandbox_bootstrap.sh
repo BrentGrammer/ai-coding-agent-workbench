@@ -104,7 +104,7 @@ install_matt_pocock_skills() {
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@latest add mattpocock/skills \
+npx --yes skills@1.5.20 add mattpocock/skills \
   ${agent_flags[*]} \
   --skill '*' \
   --global \
@@ -131,7 +131,7 @@ install_skill_creator() {
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@latest add anthropics/skills \
+npx --yes skills@1.5.20 add anthropics/skills \
   --skill skill-creator \
   ${agent_flags[*]} \
   --global \
@@ -158,7 +158,7 @@ install_no_mistakes() {
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@latest add kunchenguid/no-mistakes \
+npx --yes skills@1.5.20 add kunchenguid/no-mistakes \
   --skill no-mistakes \
   ${agent_flags[*]} \
   --global \

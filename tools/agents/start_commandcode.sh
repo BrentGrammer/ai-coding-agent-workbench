@@ -37,7 +37,7 @@ allow_network() {
 #   sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
 }
 
-install_or_update() {
+install_pinned_command_code() {
   echo "Installing..."
 
   sbx exec "$SANDBOX_NAME" bash -c '
@@ -45,7 +45,7 @@ set -euo pipefail
 
 export PATH="$HOME/.local/bin:$PATH"
 
-npm i -g command-code@latest --ignore-scripts
+npm i -g command-code@1.4.4 --ignore-scripts
 
 # Make sure future interactive shells can find the CLI.
 PROFILE="$HOME/.bashrc"
@@ -84,7 +84,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 
   allow_network
   configure_sandbox_env
-  install_or_update
+  install_pinned_command_code
   copy_config
   install_matt_pocock_skills "$REPO_ROOT" command-code
   install_skill_creator "$REPO_ROOT" command-code
@@ -102,7 +102,7 @@ else
 
   configure_sandbox_env
   install_node_lts
-  install_or_update
+  install_pinned_command_code
   copy_config
   install_matt_pocock_skills "$REPO_ROOT" command-code
   install_skill_creator "$REPO_ROOT" command-code
