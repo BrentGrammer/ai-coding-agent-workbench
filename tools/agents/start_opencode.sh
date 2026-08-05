@@ -106,17 +106,6 @@ install_skills() {
   install_no_mistakes "$REPO_ROOT" opencode
 }
 
-update_skills() {
-  echo "Updating Matt Pocock skills..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc "
-    set -euo pipefail
-    cd '$REPO_ROOT'
-
-    npx --yes skills@1.5.20 update -g -y
-  "
-}
-
 copy_config() {
   local opencode_config="$SCRIPT_DIR/opencode.json"
 
@@ -196,7 +185,6 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_sandbox_env
   install_pinned_opencode
   install_skills
-  update_skills
 
   allow_codex_oauth_network
   copy_config

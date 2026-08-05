@@ -117,17 +117,6 @@ install_skills() {
   install_no_mistakes "$REPO_ROOT" codex
 }
 
-update_skills() {
-  echo "Updating Matt Pocock skills..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc "
-    set -euo pipefail
-    cd '$REPO_ROOT'
-
-    npx --yes skills@1.5.20 update -g -y
-  "
-}
-
 usage_instructions() {
   sbx exec "$SANDBOX_NAME" bash -c '
 cat > "$HOME/.codex-welcome.sh" <<EOF
@@ -168,7 +157,6 @@ if sandboxExists "$SANDBOX_NAME"; then
   copy_config
   install_exa_mcp_server
   install_skills
-  update_skills
   link_codex_skills_for_discovery
   usage_instructions
 
