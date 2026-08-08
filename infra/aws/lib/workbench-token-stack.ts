@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib/core";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as path from "node:path";
 import { Construct } from "constructs";
 
@@ -33,6 +34,7 @@ export class WorkbenchTokenStack extends cdk.Stack {
       ),
       timeout: cdk.Duration.seconds(15),
       memorySize: 256,
+      logRetention: logs.RetentionDays.ONE_WEEK,
       description:
         "Makes short-lived GitHub App installation tokens for Agent Workbench.",
       environment: {

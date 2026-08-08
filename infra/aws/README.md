@@ -83,6 +83,12 @@ The instance and its disk are disposable.
 
 4. Connect with `start-workbench`. Then log in each agent once on the new box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
 
+## Maintenance
+
+- Monthly: bump the tool version pins in `ec2/setup-workbench.sh`, then run `workbench ec2 update`.
+- Quarterly: destroy and deploy to get a fresh, fully patched AMI.
+- Renew the Tailscale auth key if an expiration is set.
+
 ## Cost controls
 
 This section is a convenience checklist, not authoritative billing guidance and could contain incorrect information. Verify current pricing, limits, and billable resources in the official AWS documentation and the AWS billing console before relying on it.
@@ -90,6 +96,6 @@ This section is a convenience checklist, not authoritative billing guidance and 
 Also recommended: create an AWS Budget in the Billing console with an alert threshold so you are notified if spend exceeds a chosen amount.
 
 - No new VPC, NAT gateway, load balancer, EFS, database, or dashboard is created. The instance uses the default VPC.
-- One Lambda function (GitHub token minting, 256 MB, 15 s timeout) runs only when Git requests a credential — a few short invocations per session. Its log group uses the default retention and never expires.
+- One Lambda function (GitHub token minting, 256 MB, 15 s timeout) runs only when Git requests a credential — a few short invocations per session. Its log group keeps logs for one week.
 - One t4g.large instance bills only while running. Two mechanisms stop it when idle: an on-box timer (15 minutes with no client) and a CloudWatch alarm (CPU under 5% for 6 hours). A stopped instance bills only its 30 GB disk.
 - The public IPv4 address bills hourly while the instance runs.
