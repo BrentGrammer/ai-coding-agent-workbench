@@ -60,7 +60,7 @@ The instance boots with no inbound ports. On first boot it reads a Tailscale aut
 
 The tailnet policy and the auth key are one-time setup. The steps are in [One-time setup](../../README.md#one-time-setup) in the main README.
 
-Auth keys expire after 90 days at most. That only matters when an instance is rebuilt after expiry — make a new key and store it again.
+At each rebuild (destroy + deploy): make a fresh Tailscale auth key (non-reusable, tagged `tag:workbench`, 1-day expiry), store it in the SSM parameter, then deploy right away so first boot uses it. Revoke the old key in Tailscale afterward.
 
 ## Rebuild from scratch
 
