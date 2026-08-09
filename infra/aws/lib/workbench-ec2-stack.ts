@@ -77,6 +77,21 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       "bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh",
     );
 
+    // IMDSv2 with hop limit 1 keeps Docker containers away from instance-role
+    // credentials; requireImdsv2 can't set the hop limit, so use a launch template.
+    const imdsLaunchTemplate = new ec2.CfnLaunchTemplate(
+      this,
+      "ImdsLaunchTemplate",
+      {
+        launchTemplateData: {
+          metadataOptions: {
+            httpTokens: "required",
+            httpPutResponseHopLimit: 1,
+          },
+        },
+      },
+    );
+
     const instance = new ec2.Instance(this, "WorkbenchInstance", {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
@@ -88,7 +103,6 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       role,
       securityGroup,
       userData,
-      requireImdsv2: true,
       associatePublicIpAddress: true,
       // `shutdown` on the box stops the instance instead of terminating it.
       instanceInitiatedShutdownBehavior: ec2.InstanceInitiatedShutdownBehavior.STOP,
@@ -106,6 +120,10 @@ export class WorkbenchEc2Stack extends cdk.Stack {
         },
       ],
     });
+    instance.instance.launchTemplate = {
+      launchTemplateId: imdsLaunchTemplate.ref,
+      version: imdsLaunchTemplate.attrLatestVersionNumber,
+    };
     cdk.Tags.of(instance).add("Name", INSTANCE_NAME);
 
     // Backstop in case the on-box idle-stop timer ever breaks.
