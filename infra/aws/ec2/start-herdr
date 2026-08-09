@@ -10,8 +10,8 @@ fi
 WORKBENCH_AGENT="${1:-cursor}"
 WORKSPACE_DIR="$(cd "${2:-$PWD}" && pwd)"
 
-# Key the session to the workspace path (like local_workspace.sh) so a stale
-# server from another project is never reused.
+# Key the session to the workspace firectory name/path (like local_workspace.sh does) so a stale
+# server from another project is never reused. It used to just key sessions as "main" which spun up other sessions in different projects.
 workspace_name="$(
   basename "$WORKSPACE_DIR" |
     tr '[:upper:]_' '[:lower:]-' |
