@@ -286,7 +286,7 @@ Do these in order:
 3. Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
 4. Adding a future device needs a signature from a trusted one: `tailscale lock sign <nodekey>`.
 
-### Updates
+### Updates and maintenance
 
 - The agent CLIs update themselves on the box.
 - `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
