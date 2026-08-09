@@ -15,7 +15,7 @@ case "${1:-}" in
     exec "$LAUNCHER" "${2:-$PWD}" "$1"
     ;;
   "")
-    exec "$LAUNCHER" "$PWD" claude
+    exec "$LAUNCHER" "$PWD" cursor
     ;;
   *)
     exec "$LAUNCHER" "$@"
