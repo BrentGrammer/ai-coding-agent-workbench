@@ -3,11 +3,11 @@ set -euo pipefail
 
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
   echo "Usage: start-herdr [agent] [workspace-dir]"
-  echo "Agents: claude codex opencode cursor. Default: claude in the current directory."
+  echo "Agents: claude codex opencode cursor. Default: cursor in the current directory."
   exit 0
 fi
 
-WORKBENCH_AGENT="${1:-claude}"
+WORKBENCH_AGENT="${1:-cursor}"
 WORKSPACE_DIR="$(cd "${2:-$PWD}" && pwd)"
 WORKBENCH_SESSION="${WORKBENCH_SESSION:-main}"
 export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION

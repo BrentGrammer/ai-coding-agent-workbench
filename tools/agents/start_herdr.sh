@@ -9,7 +9,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
-WORKBENCH_AGENT="${2:-${WORKBENCH_AGENT:-claude}}"
+WORKBENCH_AGENT="${2:-${WORKBENCH_AGENT:-cursor}}"
 export WORKBENCH_AGENT
 case "$WORKBENCH_AGENT" in
   claude|codex|opencode|cursor)

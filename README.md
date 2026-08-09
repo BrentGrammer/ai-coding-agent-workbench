@@ -177,7 +177,7 @@ The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 A
 ```shell
 start-workbench          # starts the box if stopped, connects with mosh
 cd ~/workspace/<your-repo>
-start-herdr [agent]      # claude (default) | codex | opencode | cursor
+start-herdr [agent]      # cursor (default) | claude | codex | opencode
 ```
 
 Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
