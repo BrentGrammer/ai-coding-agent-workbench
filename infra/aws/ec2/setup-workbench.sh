@@ -178,11 +178,14 @@ mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 # The npm prefix is user-owned so the agents can update themselves later.
 npm install -g --ignore-scripts \
   "hunkdiff@${HUNK_VERSION}" \
-  "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
   "@openai/codex@${CODEX_VERSION}" \
   "opencode-ai@${OPENCODE_VERSION}" \
   "gh-axi@${GH_AXI_VERSION}" \
   "npm-axi@${NPM_AXI_VERSION}"
+
+# Claude Code needs its install scripts to run so that `claude update` works.
+# Override the .npmrc ignore-scripts policy for this package only.
+npm install -g --ignore-scripts=false "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
 hunk --version
 claude --version
