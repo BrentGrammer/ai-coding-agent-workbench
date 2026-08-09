@@ -9,7 +9,20 @@ fi
 
 WORKBENCH_AGENT="${1:-cursor}"
 WORKSPACE_DIR="$(cd "${2:-$PWD}" && pwd)"
-WORKBENCH_SESSION="${WORKBENCH_SESSION:-main}"
+
+# Key the session to the workspace firectory name/path (like local_workspace.sh does) so a stale
+# server from another project is never reused. It used to just key sessions as "main" which spun up other sessions in different projects.
+workspace_name="$(
+  basename "$WORKSPACE_DIR" |
+    tr '[:upper:]_' '[:lower:]-' |
+    tr -cs '[:alnum:]-' '-' |
+    sed 's/^-//; s/-$//'
+)"
+if [ -z "$workspace_name" ]; then
+  workspace_name="workspace"
+fi
+workspace_path_hash="$(printf '%s' "$WORKSPACE_DIR" | sha256sum | cut -c1-8)"
+WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT}"
 export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
 
 exec herdr-session
