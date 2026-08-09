@@ -291,6 +291,7 @@ Do these in order:
 - The agent CLIs update themselves on the box.
 - `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
 - OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
+- Docker disk cleanup: on the first of each month, run `docker system prune -f` on the box. Rebuilding images (e.g. the browser-agent sandbox) leaves orphaned layers and build cache behind; prune clears them without touching named volumes or running containers. Check usage anytime with `docker system df`.
 
 ## Herdr tips
 
