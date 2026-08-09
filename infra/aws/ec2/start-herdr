@@ -22,7 +22,7 @@ if [ -z "$workspace_name" ]; then
   workspace_name="workspace"
 fi
 workspace_path_hash="$(printf '%s' "$WORKSPACE_DIR" | sha256sum | cut -c1-8)"
-WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash}"
+WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT}"
 export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
 
 exec herdr-session
