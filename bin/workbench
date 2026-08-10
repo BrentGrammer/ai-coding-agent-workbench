@@ -99,8 +99,8 @@ case "${2:-}" in
         && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
     ;;
   sync-host)
-    # For browsers whose DoH resolver bypasses MagicDNS. Run once after a
-    # rebuild; a rebuilt box registers as a new tailnet node with a new IP.
+    # For browsers whose DNS-over-HTTPS resolver bypasses MagicDNS. Run once
+    # after a rebuild; a rebuilt box joins the tailnet as a new node, new IP.
     ip="$(tailscale status --json 2>/dev/null |
       jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
     [ -n "$ip" ] || { echo "ERROR: workbench not online on the tailnet." >&2; exit 1; }
