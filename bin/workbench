@@ -29,8 +29,9 @@ Commands:
   status  Show instance state, type, and uptime
   ssh     Connect with ssh over Tailscale
   mosh    Connect with mosh over Tailscale
-  ssm     Connect with SSM (break-glass, no Tailscale needed)
-  update  Re-run the setup script on the box and refresh skills
+  ssm        Connect with SSM (break-glass, no Tailscale needed)
+  update     Re-run the setup script on the box and refresh skills
+  sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
 
 Environment:
   WORKBENCH_EC2_HOST  Tailscale host override (default: found with tailscale status)
@@ -96,6 +97,17 @@ case "${2:-}" in
       'sudo git -C /opt/agent-workbench fetch --prune origin main \
         && sudo git -C /opt/agent-workbench reset --hard origin/main \
         && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
+    ;;
+  sync-host)
+    # For browsers whose DoH resolver bypasses MagicDNS. Run once after a
+    # rebuild; a rebuilt box registers as a new tailnet node with a new IP.
+    ip="$(tailscale status --json 2>/dev/null |
+      jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
+    [ -n "$ip" ] || { echo "ERROR: workbench not online on the tailnet." >&2; exit 1; }
+    sudo sed -i.bak '/ agent-workbench$/d' /etc/hosts
+    echo "$ip agent-workbench" | sudo tee -a /etc/hosts >/dev/null
+    sudo rm -f /etc/hosts.bak
+    echo "agent-workbench -> $ip"
     ;;
   *)
     usage
