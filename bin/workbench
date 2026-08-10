@@ -29,14 +29,35 @@ Commands:
   status  Show instance state, type, and uptime
   ssh     Connect with ssh over Tailscale
   mosh    Connect with mosh over Tailscale
-  ssm     Connect with SSM (break-glass, no Tailscale needed)
-  update  Re-run the setup script on the box and refresh skills
+  ssm        Connect with SSM (break-glass, no Tailscale needed)
+  update     Re-run the setup script on the box and refresh skills
+  sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
 
 Environment:
   WORKBENCH_EC2_HOST  Tailscale host override (default: found with tailscale status)
   WORKBENCH_EC2_USER  Login user (default: ubuntu)
 EOF
   exit 1
+}
+
+# For browsers whose DNS-over-HTTPS resolver bypasses MagicDNS: keep the
+# agent-workbench line in /etc/hosts pointed at the box's Tailscale IP.
+# Waits for the box, since a rebuilt instance takes minutes to join the tailnet.
+sync_host() {
+  local ip tries=0
+  while :; do
+    ip="$(tailscale status --json 2>/dev/null |
+      jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
+    [ -n "$ip" ] && break
+    tries=$((tries + 1))
+    if [ "$tries" -eq 1 ]; then echo "Waiting for the workbench to come online on the tailnet..."; fi
+    if [ "$tries" -gt 60 ]; then echo "ERROR: workbench not online after 10 minutes." >&2; return 1; fi
+    sleep 10
+  done
+  sudo sed -i.bak '/ agent-workbench$/d' /etc/hosts
+  echo "$ip agent-workbench" | sudo tee -a /etc/hosts >/dev/null
+  sudo rm -f /etc/hosts.bak
+  echo "agent-workbench -> $ip"
 }
 
 find_instance_id() {
@@ -96,6 +117,9 @@ case "${2:-}" in
       'sudo git -C /opt/agent-workbench fetch --prune origin main \
         && sudo git -C /opt/agent-workbench reset --hard origin/main \
         && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
+    ;;
+  sync-host)
+    sync_host
     ;;
   *)
     usage
