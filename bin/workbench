@@ -31,6 +31,7 @@ Commands:
   mosh    Connect with mosh over Tailscale
   ssm        Connect with SSM (break-glass, no Tailscale needed)
   update     Re-run the setup script on the box and refresh skills
+  deploy     Deploy the CDK stacks, then sync-host once the box is online
   sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
 
 Environment:
@@ -38,6 +39,19 @@ Environment:
   WORKBENCH_EC2_USER  Login user (default: ubuntu)
 EOF
   exit 1
+}
+
+# For browsers whose DNS-over-HTTPS resolver bypasses MagicDNS: keep the
+# agent-workbench line in /etc/hosts pointed at the box's Tailscale IP.
+sync_host() {
+  local ip
+  ip="$(tailscale status --json 2>/dev/null |
+    jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
+  [ -n "$ip" ] || { echo "ERROR: workbench not online on the tailnet." >&2; return 1; }
+  sudo sed -i.bak '/ agent-workbench$/d' /etc/hosts
+  echo "$ip agent-workbench" | sudo tee -a /etc/hosts >/dev/null
+  sudo rm -f /etc/hosts.bak
+  echo "agent-workbench -> $ip"
 }
 
 find_instance_id() {
@@ -99,15 +113,20 @@ case "${2:-}" in
         && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
     ;;
   sync-host)
-    # For browsers whose DNS-over-HTTPS resolver bypasses MagicDNS. Run once
-    # after a rebuild; a rebuilt box joins the tailnet as a new node, new IP.
-    ip="$(tailscale status --json 2>/dev/null |
-      jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
-    [ -n "$ip" ] || { echo "ERROR: workbench not online on the tailnet." >&2; exit 1; }
-    sudo sed -i.bak '/ agent-workbench$/d' /etc/hosts
-    echo "$ip agent-workbench" | sudo tee -a /etc/hosts >/dev/null
-    sudo rm -f /etc/hosts.bak
-    echo "agent-workbench -> $ip"
+    sync_host
+    ;;
+  deploy)
+    # Deploy the CDK stacks, then repoint /etc/hosts at the box — so a rebuild
+    # needs no follow-up command. A replaced instance takes minutes to join.
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+    (cd "$script_dir/../infra/aws" && npx cdk deploy --all)
+    echo "Waiting for the box on the tailnet..."
+    for _ in $(seq 1 60); do
+      sync_host 2>/dev/null && exit 0
+      sleep 10
+    done
+    echo "ERROR: box did not appear on the tailnet after 10 minutes." >&2
+    exit 1
     ;;
   *)
     usage
