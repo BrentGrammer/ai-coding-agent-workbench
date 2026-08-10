@@ -31,7 +31,6 @@ Commands:
   mosh    Connect with mosh over Tailscale
   ssm        Connect with SSM (break-glass, no Tailscale needed)
   update     Re-run the setup script on the box and refresh skills
-  deploy     Deploy the CDK stacks, then sync-host once the box is online
   sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
 
 Environment:
@@ -43,11 +42,18 @@ EOF
 
 # For browsers whose DNS-over-HTTPS resolver bypasses MagicDNS: keep the
 # agent-workbench line in /etc/hosts pointed at the box's Tailscale IP.
+# Waits for the box, since a rebuilt instance takes minutes to join the tailnet.
 sync_host() {
-  local ip
-  ip="$(tailscale status --json 2>/dev/null |
-    jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
-  [ -n "$ip" ] || { echo "ERROR: workbench not online on the tailnet." >&2; return 1; }
+  local ip tries=0
+  while :; do
+    ip="$(tailscale status --json 2>/dev/null |
+      jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
+    [ -n "$ip" ] && break
+    tries=$((tries + 1))
+    if [ "$tries" -eq 1 ]; then echo "Waiting for the workbench to come online on the tailnet..."; fi
+    if [ "$tries" -gt 60 ]; then echo "ERROR: workbench not online after 10 minutes." >&2; return 1; fi
+    sleep 10
+  done
   sudo sed -i.bak '/ agent-workbench$/d' /etc/hosts
   echo "$ip agent-workbench" | sudo tee -a /etc/hosts >/dev/null
   sudo rm -f /etc/hosts.bak
@@ -114,19 +120,6 @@ case "${2:-}" in
     ;;
   sync-host)
     sync_host
-    ;;
-  deploy)
-    # Deploy the CDK stacks, then repoint /etc/hosts at the box — so a rebuild
-    # needs no follow-up command. A replaced instance takes minutes to join.
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-    (cd "$script_dir/../infra/aws" && npx cdk deploy --all)
-    echo "Waiting for the box on the tailnet..."
-    for _ in $(seq 1 60); do
-      sync_host 2>/dev/null && exit 0
-      sleep 10
-    done
-    echo "ERROR: box did not appear on the tailnet after 10 minutes." >&2
-    exit 1
     ;;
   *)
     usage
