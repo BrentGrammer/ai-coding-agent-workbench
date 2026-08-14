@@ -33,25 +33,34 @@ allow_grok_network() {
 	# Grok API
 	sbx policy allow network --sandbox "$SANDBOX_NAME" api.x.ai:443
 
+	# Login (browser OAuth, legacy accounts, device-auth proxy)
+	sbx policy allow network --sandbox "$SANDBOX_NAME" auth.x.ai:443
+	sbx policy allow network --sandbox "$SANDBOX_NAME" accounts.x.ai:443
+	sbx policy allow network --sandbox "$SANDBOX_NAME" cli-chat-proxy.grok.com:443
+
 	# for installing node and npm packages
 	sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
 	sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
 }
 
-install_grok_build() {
-	echo "Installing Grok Build if missing..."
+install_or_update_grok_build() {
+	echo "Installing or updating Grok Build..."
 
 	sbx exec "$SANDBOX_NAME" bash -lc '
+		set -euo pipefail
+
+		export PATH="$HOME/.grok/bin:$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
 		if command -v grok >/dev/null 2>&1; then
 			echo "grok already installed: $(command -v grok)"
-			grok --version || true
+			grok update || true
+			grok --version || grok version || true
 			exit 0
 		fi
 
 		curl -fsSL https://x.ai/cli/install.sh | bash
 
-		# Common installer locations; make available for this shell and future shells.
-		for d in "$HOME/.local/bin" "$HOME/.grok/bin" "$HOME/.cargo/bin"; do
+		for d in "$HOME/.grok/bin" "$HOME/.local/bin" "$HOME/.cargo/bin"; do
 			if [ -d "$d" ] && ! echo "$PATH" | tr ":" "\n" | grep -Fxq "$d"; then
 				export PATH="$d:$PATH"
 				if ! grep -Fq "$d" "$HOME/.bashrc" 2>/dev/null; then
@@ -61,10 +70,32 @@ install_grok_build() {
 		done
 
 		command -v grok
-		grok --version || true
+		grok --version || grok version || true
 	'
 
-	echo "SUCCESS: Grok Build installed."
+	echo "SUCCESS: Grok Build installed or updated."
+}
+
+install_exa_mcp_server() {
+	echo "Registering the Exa MCP server with Grok Build..."
+
+	sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+
+export PATH="$HOME/.grok/bin:$HOME/.local/bin:$PATH"
+
+if grok mcp list 2>/dev/null | grep -q exa; then
+	echo "Exa MCP server already registered."
+else
+	timeout 20 grok mcp add --transport http exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
+fi
+
+if grok mcp list 2>/dev/null | grep -q exa; then
+	echo "Exa MCP server ready."
+else
+	echo "WARN: Grok Build does not list the Exa MCP server. Run grok mcp add --transport http exa https://mcp.exa.ai/mcp inside the sandbox." >&2
+fi
+'
 }
 
 sync_files_to_sandbox() {
@@ -77,19 +108,41 @@ sync_files_to_sandbox() {
 	echo "SUCCESS: Synced host-managed files into sandbox."
 }
 
-###############################################################################
-# Create or reuse sandbox
-###############################################################################
+usage_instructions() {
+	sbx exec "$SANDBOX_NAME" bash -c '
+cat > "$HOME/.grok-welcome.sh" <<EOF
+cat <<MSG
 
-if sandboxExists "$SANDBOX_NAME"; then
-	echo "✅ Existing sandbox found: $SANDBOX_NAME"
-	allow_grok_network
-	configure_sandbox_env
-	sync_files_to_sandbox
-	install_matt_pocock_skills "$REPO_ROOT" grok
-	install_skill_creator "$REPO_ROOT" grok
-	install_no_mistakes "$REPO_ROOT" grok
+✅ sandbox is ready: '"$SANDBOX_NAME"'
 
+Start Grok Build:
+
+  grok
+
+First-time auth. This sandbox has no browser, so use device login:
+
+  grok login --device-auth
+
+Or set an API key:
+
+  export XAI_API_KEY="xai-..."
+  grok
+
+MSG
+EOF
+
+if ! grep ".grok-welcome.sh" "$HOME/.bashrc" 2>/dev/null; then
+	cat >> "$HOME/.bashrc" <<EOF
+
+if [ -t 1 ] && [ -f "\$HOME/.grok-welcome.sh" ]; then
+	bash "\$HOME/.grok-welcome.sh"
+fi
+EOF
+fi
+'
+}
+
+strip_legacy_grok_autostart() {
 	sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
 if [ -f "$HOME/.bashrc" ]; then
@@ -112,6 +165,24 @@ if rc.exists():
 "
 fi
 '
+}
+
+###############################################################################
+# Create or reuse sandbox
+###############################################################################
+
+if sandboxExists "$SANDBOX_NAME"; then
+	echo "✅ Existing sandbox found: $SANDBOX_NAME"
+	allow_grok_network
+	configure_sandbox_env
+	install_or_update_grok_build
+	sync_files_to_sandbox
+	install_exa_mcp_server
+	install_matt_pocock_skills "$REPO_ROOT" grok
+	install_skill_creator "$REPO_ROOT" grok
+	install_no_mistakes "$REPO_ROOT" grok
+	strip_legacy_grok_autostart
+	usage_instructions
 else
 	echo "🆕 Creating new sandbox: $SANDBOX_NAME"
 
@@ -125,26 +196,13 @@ else
 	install_node_lts
 	echo "SUCCESS: Node installed!"
 
-	echo "Installing grok build..."
-	install_grok_build
-	echo "SUCCESS: Installed Grok Build"
-
+	install_or_update_grok_build
 	sync_files_to_sandbox
+	install_exa_mcp_server
 	install_matt_pocock_skills "$REPO_ROOT" grok
 	install_skill_creator "$REPO_ROOT" grok
 	install_no_mistakes "$REPO_ROOT" grok
+	usage_instructions
 fi
-
-###############################################################################
-# Run sandbox
-###############################################################################
-
-cat <<'EOF'
-
-Start Grok Build:
-
-  grok
-
-EOF
 
 sbx run "$SANDBOX_NAME"
