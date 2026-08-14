@@ -99,20 +99,7 @@ fi
 }
 
 install_skills() {
-  echo "Installing Matt Pocock skills..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc "
-    set -euo pipefail
-    cd '$REPO_ROOT'
-
-    npx --yes skills@1.5.20 add mattpocock/skills \
-      --agent codex \
-      --skill '*' \
-      --global \
-      --yes \
-      --copy
-  "
-
+  install_matt_pocock_skills "$REPO_ROOT" codex
   install_skill_creator "$REPO_ROOT" codex
   install_no_mistakes "$REPO_ROOT" codex
 }
