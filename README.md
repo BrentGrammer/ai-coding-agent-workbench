@@ -197,19 +197,45 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 ## Local LLM
 
-Runs an open model instead of a hosted API, on either runtime. On a Mac it uses local Ollama and `qwen3.8:27b-mlx`, and needs [Ollama](https://ollama.com/download), `python3`, and `jq` on the host. No extra env vars. The optional spot GPU box serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
+Runs an open model instead of a hosted API. Two targets, same launcher flag:
 
-Before the first `workbench llm up`: store a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key` (same create/sign steps as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access)), and raise the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only).
+- **Mac** — local Ollama. No AWS, no cost, nothing to start first.
+- **GPU box** — an optional spot GPU instance in the cloud, managed with `workbench llm`.
+
+### Prerequisites
+
+- Mac: [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
+- GPU box: a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key`, created and signed the same way as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access).
+- GPU box: the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only) raised, before the first `workbench llm up`.
+
+### Run on your Mac
 
 ```shell
-workbench llm up
 start-opencode --local-model
-workbench llm down
 ```
 
-`status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`.
+Starts Ollama on loopback and serves `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
 
-Port 11435 is an inference-only proxy ([ollama_inference_proxy.py](tools/llm/ollama_inference_proxy.py)). Ollama itself listens on loopback, because its own port pulls models from any registry host the caller names. If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
+### Run on the GPU box
+
+```shell
+workbench llm up               # from anywhere with AWS credentials
+start-workbench                # connect to the workbench box
+start-opencode --local-model   # on the box
+workbench llm down             # when you are done
+```
+
+- `up` — Deploys the GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
+- `status` — Shows whether you left it on.
+- `down` — Destroys the GPU box. The S3 model cache stays.
+
+The workbench box already points at the GPU box, reading `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL` from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. To drive the GPU box from your Mac instead, set `LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1`.
+
+### Why port 11435
+
+11435 is an inference-only proxy ([ollama_inference_proxy.py](tools/llm/ollama_inference_proxy.py)). Ollama stays on loopback: its port pulls models from any host a caller names, escaping the sandbox network policy.
+
+If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
 
 ## Herdr tips
 
