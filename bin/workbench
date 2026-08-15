@@ -10,6 +10,12 @@ LLM_CACHE_STACK="AgentWorkbenchLlmCacheStack"
 LLM_STACK="AgentWorkbenchLlmStack"
 CONNECT_USER="${WORKBENCH_EC2_USER:-ubuntu}"
 
+tailscale_ip() {
+  tailscale status --json 2>/dev/null |
+    jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty' \
+      2>/dev/null || true
+}
+
 # After a rebuild, a dead tailnet node can still hold the agent-workbench
 # MagicDNS name and the new node gets agent-workbench-1. Find the online node
 # by its hostname instead, so connections survive instance replacement.
@@ -19,9 +25,7 @@ find_connect_host() {
     return
   fi
   local ip
-  ip="$(tailscale status --json 2>/dev/null |
-    jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty' \
-      2>/dev/null || true)"
+  ip="$(tailscale_ip)"
   echo "${ip:-agent-workbench}"
 }
 
@@ -42,6 +46,7 @@ ec2 commands:
   ssm        Connect with SSM (break-glass, no Tailscale needed)
   update     Re-run the setup script on the box and refresh skills
   sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
+  trust-host Read the SSH host key over SSM and refresh known_hosts
 
 llm commands:
   up      Deploy the cache (if needed) and the GPU instance
@@ -61,8 +66,7 @@ EOF
 sync_host() {
   local ip tries=0
   while :; do
-    ip="$(tailscale status --json 2>/dev/null |
-      jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty')"
+    ip="$(tailscale_ip)"
     [ -n "$ip" ] && break
     tries=$((tries + 1))
     if [ "$tries" -eq 1 ]; then echo "Waiting for the workbench to come online on the tailnet..."; fi
@@ -90,6 +94,60 @@ find_instance_id() {
   fi
 
   echo "$instance_id"
+}
+
+# A replaced instance has new SSH host keys, so ssh refuses to connect and mosh
+# fails with it. Read the real key over SSM, which AWS authenticates and which
+# does not use ssh, then replace the stale known_hosts entries. Reading it over
+# ssh would prove nothing: that is the channel in doubt.
+trust_host() {
+  local instance_id command_id status key ip key_file
+  instance_id="$(find_instance_id)"
+
+  echo "Reading the host key from $instance_id over SSM..."
+  command_id="$(aws ssm send-command \
+    --instance-ids "$instance_id" \
+    --document-name AWS-RunShellScript \
+    --parameters 'commands=["cat /etc/ssh/ssh_host_ed25519_key.pub"]' \
+    --query 'Command.CommandId' --output text)"
+
+  aws ssm wait command-executed \
+    --command-id "$command_id" --instance-id "$instance_id" 2>/dev/null || true
+  status="$(aws ssm get-command-invocation \
+    --command-id "$command_id" --instance-id "$instance_id" \
+    --query 'Status' --output text)"
+  if [ "$status" != "Success" ]; then
+    echo "ERROR: The SSM command ended as $status. Is the box running with the SSM agent?" >&2
+    return 1
+  fi
+
+  key="$(aws ssm get-command-invocation \
+    --command-id "$command_id" --instance-id "$instance_id" \
+    --query 'StandardOutputContent' --output text |
+    awk '/^ssh-ed25519 / { print $1, $2; exit }')"
+  if [ -z "$key" ]; then
+    echo "ERROR: The box returned no ed25519 host key." >&2
+    return 1
+  fi
+
+  key_file="$(mktemp)"
+  printf '%s\n' "$key" > "$key_file"
+  echo "Host key: $(ssh-keygen -lf "$key_file" | awk '{print $2}')"
+  rm -f "$key_file"
+
+  mkdir -p "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh"
+  touch "$HOME/.ssh/known_hosts"
+
+  # ssh connects by MagicDNS name or by Tailscale IP, depending on which node
+  # holds the name, so trust both.
+  ip="$(tailscale_ip)"
+  for host in agent-workbench ${ip:+$ip}; do
+    ssh-keygen -R "$host" -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1 || true
+    printf '%s %s\n' "$host" "$key" >> "$HOME/.ssh/known_hosts"
+    echo "Trusted $host"
+  done
+  rm -f "$HOME/.ssh/known_hosts.old"
 }
 
 require_aws_dir() {
@@ -151,6 +209,9 @@ case "${1:-}" in
         ;;
       sync-host)
         sync_host
+        ;;
+      trust-host)
+        trust_host
         ;;
       *)
         usage

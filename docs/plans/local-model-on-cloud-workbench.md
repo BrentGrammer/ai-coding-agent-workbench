@@ -93,17 +93,20 @@ The config layering above comes from the current `opencode` docs. The box pins
 `OPENCODE_VERSION=1.18.11` (`setup-workbench.sh:12`). Confirm the behaviour before
 building on it.
 
-SSH to the workbench box and run these three checks.
+SSH to the workbench box and run these checks.
 
-1. **Does 1.18.11 honour `OPENCODE_CONFIG_CONTENT`?**
+1. **Does 1.18.11 honour `OPENCODE_CONFIG_CONTENT`?** DONE — yes.
+
+   Test with the provider block, not with `model` alone. A `model` value naming an
+   undeclared provider cannot resolve, so it proves nothing:
 
    ```shell
-   OPENCODE_CONFIG_CONTENT='{"model":"local-llm/qwen3.8:27b"}' opencode
+   OPENCODE_CONFIG_CONTENT='{"provider":{"local-llm":{"npm":"@ai-sdk/openai-compatible","name":"Local LLM","options":{"baseURL":"http://agent-llm:11435/v1","apiKey":"ollama"},"models":{"qwen3.8:27b":{"name":"qwen3.8:27b"}}}}}' opencode
    ```
 
-   Open `/models` and confirm the active model changed. If it did not, use
-   `OPENCODE_CONFIG` with a temp file instead. Write that file under the session dir
-   `herdr-session` already creates: `/tmp/agent-workbench/herdr-$WORKBENCH_SESSION`.
+   Open `/models`. The provider is listed, so the layer is read. The fallback of
+   `OPENCODE_CONFIG` with a temp file under
+   `/tmp/agent-workbench/herdr-$WORKBENCH_SESSION` is not needed.
 
 2. **Does the merge keep the user's keys?**
 
@@ -111,7 +114,18 @@ SSH to the workbench box and run these three checks.
    config are still in effect. If the layer replaces instead of merges, fall back to a
    jq merge of the full global config into a temp file.
 
-3. **Does the variable reach a herdr pane?**
+3. **Does `.model` in the layer select the model, or must the user pick it?**
+
+   Opencode remembers the last model chosen per project, and `config.model` is a
+   default rather than a hard override. So setting `.model` may not switch an
+   existing project. In a directory opencode has never opened, run the command from
+   check 1 with `"model":"local-llm/qwen3.8:27b"` added, and see whether the model is
+   already active without touching `/models`.
+
+   If it is not, `--local-model` must also clear or set the stored selection, and that
+   is an extra step in Step 3.
+
+4. **Does the variable reach a herdr pane?**
 
    ```shell
    FOO=bar start-herdr opencode ~/some-repo
@@ -122,7 +136,7 @@ SSH to the workbench box and run these three checks.
    pass. If it does not, `start-herdr` must write a file and pass only the path, or
    `workbench-pane-shell` must set the variable itself.
 
-Record the result of each check in the pull request. The steps below assume all three
+Record the result of each check in the pull request. The steps below assume all four
 pass.
 
 ## Step 1 — Move the provider JSON into a shared function
