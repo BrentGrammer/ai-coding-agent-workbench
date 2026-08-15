@@ -101,20 +101,31 @@ Switch to the local model:
     Shift+Tab -> medium (thinking level)
 "
     fi
-    sbx exec "$SANDBOX_NAME" bash -c "
+    sbx exec "$SANDBOX_NAME" bash -c '
+cat > "$HOME/.pi-welcome.sh" <<EOF
 cat <<MSG
 
------- Usage Instructions ------
+✅ sandbox is ready: '"$SANDBOX_NAME"'
 
-Start:
+Run pi:
 
-    pi
+  pi
 
-First time: run '/login' to set a key or subscription plan.
+First time: run /login to set a key or subscription plan.
 Switch models any time with Ctrl+L or /model.
-$local_model_lines
+'"$local_model_lines"'
 MSG
-"
+EOF
+
+if ! grep ".pi-welcome.sh" "$HOME/.bashrc" 2>/dev/null; then
+  cat >> "$HOME/.bashrc" <<EOF
+
+if [ -t 1 ] && [ -f "\$HOME/.pi-welcome.sh" ]; then
+  bash "\$HOME/.pi-welcome.sh"
+fi
+EOF
+fi
+'
 }
 
 if sandboxExists "$SANDBOX_NAME"; then
