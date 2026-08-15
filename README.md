@@ -195,13 +195,6 @@ Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you 
 
 Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-onetime-setup.md) covers Tailscale access, the GitHub App, deploy and connect, hardening, and the GPU spot quota.
 
-### Updates and maintenance
-
-- The agent CLIs update themselves on the box.
-- `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
-- OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
-- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers. Check usage anytime with `docker system df`.
-
 ## Local LLM
 
 Runs an open model instead of a hosted API, on either runtime. On a Mac it uses local Ollama and `qwen3.8:27b-mlx`, and needs [Ollama](https://ollama.com/download), `python3`, and `jq` on the host. No extra env vars. The optional spot GPU box serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
@@ -260,3 +253,10 @@ Launchers install the items below unless you remove the install steps from the s
 | [no-mistakes](https://github.com/kunchenguid/no-mistakes) | Validate/ship gate before push/PR/CI | EC2 + local agents above (not Gemini) | `install_no_mistakes` / `setup-workbench.sh` |
 | Secret-file deny hook | Blocks reads of `.env` and related files | Claude, Herdr | `runtime/deny-protected-file-reads`, `claude-settings.json` |
 | [Hunk](https://www.hunk.dev/) review skill | Act on Hunk diff review comments | Herdr (local + EC2) | `hunk skill path` symlink in setup / `start_herdr.sh` |
+
+## Updates and maintenance
+
+- The agent CLIs update themselves on the box.
+- `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
+- OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
+- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers. Check usage anytime with `docker system df`.
