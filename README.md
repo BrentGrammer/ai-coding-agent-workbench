@@ -217,6 +217,14 @@ start-opencode --local-model
 
 Starts Ollama on loopback and serves `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
 
+Ollama and the proxy run on the host. A second run reuses them instead of starting more. To stop them:
+
+```shell
+stop-local-llm
+```
+
+It stops only what the launcher started and it deletes the logs and PID files in `~/.local/state/agent-workbench/`.
+
 ### Run on the GPU box
 
 ```shell

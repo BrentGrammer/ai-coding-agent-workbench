@@ -49,18 +49,23 @@ source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 LOCAL_OLLAMA_PORT=11434
 LOCAL_PROXY_PORT=11435
 LOCAL_PROXY_BIND="${WORKBENCH_LLM_PROXY_BIND:-127.0.0.1}"
+LOCAL_LLM_STATE_DIR="$HOME/.local/state/agent-workbench"
 
 port_is_open() {
   (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
 }
 
+# stop-local-llm reads these files, so it only ever stops processes this
+# launcher started and never an Ollama the user runs themselves.
 start_local_ollama() {
   if port_is_open "$LOCAL_OLLAMA_PORT"; then
     return 0
   fi
   echo "Starting Ollama..."
+  mkdir -p "$LOCAL_LLM_STATE_DIR"
   OLLAMA_HOST="127.0.0.1:$LOCAL_OLLAMA_PORT" \
-    nohup ollama serve >/tmp/workbench-ollama.log 2>&1 &
+    nohup ollama serve >"$LOCAL_LLM_STATE_DIR/ollama.log" 2>&1 &
+  echo "$!" > "$LOCAL_LLM_STATE_DIR/ollama.pid"
   sleep 1
 }
 
@@ -75,9 +80,11 @@ start_local_inference_proxy() {
     exit 1
   fi
   echo "Starting the inference-only proxy..."
+  mkdir -p "$LOCAL_LLM_STATE_DIR"
   nohup python3 "$WORKBENCH_ROOT/tools/llm/ollama_inference_proxy.py" \
     "$LOCAL_PROXY_BIND:$LOCAL_PROXY_PORT" "127.0.0.1:$LOCAL_OLLAMA_PORT" \
-    >/tmp/workbench-llm-proxy.log 2>&1 &
+    >"$LOCAL_LLM_STATE_DIR/llm-proxy.log" 2>&1 &
+  echo "$!" > "$LOCAL_LLM_STATE_DIR/llm-proxy.pid"
   sleep 1
 }
 
