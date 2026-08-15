@@ -307,10 +307,25 @@ Not in this plan. Listed in priority order.
 
 1. **Drive the GPU box from a Mac over Tailscale.** This is the higher-value item. The
    goal is to move inference off the MacBook, because running Qwen locally makes it hot
-   and loud. The blocker is unproven: the Docker sandbox must reach the Tailscale
-   hostname `agent-llm` from inside its VM. Test
-   `LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model` first,
-   then fix what breaks. Steps 1 and 4 of this plan make that work smaller.
+   and loud.
+
+   Feasibility is now proven. The Docker sandbox routes to the tailnet but cannot
+   resolve MagicDNS names. Measured against the workbench box, from inside
+   `opencode-agent-workbench-...`:
+
+   - `getent hosts agent-workbench` -> no result.
+   - `curl http://<tailnet-ip>:8080/` against a `python3 -m http.server` on the box
+     -> `http=200`, and the request appeared in the box's log.
+   - Public DNS and egress work normally, so this is specific to MagicDNS.
+
+   So the work is: resolve `agent-llm` to a tailnet IP on the Mac, build
+   `LOCAL_LLM_BASE_URL` from the IP, and allowlist that IP. Contained to
+   `local_llm.sh`. Steps 1 and 4 of this plan make it smaller.
+
+   Resolve with the `.Online` filter that `bin/workbench:22-24` uses, never by name
+   alone. A rebuilt box leaves a dead node holding `agent-llm` while the live one
+   becomes `agent-llm-1`, and the stale address times out from everywhere. That trap
+   cost time during this very test.
 2. **`--local-model` for the Mac `start-herdr`.** `tools/agents/start_herdr.sh:192`
    installs the plain template and has no flag. Once Step 1 lands, this is small.
 3. **`pi` on the EC2 box.** More than an npm install. `runtime/workbench-pane-shell:23-50`
