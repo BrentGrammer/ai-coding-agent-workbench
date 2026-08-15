@@ -144,6 +144,11 @@ allow_local_llm_network() {
     fi
   fi
   sbx policy allow network --sandbox "$SANDBOX_NAME" "$hostport"
+
+  # Docker Desktop routes host.docker.internal to the host's loopback. this fixes forbidden sbx policy error.
+  if [[ "$hostport" == host.docker.internal:* ]]; then
+    sbx policy allow network --sandbox "$SANDBOX_NAME" "localhost:${hostport#*:}"
+  fi
 }
 
 allow_codex_oauth_network() {
