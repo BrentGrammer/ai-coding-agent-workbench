@@ -217,6 +217,8 @@ start-opencode --local-model
 
 Starts Ollama on loopback and serves `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
 
+Inside the sandbox, `opencode` already defaults to the local model by updating `/etc/opencode/opencode.json` — no `/connect` needed.
+
 Ollama and the proxy run on the host. A second run reuses them instead of starting more. To stop them:
 
 ```shell
