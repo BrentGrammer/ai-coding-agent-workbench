@@ -232,24 +232,6 @@ stop-local-llm
 
 It stops only what the launcher started and it deletes the logs and PID files in `~/.local/state/agent-workbench/`.
 
-### Run on the GPU box
-
-From your Mac — the EC2 workbench box cannot drive this yet:
-
-```shell
-workbench llm up
-LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model
-workbench llm down
-```
-
-- `up` — Deploys the GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
-- `status` — Shows whether you left it on.
-- `down` — Destroys the GPU box. The S3 model cache stays.
-
-This needs your Mac on the same tailnet as the GPU box, and Docker's sandbox network reaching the Tailscale hostname `agent-llm` from inside its VM — a different, less-tested path than `host.docker.internal`. Confirm it works from inside the sandbox before relying on it: `curl http://agent-llm:11435/v1/models`.
-
-`setup-workbench.sh` writes `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` into the EC2 box's `/etc/agent-workbench/workbench.env`, but nothing on that box reads them yet — the native `start-herdr` launcher has no local-model wiring.
-
 Defaults to `medium` thinking. Set it before the launcher command to override:
 
 ```shell
@@ -257,6 +239,15 @@ LOCAL_LLM_REASONING_EFFORT=low start-opencode --local-model
 ```
 
 Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pick the level yourself each session: `Ctrl+L` or `/model` -> `local-llm`, then `Shift+Tab` to the level you want.
+
+### GPU box: not usable yet
+
+`workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box. That part works. Nothing beyond it does:
+
+- The EC2 workbench box's native launcher (`start-herdr`) has no local-model support. `setup-workbench.sh` writes `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` into its `workbench.env`, but nothing reads them.
+- Driving it from a Mac (`LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model`) is untested. It needs Docker's sandbox network to reach the Tailscale hostname `agent-llm` from inside its VM, which is unconfirmed.
+
+Until one of these is verified and built out, the GPU box is deploy/destroy only. Use [Run on a Mac](#run-on-a-mac) above.
 
 ### Why port 11435
 
@@ -312,4 +303,4 @@ Launchers install the items below unless you remove the install steps from the s
 - The agent CLIs update themselves on the box.
 - `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
 - OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
-- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers. Che
+- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running
