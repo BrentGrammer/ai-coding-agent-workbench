@@ -120,6 +120,7 @@ allow_opencode_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" models.dev:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" models.opencode.ai:443
   # exa searches
   sbx policy allow network --sandbox "$SANDBOX_NAME" cdn.jsdelivr.net:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
