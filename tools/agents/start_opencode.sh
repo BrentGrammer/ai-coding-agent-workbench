@@ -26,10 +26,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
 USE_LOCAL_MODEL=false
+USE_GPU_BOX=false
 opencode_args=()
 for arg in "$@"; do
   case "$arg" in
     --local-model) USE_LOCAL_MODEL=true ;;
+    --gpu-box) USE_LOCAL_MODEL=true; USE_GPU_BOX=true ;;
     *) opencode_args+=("$arg") ;;
   esac
 done
@@ -57,7 +59,9 @@ bash "$START_DOCKER"
 #   Ex: sbx secret set <sandbox_name> openai
 #
 # Usage:
-#   ./tools/agents/start_opencode.sh [--local-model] [WORKSPACE_PATH]
+#   ./tools/agents/start_opencode.sh [--local-model|--gpu-box] [WORKSPACE_PATH]
+#     --local-model  this Mac's own Ollama
+#     --gpu-box      the GPU box on the tailnet
 
 allow_opencode_network() {
   allow_gemini_access

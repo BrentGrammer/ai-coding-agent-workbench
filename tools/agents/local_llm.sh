@@ -4,6 +4,10 @@
 
 LOCAL_OLLAMA_PORT=11434
 LOCAL_PROXY_PORT=11435
+# The GPU box joins the tailnet under this name and serves LLM_MODEL from the
+# CDK stack. Set USE_GPU_BOX=true to target it instead of a local Ollama.
+GPU_BOX_HOST=agent-llm
+GPU_BOX_MODEL=qwen3.8:27b
 LOCAL_PROXY_BIND="${WORKBENCH_LLM_PROXY_BIND:-127.0.0.1}"
 LOCAL_LLM_STATE_DIR="$HOME/.local/state/agent-workbench"
 
@@ -44,6 +48,41 @@ start_local_inference_proxy() {
   sleep 1
 }
 
+host_from_url() {
+  local rest="${1#*://}"
+  rest="${rest%%/*}"
+  echo "${rest%%:*}"
+}
+
+# The online node only. A rebuilt box leaves a dead node holding the name, and
+# the stale address times out from everywhere.
+tailnet_ip() {
+  command -v tailscale >/dev/null 2>&1 || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  local ip
+  ip="$(tailscale status --json 2>/dev/null |
+    jq -r --arg name "$1" \
+      '[.Peer[]? | select(.HostName == $name and .Online)][0].TailscaleIPs[0] // empty' \
+      2>/dev/null)" || return 1
+  [ -n "$ip" ] || return 1
+  echo "$ip"
+}
+
+# The Docker sandbox routes to the tailnet but cannot resolve MagicDNS names,
+# so swap a tailnet hostname for its address before the agent ever sees the URL.
+use_tailnet_address() {
+  local host ip
+  host="$(host_from_url "$LOCAL_LLM_BASE_URL")"
+  case "$host" in
+    "" | localhost | host.docker.internal) return 0 ;;
+    *[!0-9.]*) ;;
+    *) return 0 ;;
+  esac
+  ip="$(tailnet_ip "$host")" || return 0
+  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL/$host/$ip}"
+  echo "Resolved $host to $ip on the tailnet."
+}
+
 # Sets LOCAL_LLM_BASE_URL / LOCAL_LLM_MODEL, and starts Ollama and the proxy
 # on a Mac. On the EC2 workbench box, workbench.env already points at the GPU
 # box, so nothing local needs to start.
@@ -54,6 +93,10 @@ resolve_local_llm() {
     . /etc/agent-workbench/workbench.env
     set +a
   fi
+  if [ "${USE_GPU_BOX:-false}" = true ]; then
+    LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://$GPU_BOX_HOST:$LOCAL_PROXY_PORT/v1}"
+    LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-$GPU_BOX_MODEL}"
+  fi
   LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
   LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
   # none | low | medium | high
@@ -61,6 +104,8 @@ resolve_local_llm() {
   if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]]; then
     start_local_ollama
     start_local_inference_proxy
+  else
+    use_tailnet_address
   fi
 }
 

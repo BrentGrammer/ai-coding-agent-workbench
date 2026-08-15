@@ -244,15 +244,25 @@ Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pic
 
 `workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box.
 
-From the EC2 workbench box, point OpenCode at it with `--local-model`:
+From the EC2 workbench box, point OpenCode at it with `--gpu-box`:
 
 ```shell
-start-herdr opencode ~/some-repo --local-model
+start-herdr opencode ~/some-repo --gpu-box
 ```
 
 The endpoint comes from `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` in the box's `workbench.env`. The launcher passes the provider to OpenCode in `OPENCODE_CONFIG_CONTENT`, which OpenCode merges over your own config, so your model choice and permission rules stay as they are for every other session. OpenCode only, for now. The flag is rejected for the other agents.
 
-Still untested: driving the GPU box from a Mac (`LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model`). It needs Docker's sandbox network to reach the Tailscale hostname `agent-llm` from inside its VM, which is unconfirmed.
+From a Mac, use the GPU box instead of your own Ollama:
+
+```shell
+start-opencode --gpu-box
+```
+
+`--local-model` runs the model on your Mac. `--gpu-box` runs it on the GPU box, which keeps the heat and the fans off your MacBook. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.
+
+The Docker sandbox routes to the tailnet but cannot resolve MagicDNS names, so the launcher looks `agent-llm` up on the host and puts its Tailscale address in the URL. It uses the online node, because a rebuilt box leaves a dead node holding the name.
+
+Not yet run against a live GPU box, which is waiting on a vCPU quota.
 
 ### Why port 11435
 

@@ -6,12 +6,13 @@ POSITIONAL=()
 for arg in "$@"; do
   case "$arg" in
     -h|--help)
-      echo "Usage: start-herdr [agent] [workspace-dir] [--local-model]"
+      echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box]"
       echo "Agents: claude codex opencode cursor. Default: cursor in the current directory."
-      echo "--local-model: use the GPU box from workbench.env. opencode only."
+      echo "--gpu-box: use the GPU box from workbench.env. opencode only."
+      echo "--local-model: the same thing, kept for compatibility."
       exit 0
       ;;
-    --local-model) USE_LOCAL_MODEL=true ;;
+    --local-model | --gpu-box) USE_LOCAL_MODEL=true ;;
     -*)
       echo "ERROR: Unknown option: $arg" >&2
       exit 1
@@ -26,7 +27,7 @@ WORKSPACE_DIR="$(cd "${POSITIONAL[1]:-$PWD}" && pwd)"
 session_suffix=""
 if [ "$USE_LOCAL_MODEL" = true ]; then
   if [ "$WORKBENCH_AGENT" != opencode ]; then
-    echo "ERROR: --local-model supports opencode only, not $WORKBENCH_AGENT." >&2
+    echo "ERROR: --gpu-box supports opencode only, not $WORKBENCH_AGENT." >&2
     exit 1
   fi
   # shellcheck disable=SC1091

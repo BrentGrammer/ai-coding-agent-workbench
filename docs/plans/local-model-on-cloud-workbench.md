@@ -318,14 +318,15 @@ Not in this plan. Listed in priority order.
      -> `http=200`, and the request appeared in the box's log.
    - Public DNS and egress work normally, so this is specific to MagicDNS.
 
-   So the work is: resolve `agent-llm` to a tailnet IP on the Mac, build
-   `LOCAL_LLM_BASE_URL` from the IP, and allowlist that IP. Contained to
-   `local_llm.sh`. Steps 1 and 4 of this plan make it smaller.
+   Built. `local_llm.sh` gained `host_from_url`, `tailnet_ip`, and
+   `use_tailnet_address`. `resolve_local_llm` now swaps a tailnet hostname for its
+   address whenever the endpoint is not the Mac's own Ollama, so
+   `allow_local_llm_network` allowlists the address and the agent never needs
+   MagicDNS. `tailnet_ip` filters on `.Online`, like `bin/workbench:22-24`, because a
+   rebuilt box leaves a dead node holding the name and the stale address times out
+   from everywhere. That trap cost time during this very test.
 
-   Resolve with the `.Online` filter that `bin/workbench:22-24` uses, never by name
-   alone. A rebuilt box leaves a dead node holding `agent-llm` while the live one
-   becomes `agent-llm-1`, and the stale address times out from everywhere. That trap
-   cost time during this very test.
+   Not yet run against a live GPU box. Needs the vCPU quota.
 2. **`--local-model` for the Mac `start-herdr`.** `tools/agents/start_herdr.sh:192`
    installs the plain template and has no flag. Once Step 1 lands, this is small.
 3. **`pi` on the EC2 box.** More than an npm install. `runtime/workbench-pane-shell:23-50`
