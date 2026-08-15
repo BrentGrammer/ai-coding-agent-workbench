@@ -199,8 +199,8 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, same launcher flag:
 
-- **Mac** — local Ollama. No AWS, no cost, nothing to start first.
-- **GPU box** — an optional spot GPU instance in the cloud, managed with `workbench llm`. Driven from a local Mac host machine only — the EC2 workbench box's native launcher (`start-herdr`) has no local-model support.
+- **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
+- **GPU box** — `--gpu-box`. An optional spot GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and from the EC2 workbench box.
 
 ### Prerequisites
 
@@ -256,6 +256,10 @@ From a Mac, use the GPU box instead of your own Ollama:
 
 ```shell
 start-opencode --gpu-box
+```
+
+```shell
+start-pi --gpu-box
 ```
 
 `--local-model` runs the model on your Mac. `--gpu-box` runs it on the GPU box, which keeps the heat and the fans off your MacBook. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.

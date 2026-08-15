@@ -5,10 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
 USE_LOCAL_MODEL=false
+USE_GPU_BOX=false
 pi_args=()
 for arg in "$@"; do
   case "$arg" in
     --local-model) USE_LOCAL_MODEL=true ;;
+    --gpu-box) USE_LOCAL_MODEL=true; USE_GPU_BOX=true ;;
     *) pi_args+=("$arg") ;;
   esac
 done
@@ -95,7 +97,7 @@ usage_instructions() {
     local local_model_lines=""
     if [ "$USE_LOCAL_MODEL" = true ]; then
         local_model_lines="
-Switch to the local model:
+Switch to $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL:
 
     Ctrl+L or /model -> local-llm
     Shift+Tab -> medium (thinking level)
