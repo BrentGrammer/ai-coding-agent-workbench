@@ -52,8 +52,14 @@ if [ "$USE_LOCAL_MODEL" = true ]; then
     . /etc/agent-workbench/workbench.env
     set +a
   fi
-  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://agent-llm:11434/v1}"
-  LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b}"
+  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}"
+  LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
+  if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]] &&
+    ! curl -sf --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null; then
+    echo "Starting Ollama..."
+    OLLAMA_HOST=0.0.0.0:11434 nohup ollama serve >/tmp/workbench-ollama.log 2>&1 &
+    sleep 1
+  fi
 fi
 
 bash "$START_DOCKER"

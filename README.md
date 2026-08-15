@@ -205,7 +205,9 @@ start-opencode --local-model
 workbench llm down
 ```
 
-`status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. A laptop uses the same defaults, or those env vars.
+On a Mac, `start-opencode --local-model` uses local Ollama and `qwen3.8:27b-mlx`. No extra env vars.
+
+`status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`.
 
 Before the first `up`: store a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key` (same create/sign steps as [Tailscale access](#1-tailscale-access)), and raise the [GPU spot quota](#5-gpu-spot-quota-local-llm-only).
 
