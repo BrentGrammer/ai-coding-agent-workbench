@@ -1,11 +1,25 @@
 # Use the GPU box from the Cloud Workbench
 
+## Status
+
+Built and verified on the box. Steps 0 to 4b and 6 are done.
+
+Confirmed with `start-herdr opencode <dir> --local-model`:
+
+- The launcher prints the model and the endpoint from `workbench.env`.
+- Opencode opens with Local LLM / qwen3.8:27b already selected.
+- `/mcp` still lists Exa, so the layer merged and the user's config survived.
+- The same flag with `cursor` exits 1.
+
+Not yet verified: that a prompt returns a reply. That needs the GPU box, which is
+waiting on a vCPU quota request. It is blocked on the quota, not on this work.
+
 ## Goal
 
 Let `opencode` on the EC2 t4g workbench box use the Qwen model on the GPU box.
 
-Today `workbench llm up` deploys the GPU box and it serves the model. Nothing on the
-workbench box points an agent at it. This plan closes that gap.
+Before this plan, `workbench llm up` deployed the GPU box and it served the model, but
+nothing on the workbench box pointed an agent at it. This plan closes that gap.
 
 ## Scope
 
@@ -34,7 +48,7 @@ provider into the sandbox file `/etc/opencode/opencode.json`
 
 **Cloud path.** `infra/aws/ec2/start-herdr` -> `runtime/herdr-session` ->
 `herdr` -> `runtime/workbench-pane-shell` -> the agent binary. There is no Docker and
-no sandbox. The agent uses the host network. This path has no `--local-model`.
+no sandbox. The agent uses the host network. This path is the one this plan wires up.
 
 ### What already works
 
@@ -55,10 +69,10 @@ no sandbox. The agent uses the host network. This path has no `--local-model`.
   `infra/aws/ec2/agent-workbench-profile.sh:15-19` sources and exports that file, so
   every ssh login shell has the values. `start-herdr` inherits them.
 
-### What is missing
+### What was missing
 
-Nothing acts on those values. `start-herdr` has no flag, and the `opencode` config on
-the box has no local provider. The seeded config
+Nothing acted on those values. `start-herdr` had no flag, and the `opencode` config on
+the box had no local provider. The seeded config
 (`setup-workbench.sh:222-224`, from `tools/agents/opencode.json`) pins
 `"model": "openrouter/deepseek/deepseek-v4-pro"` and declares no `provider` block.
 
@@ -87,7 +101,7 @@ session, and the user's permissions, MCP, and watcher blocks survive untouched.
 
 Source: <https://opencode.ai/docs/config/>
 
-## Step 0 — Verify on the box before you write code
+## Step 0 — Verify on the box before you write code (done)
 
 The config layering above comes from the current `opencode` docs. The box pins
 `OPENCODE_VERSION=1.18.11` (`setup-workbench.sh:12`). Confirm the behaviour before
@@ -147,7 +161,7 @@ One warning from doing them: a pasted multi-line block arrives indented in this
 terminal, which breaks heredocs and can put a newline inside a JSON string. Build test
 files with short single-line commands.
 
-## Step 1 — Move the provider JSON into a shared function
+## Step 1 — Move the provider JSON into a shared function (done)
 
 `tools/agents/start_opencode.sh:133-148` already builds the provider block with `jq`.
 Do not write a second copy.
@@ -181,7 +195,7 @@ being dropped for custom providers. It still applies.
 
 **Files:** `tools/agents/local_llm.sh`, `tools/agents/start_opencode.sh`
 
-## Step 2 — Install the shared script on the box
+## Step 2 — Install the shared script on the box (done)
 
 `setup-workbench.sh:129-151` does not copy `local_llm.sh`. Add it:
 
@@ -195,7 +209,7 @@ failed and the fallback needs the template at runtime.
 
 **Files:** `infra/aws/ec2/setup-workbench.sh`
 
-## Step 3 — Add `--local-model` to the cloud `start-herdr`
+## Step 3 — Add `--local-model` to the cloud `start-herdr` (done)
 
 In `infra/aws/ec2/start-herdr`:
 
@@ -218,7 +232,7 @@ environment through.
 
 **Files:** `infra/aws/ec2/start-herdr`
 
-## Step 4 — Stop `workbench.env` being truncated
+## Step 4 — Stop `workbench.env` being truncated (done)
 
 `infra/aws/lib/workbench-ec2-stack.ts:68` writes the file with `printf ... > file`.
 That truncates. `setup-workbench.sh:32-35` appends the two `LOCAL_LLM_*` lines
@@ -231,23 +245,55 @@ Fix by writing the two lines in the CDK `printf` alongside `AWS_REGION` and
 
 **Files:** `infra/aws/lib/workbench-ec2-stack.ts`
 
-## Step 5 — Test end to end
+## Step 4b — Key the session to the model (done)
 
-1. `workbench llm up`, and wait for the GPU box to report ready.
-2. From the workbench box, confirm the endpoint answers:
+`start-herdr` keys the herdr server to `WORKBENCH_SESSION`. An agent that is already
+running keeps the environment it started with, so re-running for the same repo and
+agent used to attach to the old server and `--local-model` did nothing. The pane shell
+also found its marker directory already there (`workbench-pane-shell:22`) and gave a
+plain shell instead of an agent.
 
-   ```shell
-   curl -s http://agent-llm:11435/v1/models
-   ```
+Fixed by adding `-local-<hash>` to the default session name, where the hash covers
+`LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. Local and normal sessions are now separate,
+and changing the model builds a new session rather than attaching to one serving the
+old one.
 
-3. `start-herdr opencode ~/some-repo --local-model`.
-4. In the agent pane, run `/models` and confirm `local-llm` is the active provider.
-5. Send a prompt. Confirm a reply comes back.
-6. Confirm the user's config survived: `/help` shows the Exa MCP server, and reading a
-   `.env` file is still denied.
-7. `workbench llm down`.
+**Files:** `infra/aws/ec2/start-herdr`
 
-## Step 6 — Update the README
+## Step 5 — Test
+
+Push to `main` and run `workbench ec2 update` first. `ec2 update` hard-resets the box
+to `origin/main` (`bin/workbench:147-150`) and re-runs `setup-workbench.sh`, which is
+what installs `local_llm.sh`. Confirm it landed before testing, so a stale file cannot
+be mistaken for a bug:
+
+```shell
+grep -c local-model /usr/local/bin/start-herdr
+ls -l /usr/local/lib/agent-workbench/local_llm.sh
+```
+
+### Without the GPU box — DONE, passes
+
+This covers the wiring, which is all this plan changes.
+
+1. `start-herdr opencode ~/some-repo --local-model`
+2. The launcher prints `Model: qwen3.8:27b at http://agent-llm:11435/v1`.
+3. `/models` shows Local LLM / qwen3.8:27b already selected.
+4. `/mcp` still lists Exa, so the merge kept the user's config.
+5. A prompt fails to connect. Expected with no GPU box.
+6. `start-herdr cursor ~/some-repo --local-model` exits 1.
+
+### With the GPU box
+
+Needs the GPU vCPU quota, which is not granted yet.
+
+1. `workbench llm up`, and wait for the GPU box to report ready. `llm status` shows the
+   instance state, not readiness; `setup-llm.sh:177` logs when it is truly serving.
+2. Confirm the endpoint answers: `curl -s http://agent-llm:11435/v1/models`
+3. Repeat the wiring test. A prompt now returns a reply.
+4. `workbench llm down`.
+
+## Step 6 — Update the README (done)
 
 `README.md:245-248` says the GPU box is deploy and destroy only. Replace the first
 bullet with the working `start-herdr --local-model` usage. Keep the second bullet, the

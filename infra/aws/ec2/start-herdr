@@ -23,6 +23,7 @@ done
 WORKBENCH_AGENT="${POSITIONAL[0]:-cursor}"
 WORKSPACE_DIR="$(cd "${POSITIONAL[1]:-$PWD}" && pwd)"
 
+session_suffix=""
 if [ "$USE_LOCAL_MODEL" = true ]; then
   if [ "$WORKBENCH_AGENT" != opencode ]; then
     echo "ERROR: --local-model supports opencode only, not $WORKBENCH_AGENT." >&2
@@ -33,6 +34,11 @@ if [ "$USE_LOCAL_MODEL" = true ]; then
   resolve_local_llm
   OPENCODE_CONFIG_CONTENT="$(opencode_local_model_config)"
   export OPENCODE_CONFIG_CONTENT
+  # An agent already running keeps the model it started with, so key the session
+  # to the endpoint. Switching models then builds a new one instead of attaching.
+  session_suffix="-local-$(
+    printf '%s|%s' "$LOCAL_LLM_BASE_URL" "$LOCAL_LLM_MODEL" | sha256sum | cut -c1-6
+  )"
   echo "Model: $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL"
 fi
 
@@ -48,7 +54,7 @@ if [ -z "$workspace_name" ]; then
   workspace_name="workspace"
 fi
 workspace_path_hash="$(printf '%s' "$WORKSPACE_DIR" | sha256sum | cut -c1-8)"
-WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT}"
+WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT$session_suffix}"
 export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
 
 exec herdr-session
