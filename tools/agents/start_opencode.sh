@@ -45,6 +45,41 @@ START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
+LOCAL_OLLAMA_PORT=11434
+LOCAL_PROXY_PORT=11435
+LOCAL_PROXY_BIND="${WORKBENCH_LLM_PROXY_BIND:-127.0.0.1}"
+
+port_is_open() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+}
+
+start_local_ollama() {
+  if port_is_open "$LOCAL_OLLAMA_PORT"; then
+    return 0
+  fi
+  echo "Starting Ollama..."
+  OLLAMA_HOST="127.0.0.1:$LOCAL_OLLAMA_PORT" \
+    nohup ollama serve >/tmp/workbench-ollama.log 2>&1 &
+  sleep 1
+}
+
+# The agent must not reach Ollama itself. That port also pulls, creates, and
+# deletes models, and a pull fetches from any registry host the caller names.
+start_local_inference_proxy() {
+  if port_is_open "$LOCAL_PROXY_PORT"; then
+    return 0
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required for --local-model." >&2
+    exit 1
+  fi
+  echo "Starting the inference-only proxy..."
+  nohup python3 "$WORKBENCH_ROOT/tools/llm/ollama_inference_proxy.py" \
+    "$LOCAL_PROXY_BIND:$LOCAL_PROXY_PORT" "127.0.0.1:$LOCAL_OLLAMA_PORT" \
+    >/tmp/workbench-llm-proxy.log 2>&1 &
+  sleep 1
+}
+
 if [ "$USE_LOCAL_MODEL" = true ]; then
   if [ -f /etc/agent-workbench/workbench.env ]; then
     set -a
@@ -52,13 +87,11 @@ if [ "$USE_LOCAL_MODEL" = true ]; then
     . /etc/agent-workbench/workbench.env
     set +a
   fi
-  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:11434/v1}"
+  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
   LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
-  if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]] &&
-    ! curl -sf --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null; then
-    echo "Starting Ollama..."
-    OLLAMA_HOST=0.0.0.0:11434 nohup ollama serve >/tmp/workbench-ollama.log 2>&1 &
-    sleep 1
+  if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]]; then
+    start_local_ollama
+    start_local_inference_proxy
   fi
 fi
 

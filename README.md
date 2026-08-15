@@ -42,6 +42,7 @@ It checks for command collisions, confirms the profile change, and creates a bac
 - [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode.
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for the coding agent you plan to use.
+- For `--local-model` only: [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
 
 Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. For skills, MCP tools, and hooks installed on top of those CLIs, see [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
@@ -197,7 +198,7 @@ Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you 
 
 ### Local LLM
 
-Optional spot GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11434/v1`.
+Optional spot GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
 
 ```shell
 workbench llm up
@@ -208,6 +209,8 @@ workbench llm down
 On a Mac, `start-opencode --local-model` uses local Ollama and `qwen3.8:27b-mlx`. No extra env vars.
 
 `status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`.
+
+Port 11435 is an inference-only proxy ([ollama_inference_proxy.py](tools/llm/ollama_inference_proxy.py)). Ollama itself listens on loopback, because its own port pulls models from any registry host the caller names. If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
 
 Before the first `up`: store a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key` (same create/sign steps as [Tailscale access](#1-tailscale-access)), and raise the [GPU spot quota](#5-gpu-spot-quota-local-llm-only).
 

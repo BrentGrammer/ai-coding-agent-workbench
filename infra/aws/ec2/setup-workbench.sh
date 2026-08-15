@@ -30,7 +30,7 @@ install -d -m 755 /etc/agent-workbench
 touch /etc/agent-workbench/workbench.env
 chmod 644 /etc/agent-workbench/workbench.env
 grep -q '^LOCAL_LLM_BASE_URL=' /etc/agent-workbench/workbench.env ||
-  echo 'LOCAL_LLM_BASE_URL=http://agent-llm:11434/v1' >> /etc/agent-workbench/workbench.env
+  echo 'LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1' >> /etc/agent-workbench/workbench.env
 grep -q '^LOCAL_LLM_MODEL=' /etc/agent-workbench/workbench.env ||
   echo 'LOCAL_LLM_MODEL=qwen3.8:27b' >> /etc/agent-workbench/workbench.env
 

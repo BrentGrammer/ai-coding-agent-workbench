@@ -4,6 +4,8 @@
 set -euo pipefail
 
 LLM_MODEL_DIR=/usr/share/ollama/.ollama/models
+LLM_PROXY_PORT=11435
+INFERENCE_PROXY_SCRIPT=/opt/agent-workbench/tools/llm/ollama_inference_proxy.py
 TAILSCALE_AUTH_KEY_PARAMETER=/coding-agent-workbench/tailscale/llm-auth-key
 SETUP_STATE_DIR=/var/lib/agent-workbench
 CONTINUE_SERVICE=/etc/systemd/system/llm-setup.service
@@ -40,6 +42,7 @@ apt-get install -y --no-install-recommends \
   curl \
   jq \
   linux-headers-generic \
+  python3 \
   ubuntu-drivers-common \
   unzip
 
@@ -105,12 +108,36 @@ command -v ollama >/dev/null 2>&1 || curl -fsSL https://ollama.com/install.sh | 
 install -d -m 755 /etc/systemd/system/ollama.service.d
 cat > /etc/systemd/system/ollama.service.d/override.conf <<'EOF'
 [Service]
-Environment=OLLAMA_HOST=0.0.0.0:11434
+Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_CONTEXT_LENGTH=32768
 EOF
 systemctl daemon-reload
 systemctl enable --now ollama
 systemctl restart ollama
+
+echo "== Inference-only proxy"
+# The tailnet reaches this proxy, not Ollama. The Ollama port also pulls,
+# creates, and deletes models, and a pull fetches from any registry host the
+# caller names.
+cat > /etc/systemd/system/llm-inference-proxy.service <<EOF
+[Unit]
+Description=Serves only the inference routes of Ollama
+After=ollama.service
+Wants=ollama.service
+
+[Service]
+ExecStart=/usr/bin/python3 $INFERENCE_PROXY_SCRIPT 0.0.0.0:$LLM_PROXY_PORT 127.0.0.1:11434
+DynamicUser=yes
+NoNewPrivileges=yes
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable llm-inference-proxy.service
+systemctl restart llm-inference-proxy.service
 
 echo "== Model $LLM_MODEL"
 install -d -m 755 -o ollama -g ollama "$LLM_MODEL_DIR"
@@ -147,4 +174,4 @@ if [ -f "$CONTINUE_SERVICE" ]; then
   systemctl daemon-reload
 fi
 
-echo "== Done. Serving $LLM_MODEL on http://agent-llm:11434/v1"
+echo "== Done. Serving $LLM_MODEL on http://agent-llm:$LLM_PROXY_PORT/v1"
