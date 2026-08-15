@@ -3,7 +3,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
-configureLocalWorkspace "$@"
+
+USE_LOCAL_MODEL=false
+pi_args=()
+for arg in "$@"; do
+  case "$arg" in
+    --local-model) USE_LOCAL_MODEL=true ;;
+    *) pi_args+=("$arg") ;;
+  esac
+done
+# bash 3.2, which macOS ships, treats an empty array as unset under `set -u`.
+configureLocalWorkspace ${pi_args[@]+"${pi_args[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
@@ -11,6 +21,11 @@ SANDBOX_NAME="pi-$REPO_REPLACE_UNDERSCORES"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
+source "$SCRIPT_DIR/local_llm.sh"
+
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  resolve_local_llm
+fi
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
@@ -29,30 +44,92 @@ allow_pi_network() {
     sbx policy allow network --sandbox "$SANDBOX_NAME" pi.dev:443
     sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
     sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
+    if [ "$USE_LOCAL_MODEL" = true ]; then
+        allow_local_llm_network
+    fi
 }
 
 install_pi_cli() {
     sbx exec "$SANDBOX_NAME" bash -c "
 set -euo pipefail
 
-  sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.82.1
+  sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.84.2
 
 pi install npm:pi-web-access@0.14.0
+"
+}
+
+# pi reads custom providers from ~/.pi/agent/models.json and picks up changes
+# each time /model opens. There is no config field for a default model.
+install_pi_local_model_config() {
+    if [ "$USE_LOCAL_MODEL" != true ]; then
+        return
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "ERROR: jq is required for --local-model." >&2
+        exit 1
+    fi
+    local models_config
+    models_config="$(mktemp)"
+    jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+        '{
+          providers: {
+            "local-llm": {
+              baseUrl: $url,
+              api: "openai-completions",
+              apiKey: "ollama",
+              models: [ {
+                id: $model,
+                reasoning: true,
+                thinkingLevelMap: { off: "none", minimal: null, low: "low", medium: "medium", high: "high", xhigh: null, max: null },
+                compat: { supportsReasoningEffort: true }
+              } ]
+            }
+          }
+        }' > "$models_config"
+    install_file_into_sandbox "$models_config" /home/agent/.pi/agent/models.json
+    rm -f "$models_config"
+}
+
+usage_instructions() {
+    local local_model_lines=""
+    if [ "$USE_LOCAL_MODEL" = true ]; then
+        local_model_lines="
+Switch to the local model:
+
+    Ctrl+L or /model -> local-llm
+    Shift+Tab -> medium (thinking level)
+"
+    fi
+    sbx exec "$SANDBOX_NAME" bash -c "
+cat <<MSG
+
+------ Usage Instructions ------
+
+Start:
+
+    pi
+
+First time: run '/login' to set a key or subscription plan.
+Switch models any time with Ctrl+L or /model.
+$local_model_lines
+MSG
 "
 }
 
 if sandboxExists "$SANDBOX_NAME"; then
     echo "✅ Existing sandbox found: $SANDBOX_NAME"
     echo "Reconnecting..."
-    echo "REMINDER: Once inside the sandbox, run 'pi' to start the CLI."
 
     allow_pi_network
     configure_sandbox_env
     install_pi_cli
+    install_pi_local_model_config
     install_matt_pocock_skills "$REPO_ROOT" pi
     install_skill_creator "$REPO_ROOT" pi
     install_no_mistakes "$REPO_ROOT" pi
 
+    usage_instructions
     sbx run "$SANDBOX_NAME"
 else
     echo "🆕 Creating new sandbox: $SANDBOX_NAME"
@@ -68,6 +145,7 @@ else
 
     install_node_lts
     install_pi_cli
+    install_pi_local_model_config
     install_matt_pocock_skills "$REPO_ROOT" pi
     install_skill_creator "$REPO_ROOT" pi
     install_no_mistakes "$REPO_ROOT" pi
@@ -75,7 +153,7 @@ else
     configure_sandbox_env
 
     echo "✅ Setup complete! Dropping you into the sandbox."
-    echo "!!! REMINDER: Run 'pi' to start the CLI, then run '/login' command after starting pi to set a key or subscription plan."
+    usage_instructions
     sbx run "$SANDBOX_NAME"
 fi
 

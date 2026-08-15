@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Stops the host processes that `start-opencode --local-model` started.
+set -euo pipefail
+
+STATE_DIR="$HOME/.local/state/agent-workbench"
+
+usage() {
+  cat <<'EOF'
+Usage: stop-local-llm
+
+Stops the Ollama server and the inference proxy that `start-opencode
+--local-model` started on this host, and removes their logs.
+
+It stops only processes this workbench started. An Ollama you run yourself,
+such as the desktop app, is left alone.
+EOF
+  exit 1
+}
+
+stop_recorded_process() {
+  local name="$1" key="$2" command_pattern="$3"
+  local pid_file="$STATE_DIR/$key.pid"
+  local log_file="$STATE_DIR/$key.log"
+  local pid
+
+  if [ ! -f "$pid_file" ]; then
+    echo "$name: not started by the workbench, left alone."
+    return
+  fi
+
+  pid="$(cat "$pid_file")"
+  # The recorded process can be long gone and its number reused, so confirm
+  # the command before killing anything.
+  if ps -p "$pid" -o command= 2>/dev/null | grep -q "$command_pattern"; then
+    kill "$pid"
+    echo "$name: stopped (pid $pid)."
+  else
+    echo "$name: already stopped."
+  fi
+
+  rm -f "$pid_file" "$log_file"
+}
+
+[ $# -eq 0 ] || usage
+
+stop_recorded_process "Inference proxy" llm-proxy ollama_inference_proxy.py
+stop_recorded_process "Ollama" ollama "ollama serve"

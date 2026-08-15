@@ -10,7 +10,7 @@ This CDK project deploys two stacks: `AgentWorkbenchTokenStack`, the Lambda func
 
 ## Prerequisites
 
-Create the GitHub App and the Tailscale auth key first, and store all three parameters below in AWS Systems Manager Parameter Store, in the region where the stack deploys. The steps are in [One-time setup](../../README.md#one-time-setup) in the main README.
+Create the GitHub App and the Tailscale auth key first, and store all three parameters below in AWS Systems Manager Parameter Store, in the region where the stack deploys. The steps are in [Cloud one-time setup](../../docs/cloud-onetime-setup.md). Before `workbench llm up`, also raise the [G-family spot quota](../../docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only).
 
 | Parameter                                    | Type           | Value                            |
 | -------------------------------------------- | -------------- | -------------------------------- |
@@ -58,7 +58,7 @@ The deploy command deploys both stacks: the token Lambda and the EC2 workbench i
 
 The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself. `bin/workbench ec2 update` re-runs the setup script for updates.
 
-The tailnet policy and the auth key are one-time setup. The steps are in [One-time setup](../../README.md#one-time-setup) in the main README.
+The tailnet policy and the auth key are one-time setup. The steps are in [Cloud one-time setup](../../docs/cloud-onetime-setup.md).
 
 At each rebuild (destroy + deploy): make a fresh Tailscale auth key (non-reusable, tagged `tag:workbench`, 1-day expiry), store it in the SSM parameter, then deploy right away so first boot uses it. Revoke the old key in Tailscale afterward.
 

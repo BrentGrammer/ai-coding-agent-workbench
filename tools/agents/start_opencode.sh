@@ -24,7 +24,17 @@ set -euo pipefail
 # MODEL="amazon-bedrock/zai.glm-5"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
-configureLocalWorkspace "$@"
+
+USE_LOCAL_MODEL=false
+opencode_args=()
+for arg in "$@"; do
+  case "$arg" in
+    --local-model) USE_LOCAL_MODEL=true ;;
+    *) opencode_args+=("$arg") ;;
+  esac
+done
+# bash 3.2, which macOS ships, treats an empty array as unset under `set -u`.
+configureLocalWorkspace ${opencode_args[@]+"${opencode_args[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_NAME="$WORKSPACE_NAME"
@@ -35,6 +45,11 @@ SANDBOX_NAME="opencode-$REPO_REPLACE_UNDERSCORES"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
+source "$SCRIPT_DIR/local_llm.sh"
+
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  resolve_local_llm
+fi
 
 bash "$START_DOCKER"
 
@@ -42,7 +57,7 @@ bash "$START_DOCKER"
 #   Ex: sbx secret set <sandbox_name> openai
 #
 # Usage:
-#   ./tools/agents/start_opencode.sh
+#   ./tools/agents/start_opencode.sh [--local-model] [WORKSPACE_PATH]
 
 allow_opencode_network() {
   allow_gemini_access
@@ -53,12 +68,15 @@ allow_opencode_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" models.dev:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" models.opencode.ai:443
   # exa searches
   sbx policy allow network --sandbox "$SANDBOX_NAME" cdn.jsdelivr.net:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" opencode.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" openrouter.ai:443
-
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    allow_local_llm_network
+  fi
 }
 
 allow_codex_oauth_network() {
@@ -95,13 +113,46 @@ install_skills() {
 
 copy_config() {
   local opencode_config="$SCRIPT_DIR/opencode.json"
+  local generated_config=""
 
   if [ ! -f "$opencode_config" ]; then
     echo "WARN: No workbench OpenCode config at $opencode_config" >&2
     return
   fi
 
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    if ! command -v jq >/dev/null 2>&1; then
+      echo "ERROR: jq is required for --local-model." >&2
+      exit 1
+    fi
+    generated_config="$(mktemp)"
+    # opencode's model-level `options` are known to be dropped for custom
+    # openai-compatible providers (anomalyco/opencode#27361), so this may
+    # have no effect. Verify by comparing responses at different levels
+    # directly against the proxy before relying on it.
+    jq --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+       --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
+      '.model = ("local-llm/" + $model)
+       | .provider += {
+           "local-llm": {
+             "npm": "@ai-sdk/openai-compatible",
+             "name": "Local LLM",
+             "options": { "baseURL": $url, "apiKey": "ollama" },
+             "models": {
+               ($model): (
+                 { "name": $model }
+                 + (if $effort == "" then {} else { "options": { "reasoningEffort": $effort } } end)
+               )
+             }
+           }
+         }' "$opencode_config" > "$generated_config"
+    opencode_config="$generated_config"
+  fi
+
   install_file_into_sandbox "$opencode_config" /etc/opencode/opencode.json 644 755 root:root
+  if [ -n "$generated_config" ]; then
+    rm -f "$generated_config"
+  fi
 }
 
 install_codex_auth_plugin() {
@@ -161,7 +212,11 @@ MSG
 echo "Starting opencode agent for project $PROJECT_BASENAME"
 echo "Sandbox name: $SANDBOX_NAME"
 echo "Project dir: $PROJECT_DIR"
-echo "Auth mode: OpenAI Codex (ChatGPT Plus/Pro OAuth)"
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  echo "Model: $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL"
+else
+  echo "Auth mode: OpenAI Codex (ChatGPT Plus/Pro OAuth)"
+fi
 
 # Reuse existing sandbox if it already exists
 if sandboxExists "$SANDBOX_NAME"; then
@@ -199,4 +254,4 @@ fi
 
 ##### SETTING OPENROUTER ##########
 
-# sbx secret set-custom "$SANDBOX_NAME" --host openrouter.ai --env OPENROUTER_API_KEY
+# sbx secr
