@@ -33,7 +33,8 @@ for arg in "$@"; do
     *) opencode_args+=("$arg") ;;
   esac
 done
-configureLocalWorkspace "${opencode_args[@]}"
+# bash 3.2, which macOS ships, treats an empty array as unset under `set -u`.
+configureLocalWorkspace ${opencode_args[@]+"${opencode_args[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_NAME="$WORKSPACE_NAME"
