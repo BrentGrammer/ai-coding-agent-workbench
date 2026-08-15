@@ -106,11 +106,11 @@ start-codex --prompt-instruction-copy
 start-codex --prompt-instruction-copy "/path/to/project"
 ```
 
-`readonly/CONVENTIONS.md` and `readonly/REACT_INSTRUCTIONS.md` are optional convenience files. You can copy them into a project yourself when needed.
+`readonly/CONVENTIONS.md` and `readonly/REACT_INSTRUCTIONS.md` are optional convenience files. You can copy them into a project when needed.
 
 ### `--clone`: keep secrets out of the sandbox
 
-Launchers mount your live folder, so a real `.env` is readable by the agent. Some of the harnesses have sufficient protection, but some do not and `--clone` is recommended for:
+Launchers mount the live folder, so a real `.env` is readable by the agent. Some of the harnesses have sufficient protection, but some do not and `--clone` is recommended for:
 
 **Recommended: Use `--clone` with these:** `start-cline`, `start-cursor`, `start-antigravity`, `start-gemini`, `start-grok`, `start-junie`, `start-kilo`, `start-pi`, `start-commandcode`. None of them can block a secret read.
 
@@ -121,7 +121,7 @@ start-cursor --clone
 SANDBOX_CLONE=true start-herdr   # herdr takes positional arguments only
 ```
 
-The agent then works on a git clone inside the sandbox. The tradeoff: using this option means your original project files drift from the sandbox project so you need to keep them in sync.
+The agent then works on a git clone inside the sandbox. The tradeoff: using this option means original project files drift from the sandbox project so you need to keep them in sync.
 
 ### Security findings
 
@@ -173,7 +173,7 @@ The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 A
 
 ```shell
 start-workbench          # starts the box if stopped, connects with mosh
-cd ~/workspace/<your-repo>
+cd ~/workspace/<repo>
 start-herdr [agent]      # cursor (default) | claude | codex | opencode
 ```
 
@@ -208,7 +208,7 @@ Runs an open model instead of a hosted API. Two targets, same launcher flag:
 - GPU box: a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key`, created and signed the same way as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access).
 - GPU box: the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only) raised, before the first `workbench llm up`.
 
-### Run on your Mac
+### Run on a Mac
 
 ```shell
 start-opencode --local-model
@@ -229,7 +229,7 @@ workbench llm down             # when you are done
 - `status` — Shows whether you left it on.
 - `down` — Destroys the GPU box. The S3 model cache stays.
 
-The workbench box already points at the GPU box, reading `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL` from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. To drive the GPU box from your Mac instead, set `LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1`.
+The workbench box already points at the GPU box, reading `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL` from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. To drive the GPU box from a Mac instead, set `LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1`.
 
 ### Why port 11435
 
@@ -262,7 +262,7 @@ If you see `error: nested herdr is disabled by default`:
 
 1. Run `herdr server stop`.
 2. Reconnect to the EC2 box.
-3. Run `cd ~/workspace/<your-repo>`.
+3. Run `cd ~/workspace/<repo>`.
 4. Run `start-herdr`.
 
 ## Auto-installed tools, skills, and hooks
