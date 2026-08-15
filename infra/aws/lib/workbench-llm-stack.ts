@@ -7,7 +7,7 @@ import { Construct } from "constructs";
 const INSTANCE_TYPE = "g6.xlarge";
 const DISK_GIB = 60;
 const INSTANCE_NAME = "agent-workbench-gpu-llm";
-const LLM_MODEL = "qwen3.8:27b";
+export const LLM_MODEL = "qwen3.8:27b";
 const TAILSCALE_AUTH_KEY_PARAMETER =
   "/coding-agent-workbench/tailscale/llm-auth-key";
 const DEFAULT_REPO_URL =

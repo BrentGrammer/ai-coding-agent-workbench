@@ -140,6 +140,7 @@ install -m 644 "$REPO_DIR/infra/aws/runtime/github-token-relay.mjs" /usr/local/l
 install -m 644 "$REPO_DIR/infra/aws/runtime/github-app-token-client.mjs" /usr/local/lib/agent-workbench/github-app-token-client.mjs
 install -m 644 "$REPO_DIR/infra/aws/ec2/github-token-relay-service.mjs" /usr/local/lib/agent-workbench/github-token-relay-service.mjs
 
+install -m 644 "$REPO_DIR/tools/agents/local_llm.sh" /usr/local/lib/agent-workbench/local_llm.sh
 install -m 755 "$REPO_DIR/infra/aws/ec2/start-herdr" /usr/local/bin/start-herdr
 rm -f /usr/local/bin/workbench-open
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop

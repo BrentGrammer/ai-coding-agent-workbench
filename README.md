@@ -240,14 +240,19 @@ LOCAL_LLM_REASONING_EFFORT=low start-opencode --local-model
 
 Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pick the level yourself each session: `Ctrl+L` or `/model` -> `local-llm`, then `Shift+Tab` to the level you want.
 
-### GPU box: not usable yet
+### GPU box
 
-`workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box. That part works. Nothing beyond it does:
+`workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box.
 
-- The EC2 workbench box's native launcher (`start-herdr`) has no local-model support. `setup-workbench.sh` writes `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` into its `workbench.env`, but nothing reads them.
-- Driving it from a Mac (`LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model`) is untested. It needs Docker's sandbox network to reach the Tailscale hostname `agent-llm` from inside its VM, which is unconfirmed.
+From the EC2 workbench box, point OpenCode at it with `--local-model`:
 
-Until one of these is verified and built out, the GPU box is deploy/destroy only. Use [Run on a Mac](#run-on-a-mac) above.
+```shell
+start-herdr opencode ~/some-repo --local-model
+```
+
+The endpoint comes from `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` in the box's `workbench.env`. The launcher passes the provider to OpenCode in `OPENCODE_CONFIG_CONTENT`, which OpenCode merges over your own config, so your model choice and permission rules stay as they are for every other session. OpenCode only, for now. The flag is rejected for the other agents.
+
+Still untested: driving the GPU box from a Mac (`LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model`). It needs Docker's sandbox network to reach the Tailscale hostname `agent-llm` from inside its VM, which is unconfirmed.
 
 ### Why port 11435
 

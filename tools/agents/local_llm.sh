@@ -64,6 +64,33 @@ resolve_local_llm() {
   fi
 }
 
+# One line, because the EC2 box carries this in OPENCODE_CONFIG_CONTENT.
+# reasoningEffort may be dropped for custom providers (anomalyco/opencode#27361).
+opencode_local_model_config() {
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "ERROR: jq is required for --local-model." >&2
+    exit 1
+  fi
+  jq -nc --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+     --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
+    '{
+       model: ("local-llm/" + $model),
+       provider: {
+         "local-llm": {
+           npm: "@ai-sdk/openai-compatible",
+           name: "Local LLM",
+           options: { baseURL: $url, apiKey: "ollama" },
+           models: {
+             ($model): (
+               { name: $model }
+               + (if $effort == "" then {} else { options: { reasoningEffort: $effort } } end)
+             )
+           }
+         }
+       }
+     }'
+}
+
 # Allowlists the sandbox to reach LOCAL_LLM_BASE_URL. Needs $SANDBOX_NAME.
 allow_local_llm_network() {
   local without_scheme="${LOCAL_LLM_BASE_URL#*://}"

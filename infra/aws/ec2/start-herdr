@@ -1,14 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
-  echo "Usage: start-herdr [agent] [workspace-dir]"
-  echo "Agents: claude codex opencode cursor. Default: cursor in the current directory."
-  exit 0
-fi
+USE_LOCAL_MODEL=false
+POSITIONAL=()
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      echo "Usage: start-herdr [agent] [workspace-dir] [--local-model]"
+      echo "Agents: claude codex opencode cursor. Default: cursor in the current directory."
+      echo "--local-model: use the GPU box from workbench.env. opencode only."
+      exit 0
+      ;;
+    --local-model) USE_LOCAL_MODEL=true ;;
+    -*)
+      echo "ERROR: Unknown option: $arg" >&2
+      exit 1
+      ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
+done
 
-WORKBENCH_AGENT="${1:-cursor}"
-WORKSPACE_DIR="$(cd "${2:-$PWD}" && pwd)"
+WORKBENCH_AGENT="${POSITIONAL[0]:-cursor}"
+WORKSPACE_DIR="$(cd "${POSITIONAL[1]:-$PWD}" && pwd)"
+
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  if [ "$WORKBENCH_AGENT" != opencode ]; then
+    echo "ERROR: --local-model supports opencode only, not $WORKBENCH_AGENT." >&2
+    exit 1
+  fi
+  # shellcheck disable=SC1091
+  . /usr/local/lib/agent-workbench/local_llm.sh
+  resolve_local_llm
+  OPENCODE_CONFIG_CONTENT="$(opencode_local_model_config)"
+  export OPENCODE_CONFIG_CONTENT
+  echo "Model: $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL"
+fi
 
 # Key the session to the workspace firectory name/path (like local_workspace.sh does) so a stale
 # server from another project is never reused. It used to just key sessions as "main" which spun up other sessions in different projects.

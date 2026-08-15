@@ -121,31 +121,10 @@ copy_config() {
   fi
 
   if [ "$USE_LOCAL_MODEL" = true ]; then
-    if ! command -v jq >/dev/null 2>&1; then
-      echo "ERROR: jq is required for --local-model." >&2
-      exit 1
-    fi
     generated_config="$(mktemp)"
-    # opencode's model-level `options` are known to be dropped for custom
-    # openai-compatible providers (anomalyco/opencode#27361), so this may
-    # have no effect. Verify by comparing responses at different levels
-    # directly against the proxy before relying on it.
-    jq --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
-       --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
-      '.model = ("local-llm/" + $model)
-       | .provider += {
-           "local-llm": {
-             "npm": "@ai-sdk/openai-compatible",
-             "name": "Local LLM",
-             "options": { "baseURL": $url, "apiKey": "ollama" },
-             "models": {
-               ($model): (
-                 { "name": $model }
-                 + (if $effort == "" then {} else { "options": { "reasoningEffort": $effort } } end)
-               )
-             }
-           }
-         }' "$opencode_config" > "$generated_config"
+    # `*` merges deeply, so the provider is added and .model is replaced.
+    jq -s '.[0] * .[1]' \
+      "$opencode_config" <(opencode_local_model_config) > "$generated_config"
     opencode_config="$generated_config"
   fi
 

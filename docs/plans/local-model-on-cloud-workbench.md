@@ -108,36 +108,44 @@ SSH to the workbench box and run these checks.
    `OPENCODE_CONFIG` with a temp file under
    `/tmp/agent-workbench/herdr-$WORKBENCH_SESSION` is not needed.
 
-2. **Does the merge keep the user's keys?**
+2. **Does the merge keep the user's keys?** DONE — yes.
 
-   With the same command, confirm the `permission` and `mcp` blocks from the global
-   config are still in effect. If the layer replaces instead of merges, fall back to a
-   jq merge of the full global config into a temp file.
+   Run `/mcp` in a session started with the layer. The Exa server is declared only in
+   the global config, and the layer does not mention it, so its presence proves the
+   merge. It is listed. The `permission` and `watcher` blocks survive with it, and the
+   launcher can pass a fragment rather than a full merged copy.
+
+   Do not test this by asking the agent to read a `.env` file. That needs the GPU box
+   running and needs the model to make a tool call, so a failure would not say which
+   part broke. `/mcp` needs no inference.
 
 3. **Does `.model` in the layer select the model, or must the user pick it?**
+   DONE — the layer selects it.
 
-   Opencode remembers the last model chosen per project, and `config.model` is a
-   default rather than a hard override. So setting `.model` may not switch an
-   existing project. In a directory opencode has never opened, run the command from
-   check 1 with `"model":"local-llm/qwen3.8:27b"` added, and see whether the model is
-   already active without touching `/models`.
+   Opencode remembers the last model chosen per project, so `config.model` could have
+   been a default that a stored selection outranks. In a directory opencode had never
+   opened, the layer from check 1 plus `"model":"local-llm/qwen3.8:27b"` opened with
+   Qwen already active. So Step 3 does not need to set the model separately.
 
-   If it is not, `--local-model` must also clear or set the stored selection, and that
-   is an extra step in Step 3.
+   Open question: a project with a stored selection may still override this. If a user
+   reports `--local-model` having no effect in a repo they use daily, this is the first
+   place to look.
 
-4. **Does the variable reach a herdr pane?**
+4. **Does the variable reach a herdr pane?** DONE — yes.
 
    ```shell
-   FOO=bar start-herdr opencode ~/some-repo
+   FOO=bar start-herdr opencode ~
    ```
 
-   In the agent pane, run `printenv FOO`. `runtime/workbench-pane-shell:20` unsets
-   `XDG_CONFIG_HOME` and `XDG_STATE_HOME` and touches nothing else, so this should
-   pass. If it does not, `start-herdr` must write a file and pass only the path, or
-   `workbench-pane-shell` must set the variable itself.
+   `printenv FOO` in the pane prints `bar`. `runtime/workbench-pane-shell:20` unsets
+   `XDG_CONFIG_HOME` and `XDG_STATE_HOME` and touches nothing else. So `start-herdr`
+   can export the config and does not need to write a file.
 
-Record the result of each check in the pull request. The steps below assume all four
-pass.
+All four checks pass on opencode 1.18.11. The steps below are cleared to build.
+
+One warning from doing them: a pasted multi-line block arrives indented in this
+terminal, which breaks heredocs and can put a newline inside a JSON string. Build test
+files with short single-line commands.
 
 ## Step 1 — Move the provider JSON into a shared function
 
@@ -161,6 +169,9 @@ stdout. It reads `LOCAL_LLM_BASE_URL`, `LOCAL_LLM_MODEL`, and
   }
 }
 ```
+
+Emit it compact, with `jq -c`. The cloud path carries this value in an environment
+variable, and a newline inside a JSON string breaks the parse.
 
 Then change `start_opencode.sh:133-148` to call the function and merge its output into
 the template, so the Mac path and the cloud path stay identical.
