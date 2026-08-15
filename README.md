@@ -195,6 +195,20 @@ Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you 
 
 `ssh`, `mosh`, and `update` find the box by its tailnet hostname. Override the host with `WORKBENCH_EC2_HOST` and the login user with `WORKBENCH_EC2_USER`.
 
+### Local LLM
+
+Optional spot GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11434/v1`.
+
+```shell
+workbench llm up
+start-opencode --local-model
+workbench llm down
+```
+
+`status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. A laptop uses the same defaults, or those env vars.
+
+Before the first `up`: store a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key` (same create/sign steps as [Tailscale access](#1-tailscale-access)), and raise the [GPU spot quota](#5-gpu-spot-quota-local-llm-only).
+
 ### One-time setup
 
 The deploy reads three secrets from AWS Systems Manager Parameter Store: a Tailscale auth key, and a GitHub App ID and private key. Create them before you deploy following Steps 1 and 2 below.
