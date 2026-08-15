@@ -200,7 +200,7 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, same launcher flag:
 
 - **Mac** — local Ollama. No AWS, no cost, nothing to start first.
-- **GPU box** — an optional spot GPU instance in the cloud, managed with `workbench llm`.
+- **GPU box** — an optional spot GPU instance in the cloud, managed with `workbench llm`. Driven from a local Mac host machine only — the EC2 workbench box's native launcher (`start-herdr`) has no local-model support.
 
 ### Prerequisites
 
@@ -208,6 +208,7 @@ Runs an open model instead of a hosted API. Works with `start-opencode` and `sta
 - On Mac host (Local only): the model pulled once with `ollama pull qwen3.8:27b-mlx`.
 - GPU box: a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key`, created and signed the same way as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access).
 - GPU box: the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only) raised, before the first `workbench llm up`.
+- GPU box: nothing to deploy by hand. `workbench llm up` deploys its two CDK stacks (`AgentWorkbenchLlmCacheStack`, `AgentWorkbenchLlmStack`) itself, every time — a no-op if they're already up to date. This needs CDK already bootstrapped for the account/region, which the base Cloud setup already requires.
 
 ### Run on a Mac
 
@@ -233,18 +234,21 @@ It stops only what the launcher started and it deletes the logs and PID files in
 
 ### Run on the GPU box
 
+From your Mac — the EC2 workbench box cannot drive this yet:
+
 ```shell
-workbench llm up                        # from anywhere with AWS credentials
-start-workbench                         # connect to the workbench box
-start-opencode --local-model            # on the box, or start-pi --local-model
-workbench llm down                      # when you are done
+workbench llm up
+LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1 start-opencode --local-model
+workbench llm down
 ```
 
 - `up` — Deploys the GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
 - `status` — Shows whether you left it on.
 - `down` — Destroys the GPU box. The S3 model cache stays.
 
-The workbench box already points at the GPU box, reading `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL` from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. To drive the GPU box from a Mac instead, set `LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1`.
+This needs your Mac on the same tailnet as the GPU box, and Docker's sandbox network reaching the Tailscale hostname `agent-llm` from inside its VM — a different, less-tested path than `host.docker.internal`. Confirm it works from inside the sandbox before relying on it: `curl http://agent-llm:11435/v1/models`.
+
+`setup-workbench.sh` writes `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` into the EC2 box's `/etc/agent-workbench/workbench.env`, but nothing on that box reads them yet — the native `start-herdr` launcher has no local-model wiring.
 
 Defaults to `medium` thinking. Set it before the launcher command to override:
 
