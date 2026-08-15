@@ -45,62 +45,10 @@ SANDBOX_NAME="opencode-$REPO_REPLACE_UNDERSCORES"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
-
-LOCAL_OLLAMA_PORT=11434
-LOCAL_PROXY_PORT=11435
-LOCAL_PROXY_BIND="${WORKBENCH_LLM_PROXY_BIND:-127.0.0.1}"
-LOCAL_LLM_STATE_DIR="$HOME/.local/state/agent-workbench"
-
-port_is_open() {
-  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
-}
-
-# stop-local-llm reads these files, so it only ever stops processes this
-# launcher started and never an Ollama the user runs themselves.
-start_local_ollama() {
-  if port_is_open "$LOCAL_OLLAMA_PORT"; then
-    return 0
-  fi
-  echo "Starting Ollama..."
-  mkdir -p "$LOCAL_LLM_STATE_DIR"
-  OLLAMA_HOST="127.0.0.1:$LOCAL_OLLAMA_PORT" \
-    nohup ollama serve >"$LOCAL_LLM_STATE_DIR/ollama.log" 2>&1 &
-  echo "$!" > "$LOCAL_LLM_STATE_DIR/ollama.pid"
-  sleep 1
-}
-
-# The agent must not reach Ollama itself. That port also pulls, creates, and
-# deletes models, and a pull fetches from any registry host the caller names.
-start_local_inference_proxy() {
-  if port_is_open "$LOCAL_PROXY_PORT"; then
-    return 0
-  fi
-  if ! command -v python3 >/dev/null 2>&1; then
-    echo "ERROR: python3 is required for --local-model." >&2
-    exit 1
-  fi
-  echo "Starting the inference-only proxy..."
-  mkdir -p "$LOCAL_LLM_STATE_DIR"
-  nohup python3 "$WORKBENCH_ROOT/tools/llm/ollama_inference_proxy.py" \
-    "$LOCAL_PROXY_BIND:$LOCAL_PROXY_PORT" "127.0.0.1:$LOCAL_OLLAMA_PORT" \
-    >"$LOCAL_LLM_STATE_DIR/llm-proxy.log" 2>&1 &
-  echo "$!" > "$LOCAL_LLM_STATE_DIR/llm-proxy.pid"
-  sleep 1
-}
+source "$SCRIPT_DIR/local_llm.sh"
 
 if [ "$USE_LOCAL_MODEL" = true ]; then
-  if [ -f /etc/agent-workbench/workbench.env ]; then
-    set -a
-    # shellcheck disable=SC1091
-    . /etc/agent-workbench/workbench.env
-    set +a
-  fi
-  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
-  LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
-  if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]]; then
-    start_local_ollama
-    start_local_inference_proxy
-  fi
+  resolve_local_llm
 fi
 
 bash "$START_DOCKER"
@@ -128,27 +76,6 @@ allow_opencode_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" openrouter.ai:443
   if [ "$USE_LOCAL_MODEL" = true ]; then
     allow_local_llm_network
-  fi
-}
-
-allow_local_llm_network() {
-  local without_scheme="${LOCAL_LLM_BASE_URL#*://}"
-  local hostport="${without_scheme%%/*}"
-  if [ -z "$hostport" ]; then
-    return 0
-  fi
-  if [[ "$hostport" != *:* ]]; then
-    if [[ "$LOCAL_LLM_BASE_URL" == https://* ]]; then
-      hostport="${hostport}:443"
-    else
-      hostport="${hostport}:80"
-    fi
-  fi
-  sbx policy allow network --sandbox "$SANDBOX_NAME" "$hostport"
-
-  # Docker Desktop routes host.docker.internal to the host's loopback. this fixes forbidden sbx policy error.
-  if [[ "$hostport" == host.docker.internal:* ]]; then
-    sbx policy allow network --sandbox "$SANDBOX_NAME" "localhost:${hostport#*:}"
   fi
 }
 
@@ -199,14 +126,24 @@ copy_config() {
       exit 1
     fi
     generated_config="$(mktemp)"
+    # opencode's model-level `options` are known to be dropped for custom
+    # openai-compatible providers (anomalyco/opencode#27361), so this may
+    # have no effect. Verify by comparing responses at different levels
+    # directly against the proxy before relying on it.
     jq --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+       --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
       '.model = ("local-llm/" + $model)
        | .provider += {
            "local-llm": {
              "npm": "@ai-sdk/openai-compatible",
              "name": "Local LLM",
              "options": { "baseURL": $url, "apiKey": "ollama" },
-             "models": { ($model): { "name": $model } }
+             "models": {
+               ($model): (
+                 { "name": $model }
+                 + (if $effort == "" then {} else { "options": { "reasoningEffort": $effort } } end)
+               )
+             }
            }
          }' "$opencode_config" > "$generated_config"
     opencode_config="$generated_config"
@@ -317,4 +254,4 @@ fi
 
 ##### SETTING OPENROUTER ##########
 
-# sbx secret set-custom "$SANDBOX_NAME" --host openrouter.ai --env OPENROUTER_API_KEY
+# sbx secr

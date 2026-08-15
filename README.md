@@ -197,7 +197,7 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 ## Local LLM
 
-Runs an open model instead of a hosted API. Two targets, same launcher flag:
+Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, same launcher flag:
 
 - **Mac** — local Ollama. No AWS, no cost, nothing to start first.
 - **GPU box** — an optional spot GPU instance in the cloud, managed with `workbench llm`.
@@ -215,9 +215,13 @@ Runs an open model instead of a hosted API. Two targets, same launcher flag:
 start-opencode --local-model
 ```
 
-Starts Ollama on loopback and serves `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
+```shell
+start-pi --local-model
+```
 
-Inside the sandbox, `opencode` already defaults to the local model by updating `/etc/opencode/opencode.json` — no `/connect` needed.
+Both start Ollama on loopback and serve `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
+
+Inside the sandbox, `opencode` already defaults to the local model by updating `/etc/opencode/opencode.json` — no `/connect` needed. `pi` adds it as a `local-llm` provider in `~/.pi/agent/models.json`; select it with `Ctrl+L` or `/model`.
 
 Ollama and the proxy run on the host. A second run reuses them instead of starting more. To stop them:
 
@@ -230,10 +234,10 @@ It stops only what the launcher started and it deletes the logs and PID files in
 ### Run on the GPU box
 
 ```shell
-workbench llm up               # from anywhere with AWS credentials
-start-workbench                # connect to the workbench box
-start-opencode --local-model   # on the box
-workbench llm down             # when you are done
+workbench llm up                        # from anywhere with AWS credentials
+start-workbench                         # connect to the workbench box
+start-opencode --local-model            # on the box, or start-pi --local-model
+workbench llm down                      # when you are done
 ```
 
 - `up` — Deploys the GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
@@ -241,6 +245,14 @@ workbench llm down             # when you are done
 - `down` — Destroys the GPU box. The S3 model cache stays.
 
 The workbench box already points at the GPU box, reading `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL` from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`. To drive the GPU box from a Mac instead, set `LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1`.
+
+Defaults to `medium` thinking. Set it before the launcher command to override:
+
+```shell
+LOCAL_LLM_REASONING_EFFORT=low start-opencode --local-model
+```
+
+Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pick the level yourself each session: `Ctrl+L` or `/model` -> `local-llm`, then `Shift+Tab` to the level you want.
 
 ### Why port 11435
 
@@ -296,4 +308,4 @@ Launchers install the items below unless you remove the install steps from the s
 - The agent CLIs update themselves on the box.
 - `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
 - OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
-- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers. Check usage anytime with `docker system df`.
+- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers. Che
