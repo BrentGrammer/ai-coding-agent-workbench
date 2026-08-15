@@ -70,6 +70,8 @@ Do not commit the PEM key, put it in an environment file, or paste it into logs.
 
    If SSH fails with `tailnet policy does not permit you to SSH to this node`, the box joined and your policy file is missing the `ssh` rule from step 1. Add it and retry. If the box never appears on the tailnet, get in with `workbench ec2 ssm` and run `sudo tailscale up --ssh`.
 3. In a local terminal, from any directory, run `start-workbench` to connect. Then log in each agent once on the box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+
+   A replaced instance has new SSH host keys, so `start-workbench` fails with `REMOTE HOST IDENTIFICATION HAS CHANGED`. Run `workbench ec2 trust-host`. It reads the key over SSM, which AWS authenticates and which does not use SSH, prints the fingerprint for you to compare, and refreshes `known_hosts`. Do not delete the entry by hand — that trusts whatever answers.
 4. Set the git identity once on the box: `git config --global user.name` / `user.email`.
 5. Clone your repositories on the box, using the HTTPS URL:
 

@@ -4,7 +4,7 @@
 
 Built and verified on the box. Steps 0 to 4b and 6 are done.
 
-Confirmed with `start-herdr opencode <dir> --local-model`:
+Confirmed with `start-herdr opencode <dir> --gpu-box`:
 
 - The launcher prints the model and the endpoint from `workbench.env`.
 - Opencode opens with Local LLM / qwen3.8:27b already selected.
@@ -13,6 +13,14 @@ Confirmed with `start-herdr opencode <dir> --local-model`:
 
 Not yet verified: that a prompt returns a reply. That needs the GPU box, which is
 waiting on a vCPU quota request. It is blocked on the quota, not on this work.
+
+### Flag names
+
+The steps below were written against `--local-model`, which was the only flag at the
+time. The user-facing flag is now `--gpu-box`, on the Mac and on the EC2 box, so one
+name always means the GPU box. `--local-model` means the machine you are on, and the
+EC2 launcher still accepts it as a synonym because that is what it always meant there.
+Read `--local-model` in the steps below as `--gpu-box`.
 
 ## Goal
 
@@ -32,7 +40,7 @@ Out of scope, deferred (see [Follow-up work](#follow-up-work)):
 
 - `pi` on the EC2 box.
 - Driving the GPU box from a Mac over Tailscale.
-- `--local-model` for the Mac `start-herdr`.
+- `--gpu-box` for the Mac `start-herdr`.
 
 ## Background
 
@@ -276,12 +284,12 @@ ls -l /usr/local/lib/agent-workbench/local_llm.sh
 
 This covers the wiring, which is all this plan changes.
 
-1. `start-herdr opencode ~/some-repo --local-model`
+1. `start-herdr opencode ~/some-repo --gpu-box`
 2. The launcher prints `Model: qwen3.8:27b at http://agent-llm:11435/v1`.
 3. `/models` shows Local LLM / qwen3.8:27b already selected.
 4. `/mcp` still lists Exa, so the merge kept the user's config.
 5. A prompt fails to connect. Expected with no GPU box.
-6. `start-herdr cursor ~/some-repo --local-model` exits 1.
+6. `start-herdr cursor ~/some-repo --gpu-box` exits 1.
 
 ### With the GPU box
 

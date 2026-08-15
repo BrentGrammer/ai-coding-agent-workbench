@@ -188,6 +188,8 @@ Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you 
 - `mosh` — Opens a shell over Tailscale that survives Wi-Fi drops and laptop sleep. This is the normal way to connect.
 - `ssm` — Opens a shell through AWS Systems Manager instead of Tailscale. This is the break-glass path for when the box is not on the tailnet. It needs `session-manager-plugin` installed locally.
 - `update` — Pulls this repo on the box and re-runs the setup script. See [Updates and maintenance](#updates-and-maintenance).
+- `trust-host` — Refreshes `known_hosts` after the box is replaced. It reads the SSH host key over SSM, not over SSH, and prints the fingerprint so you can compare it. Use it when connecting fails with `REMOTE HOST IDENTIFICATION HAS CHANGED`.
+- `sync-host` — Points `agent-workbench` in `/etc/hosts` at the box's Tailscale IP, for browsers whose DNS-over-HTTPS resolver bypasses MagicDNS.
 
 `ssh`, `mosh`, and `update` find the box by its tailnet hostname. Override the host with `WORKBENCH_EC2_HOST` and the login user with `WORKBENCH_EC2_USER`.
 
@@ -197,7 +199,7 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 ## Local LLM
 
-Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, same launcher flag:
+Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, one flag each:
 
 - **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
 - **GPU box** — `--gpu-box`. An optional spot GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and from the EC2 workbench box.
@@ -250,7 +252,9 @@ From the EC2 workbench box, point OpenCode at it with `--gpu-box`:
 start-herdr opencode ~/some-repo --gpu-box
 ```
 
-The endpoint comes from `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` in the box's `workbench.env`. The launcher passes the provider to OpenCode in `OPENCODE_CONFIG_CONTENT`, which OpenCode merges over your own config, so your model choice and permission rules stay as they are for every other session. OpenCode only, for now. The flag is rejected for the other agents.
+The endpoint comes from `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` in the box's `workbench.env`. The launcher passes the provider to OpenCode in `OPENCODE_CONFIG_CONTENT`, which OpenCode merges over your own config, so your model choice and permission rules stay as they are for every other session.
+
+On the EC2 box this is OpenCode only. `start-herdr` rejects the flag for `claude`, `codex`, and `cursor` rather than ignoring it. `--local-model` is accepted there as the same thing, since that is what it always meant on that box.
 
 From a Mac, use the GPU box instead of your own Ollama:
 
