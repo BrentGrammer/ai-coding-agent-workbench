@@ -42,7 +42,6 @@ It checks for command collisions, confirms the profile change, and creates a bac
 - [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode.
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for the coding agent you plan to use.
-- For `--local-model` only: [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
 
 Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. For skills, MCP tools, and hooks installed on top of those CLIs, see [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
@@ -154,10 +153,6 @@ The launchers use Docker `sbx` in locked-down mode and add required network poli
 
 Each agent stores its login inside the reused local sandbox. For OpenCode with a provider, run `/connect`, select a provider (e.g. OpenRouter), paste the API key, then choose a model with `/models`.
 
-### Hunk tips
-
-Hunk runs without `--watch` by default. Press `r` in Hunk to reload the current changes. The `hunk-review` skill install is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
-
 ## Cloud
 
 The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 ARM64) reached via Tailscale and mosh. The box stops itself after 15 minutes with no client connected. Deploy instructions are in [infra/aws/README.md](./infra/aws/README.md).
@@ -196,24 +191,6 @@ Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you 
 
 `ssh`, `mosh`, and `update` find the box by its tailnet hostname. Override the host with `WORKBENCH_EC2_HOST` and the login user with `WORKBENCH_EC2_USER`.
 
-### Local LLM
-
-Optional spot GPU box. It serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
-
-```shell
-workbench llm up
-start-opencode --local-model
-workbench llm down
-```
-
-On a Mac, `start-opencode --local-model` uses local Ollama and `qwen3.8:27b-mlx`. No extra env vars.
-
-`status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`.
-
-Port 11435 is an inference-only proxy ([ollama_inference_proxy.py](tools/llm/ollama_inference_proxy.py)). Ollama itself listens on loopback, because its own port pulls models from any registry host the caller names. If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
-
-Before the first `up`: store a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key` (same create/sign steps as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access)), and raise the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only).
-
 ### One-time setup
 
 Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-onetime-setup.md) covers Tailscale access, the GitHub App, deploy and connect, hardening, and the GPU spot quota.
@@ -225,6 +202,22 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 - OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
 - Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers. Check usage anytime with `docker system df`.
 
+## Local LLM
+
+Runs an open model instead of a hosted API, on either runtime. On a Mac it uses local Ollama and `qwen3.8:27b-mlx`, and needs [Ollama](https://ollama.com/download), `python3`, and `jq` on the host. No extra env vars. The optional spot GPU box serves `qwen3.8:27b` at `http://agent-llm:11435/v1`.
+
+Before the first `workbench llm up`: store a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key` (same create/sign steps as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access)), and raise the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only).
+
+```shell
+workbench llm up
+start-opencode --local-model
+workbench llm down
+```
+
+`status` shows if you left it on. `down` destroys the GPU box and keeps the S3 model cache. Override with `LOCAL_LLM_BASE_URL` and `LOCAL_LLM_MODEL`. The workbench box reads those from `/etc/agent-workbench/workbench.env` after `workbench ec2 update`.
+
+Port 11435 is an inference-only proxy ([ollama_inference_proxy.py](tools/llm/ollama_inference_proxy.py)). Ollama itself listens on loopback, because its own port pulls models from any registry host the caller names. If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
+
 ## Herdr tips
 
 ### Closing a empty pane in Herdr
@@ -235,9 +228,9 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 1. In a pane (`Ctrl+B`, then `v`), run `hunk diff --agent-notes`. (optionally add `--watch`)
 2. Put the cursor on a line and press `c` to leave a comment.
-3. Tell the agent: `read my hunk comments and fix them`.`
+3. Tell the agent: `read my hunk comments and fix them`.
 
-See also the Hunk skill row in [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
+Hunk runs without `--watch` by default. Press `r` to reload the current changes. The `hunk-review` skill install is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
 ### Exit cleanly
 
