@@ -204,7 +204,8 @@ Runs an open model instead of a hosted API. Two targets, same launcher flag:
 
 ### Prerequisites
 
-- Mac: [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
+- On Mac host (Local only): [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
+- On Mac host (Local only): the model pulled once with `ollama pull qwen3.8:27b-mlx`.
 - GPU box: a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key`, created and signed the same way as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access).
 - GPU box: the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only) raised, before the first `workbench llm up`.
 
