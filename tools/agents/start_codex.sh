@@ -54,7 +54,7 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-sudo npm install -g @openai/codex@0.146.0 --ignore-scripts
+sudo npm install -g @openai/codex@0.147.0 --ignore-scripts
 
 codex --version
 '
