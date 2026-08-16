@@ -15,6 +15,10 @@ extends = ":workspace"
 [permissions.protected-workspace.filesystem]
 glob_scan_max_depth = 4
 
+[permissions.protected-workspace.network]
+enabled = true
+allow_upstream_proxy = true
+
 [permissions.protected-workspace.filesystem.":workspace_roots"]
 ".env" = "deny"
 "**/.env" = "deny"

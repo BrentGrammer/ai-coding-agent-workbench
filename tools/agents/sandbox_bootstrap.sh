@@ -251,12 +251,25 @@ source /etc/sandbox-persistent.sh 2>/dev/null || true
 gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2
 npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2
 
-# Every launcher shares this reminder, and it stops showing after the login.
+# Every launcher shares this check. It verifies the API path that gh-axi and
+# Wayfinder use instead of trusting saved login state alone.
 cat > "$HOME/.gh-login-reminder.sh" <<'"'"'REMINDER'"'"'
-if ! gh auth status >/dev/null 2>&1; then
-  printf "\ngh has no GitHub login. gh, gh-axi, and no-mistakes need one.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\n\n"
+if ! gh auth status >/dev/null 2>&1 || ! gh api user --jq .login >/dev/null 2>&1; then
+  printf "\nGitHub access is not ready. gh-axi, Wayfinder, and no-mistakes need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\nThen run: gh-workbench-check\n\n"
 fi
 REMINDER
+
+mkdir -p "$HOME/.local/bin"
+cat > "$HOME/.local/bin/gh-workbench-check" <<'"'"'CHECK'"'"'
+#!/usr/bin/env bash
+set -euo pipefail
+
+gh auth status
+login="$(gh api user --jq .login)"
+gh-axi issue list --limit 1 >/dev/null
+printf "GitHub access is ready for %s. gh, gh-axi, and Wayfinder can use this repository.\n" "$login"
+CHECK
+chmod 755 "$HOME/.local/bin/gh-workbench-check"
 
 if ! grep ".gh-login-reminder.sh" "$HOME/.bashrc" 2>/dev/null; then
   cat >> "$HOME/.bashrc" <<'"'"'HOOK'"'"'

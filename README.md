@@ -47,6 +47,8 @@ The launchers also install `gh`, `gh-axi`, and `npm-axi` in the sandbox. Locally
 
 Choose **HTTPS** at the protocol prompt, and answer yes to authenticating Git. One token then serves `gh`, `gh-axi`, and `git push`. SSH instead uploads a new key to your GitHub account for every sandbox, and sandboxes are per repository and per agent. If `git remote -v` shows a `git@github.com:` URL, change it to the `https://github.com/` form or the token cannot push.
 
+After login, run `gh-workbench-check` in the sandbox. It verifies the saved login, a GitHub API call, and a read-only `gh-axi` issue call.
+
 Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. For skills, MCP tools, and hooks installed on top of those CLIs, see [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
 ### Start locally
