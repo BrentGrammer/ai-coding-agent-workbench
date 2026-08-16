@@ -214,7 +214,7 @@ Runs an open model instead of a hosted API. Works with `start-opencode` and `sta
 
 - On Mac host (Local only): [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
 - On Mac host (Local only): the model pulled once with `ollama pull qwen3.8:27b-mlx`.
-- GPU box: a reusable Tailscale auth key at `/coding-agent-workbench/tailscale/llm-auth-key`, created and signed the same way as [Tailscale access](docs/cloud-onetime-setup.md#1-tailscale-access).
+- GPU box: its own [Tailscale auth key](docs/cloud-onetime-setup.md#7-gpu-auth-key), which is ephemeral, unlike the workbench key.
 - GPU box: the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only) raised, before the first `workbench llm up`.
 - GPU box: nothing to deploy by hand. `workbench llm up` deploys its two CDK stacks (`AgentWorkbenchLlmCacheStack`, `AgentWorkbenchLlmStack`) itself, every time — a no-op if they're already up to date. This needs CDK already bootstrapped for the account/region, which the base Cloud setup already requires.
 
@@ -251,6 +251,8 @@ Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pic
 ### GPU box
 
 `workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box.
+
+The box terminates itself after an hour with nothing using the model, and again on a 12-hour fuse. An idle GPU is the expensive mistake here, so the box is built to disappear: `workbench llm up` rebuilds it from the S3 model cache, and clears the dead stack first if the last box terminated itself.
 
 From the EC2 workbench box, point OpenCode at it with `--gpu-box`:
 

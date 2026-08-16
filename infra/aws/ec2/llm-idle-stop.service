@@ -1,0 +1,6 @@
+[Unit]
+Description=Terminate the GPU box when nothing is using the model
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/llm-idle-stop

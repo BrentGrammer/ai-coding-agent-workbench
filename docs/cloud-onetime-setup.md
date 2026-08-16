@@ -118,3 +118,44 @@ aws service-quotas request-service-quota-increase \
 ```
 
 Or in the AWS console: **Service Quotas → Amazon EC2 → All G and VT Spot Instance Requests**, region `us-west-2`. AWS reviews the request. Wait for approval before `workbench llm up`.
+
+## 6. GPU AMI
+
+The GPU box runs the AWS Deep Learning Base OSS AMI, which ships the NVIDIA driver and CUDA. `setup-llm.sh` installs no driver and never reboots, so a wrong AMI fails the deploy. Confirm the parameter name exists in your region once, before the first `workbench llm up`:
+
+```shell
+aws ssm get-parameters-by-path \
+  --path /aws/service/deeplearning \
+  --recursive \
+  --query 'Parameters[?contains(Name, `base-oss`)].Name'
+```
+
+If the name differs from `DEFAULT_GPU_AMI_PARAMETER` in `infra/aws/lib/workbench-llm-stack.ts`, pass the right one instead of editing the file:
+
+```shell
+npx cdk deploy AgentWorkbenchLlmStack -c llmAmiParameter=<path>
+```
+
+Use the **Base OSS** variant. The full Deep Learning AMI adds PyTorch, TensorFlow, and Conda that this box never uses, and needs a much larger disk.
+
+## 7. GPU auth key
+
+The GPU box uses its own key, at `/coding-agent-workbench/tailscale/llm-auth-key`. Do not reuse the workbench key from [step 1](#1-tailscale-access).
+
+In **Settings → Keys**, create an auth key: **Reusable**, **Ephemeral**, **Pre-approved**, tag `tag:workbench`.
+
+Ephemeral is the opposite of the workbench key, on purpose. That box stops and starts, so its node must survive being offline. This box terminates when it goes idle and gets rebuilt, so without ephemeral a dead node piles up on the tailnet every time.
+
+If tailnet lock is on, sign the key and store the longer string the command prints:
+
+```shell
+tailscale lock sign tskey-auth-...
+```
+
+```shell
+aws ssm put-parameter --type SecureString --overwrite \
+  --name /coding-agent-workbench/tailscale/llm-auth-key \
+  --value 'SIGNED-KEY'
+```
+
+Then revoke the old key. Signing covers the key, not each box, so every rebuild joins on its own until the key expires at 90 days.

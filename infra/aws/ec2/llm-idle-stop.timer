@@ -1,0 +1,10 @@
+[Unit]
+Description=Check every five minutes for use of the model
+
+[Timer]
+# The first check waits out a reboot, so a restored model is never cut short.
+OnBootSec=20min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

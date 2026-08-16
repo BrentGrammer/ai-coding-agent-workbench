@@ -162,6 +162,11 @@ require_aws_dir() {
   fi
 }
 
+llm_stack_exists() {
+  aws cloudformation describe-stacks --stack-name "$LLM_STACK" \
+    >/dev/null 2>&1
+}
+
 llm_instance_ids() {
   aws ec2 describe-instances \
     --filters \
@@ -242,8 +247,15 @@ case "${1:-}" in
     case "${2:-}" in
       up)
         require_aws_dir
+        # The box terminates itself when idle. CloudFormation still holds the
+        # dead instance, and a deploy will not replace it.
+        instance_ids="$(llm_instance_ids)"
+        if llm_stack_exists && { [ -z "$instance_ids" ] || [ "$instance_ids" = "None" ]; }; then
+          echo "The last GPU box is gone. Clearing the old stack first."
+          (cd "$AWS_DIR" && npx cdk destroy "$LLM_STACK" --force)
+        fi
         (cd "$AWS_DIR" && npx cdk deploy "$LLM_CACHE_STACK" "$LLM_STACK")
-        echo "GPU stack deployed. First boot installs the driver and model (a few minutes)."
+        echo "GPU stack deployed. First boot restores the model (a few minutes)."
         echo "Check with: workbench llm status"
         ;;
       down)

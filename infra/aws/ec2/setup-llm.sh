@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Installs NVIDIA drivers, Ollama, and the cached Qwen model on the GPU box.
-# Idempotent. Reboots once after the driver install, then continues via systemd.
+# Installs Ollama and the cached Qwen model on the GPU box. Idempotent.
+# The AMI ships the NVIDIA driver and CUDA, so there is no driver install
+# and no reboot.
 set -euo pipefail
 
 LLM_MODEL_DIR=/usr/share/ollama/.ollama/models
 LLM_PROXY_PORT=11435
+EC2_DIR=/opt/agent-workbench/infra/aws/ec2
 INFERENCE_PROXY_SCRIPT=/opt/agent-workbench/tools/llm/ollama_inference_proxy.py
 TAILSCALE_AUTH_KEY_PARAMETER=/coding-agent-workbench/tailscale/llm-auth-key
 SETUP_STATE_DIR=/var/lib/agent-workbench
-CONTINUE_SERVICE=/etc/systemd/system/llm-setup.service
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "ERROR: Run this script as root: sudo $0" >&2
@@ -40,10 +41,9 @@ apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
+  iproute2 \
   jq \
-  linux-headers-generic \
   python3 \
-  ubuntu-drivers-common \
   unzip
 
 echo "== AWS CLI"
@@ -76,40 +76,23 @@ fi
 
 echo "== NVIDIA driver"
 if ! nvidia-smi >/dev/null 2>&1; then
-  if [ -f "$SETUP_STATE_DIR/nvidia-installed" ]; then
-    echo "ERROR: NVIDIA driver is installed but nvidia-smi failed." >&2
-    exit 1
-  fi
-  ubuntu-drivers install --gpgpu || ubuntu-drivers autoinstall
-  touch "$SETUP_STATE_DIR/nvidia-installed"
-  cat > "$CONTINUE_SERVICE" <<EOF
-[Unit]
-Description=Continue workbench LLM setup after the NVIDIA driver reboot
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/opt/agent-workbench/infra/aws/ec2/setup-llm.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-  systemctl daemon-reload
-  systemctl enable llm-setup.service
-  echo "== Rebooting to load the NVIDIA driver"
-  reboot
-  exit 0
+  echo "ERROR: nvidia-smi failed. This script expects a Deep Learning AMI," >&2
+  echo "which ships the driver. Check the AMI in workbench-llm-stack.ts." >&2
+  exit 1
 fi
 
 echo "== Ollama"
 command -v ollama >/dev/null 2>&1 || curl -fsSL https://ollama.com/install.sh | sh
 install -d -m 755 /etc/systemd/system/ollama.service.d
+# A q8_0 KV cache halves what the context costs on the card. It also costs
+# quality past about 100K context, so revisit it with OLLAMA_CONTEXT_LENGTH.
 cat > /etc/systemd/system/ollama.service.d/override.conf <<'EOF'
 [Service]
 Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_CONTEXT_LENGTH=32768
+Environment=OLLAMA_FLASH_ATTENTION=1
+Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+Environment=OLLAMA_NUM_PARALLEL=1
 EOF
 systemctl daemon-reload
 systemctl enable --now ollama
@@ -168,10 +151,12 @@ else
   fi
 fi
 
-if [ -f "$CONTINUE_SERVICE" ]; then
-  systemctl disable llm-setup.service || true
-  rm -f "$CONTINUE_SERVICE"
-  systemctl daemon-reload
-fi
+# Last, so the timer never runs while the model is still restoring.
+echo "== Idle stop"
+install -m 755 "$EC2_DIR/llm-idle-stop" /usr/local/bin/llm-idle-stop
+install -m 644 "$EC2_DIR/llm-idle-stop.service" /etc/systemd/system/
+install -m 644 "$EC2_DIR/llm-idle-stop.timer" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now llm-idle-stop.timer
 
 echo "== Done. Serving $LLM_MODEL on http://agent-llm:$LLM_PROXY_PORT/v1"

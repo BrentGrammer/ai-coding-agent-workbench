@@ -5,15 +5,19 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 const INSTANCE_TYPE = "g6.xlarge";
-const DISK_GIB = 60;
+// The AMI snapshot size. It leaves room for two models, and the 24 GB card
+// caps a usable model near 20 GB, so more disk buys nothing.
+const DISK_GIB = 75;
 const INSTANCE_NAME = "agent-workbench-gpu-llm";
 export const LLM_MODEL = "qwen3.8:27b";
 const TAILSCALE_AUTH_KEY_PARAMETER =
   "/coding-agent-workbench/tailscale/llm-auth-key";
 const DEFAULT_REPO_URL =
   "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
-const UBUNTU_2404_AMD64_AMI_PARAMETER =
-  "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id";
+// Ships the NVIDIA driver, so setup-llm.sh installs no driver and never
+// reboots. Confirm and override: docs/cloud-onetime-setup.md#6-gpu-ami.
+const DEFAULT_GPU_AMI_PARAMETER =
+  "/aws/service/deeplearning/ami/x86_64/base-oss-nvidia-driver-gpu-ubuntu-22.04/latest/ami-id";
 
 export interface WorkbenchLlmStackProps extends cdk.StackProps {
   cacheBucket: s3.IBucket;
@@ -25,6 +29,9 @@ export class WorkbenchLlmStack extends cdk.Stack {
 
     const repoUrl =
       (this.node.tryGetContext("repoUrl") as string) ?? DEFAULT_REPO_URL;
+    const amiParameter =
+      (this.node.tryGetContext("llmAmiParameter") as string) ??
+      DEFAULT_GPU_AMI_PARAMETER;
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
@@ -91,10 +98,9 @@ export class WorkbenchLlmStack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       instanceType: new ec2.InstanceType(INSTANCE_TYPE),
-      machineImage: ec2.MachineImage.fromSsmParameter(
-        UBUNTU_2404_AMD64_AMI_PARAMETER,
-        { os: ec2.OperatingSystemType.LINUX },
-      ),
+      machineImage: ec2.MachineImage.fromSsmParameter(amiParameter, {
+        os: ec2.OperatingSystemType.LINUX,
+      }),
       role,
       securityGroup,
       userData,
