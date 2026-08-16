@@ -2,19 +2,96 @@
 
 ## Status
 
-Built and verified on the box. Steps 0 to 4b and 6 are done.
+The code is built. The only thing left is the GPU box, which needs a vCPU quota.
 
-Confirmed with `start-herdr opencode <dir> --gpu-box`:
+## Do now
 
-- The launcher prints the model and the endpoint from `workbench.env`.
-- Opencode opens with Local LLM / qwen3.8:27b already selected.
-- `/mcp` still lists Exa, so the layer merged and the user's config survived.
-- The same flag with `cursor` exits 1.
+Run these two commands. Both are safe without the quota.
 
-Not yet verified: that a prompt returns a reply. That needs the GPU box, which is
-waiting on a vCPU quota request. It is blocked on the quota, not on this work.
+```shell
+git push
+```
 
-### Flag names
+```shell
+workbench ec2 update
+```
+
+This puts `--gpu-box` on the EC2 box. It takes a few minutes.
+
+Before you run it, know that `workbench ec2 update` overwrites three files on the box:
+`~/.codex/config.toml`, `~/.cursor/mcp.json`, and `~/.cursor/cli-config.json`. If you
+edited any of them on the box, save a copy first. Agent logins and your OpenCode config
+are not touched.
+
+Then check it worked:
+
+```shell
+start-herdr opencode ~/some-repo --gpu-box
+```
+
+OpenCode opens with Local LLM / qwen3.8:27b selected. Sending a prompt fails, because
+there is no GPU box yet. That is the expected result today.
+
+Nothing else is worth doing until the quota lands.
+
+## Do when the quota is approved
+
+1. Deploy the GPU box.
+
+   ```shell
+   workbench llm up
+   ```
+
+   First run pulls the model, so give it time. Watch for `Done. Serving` in the boot
+   log. `workbench llm status` shows the instance state, which is not the same as
+   ready.
+
+2. Test from the EC2 box.
+
+   ```shell
+   start-herdr opencode ~/some-repo --gpu-box
+   ```
+
+   Send a prompt. A reply proves the whole path.
+
+3. Test from the Mac.
+
+   ```shell
+   start-opencode --gpu-box
+   ```
+
+   Send a prompt. This is the one that keeps the heat off your MacBook.
+
+4. Shut the GPU box down when you finish.
+
+   ```shell
+   workbench llm down
+   ```
+
+If step 2 or 3 fails, the fix is in this plan. Read
+[Known limits and traps](#known-limits-and-traps) first.
+
+## Do not
+
+Do not run `cdk deploy` for the EC2 stack. This work changed the instance user data, so
+a deploy replaces the box: new SSH host key, empty disk, every agent logged out. That
+change only matters for a future rebuild. `workbench ec2 update` is the safe way to
+update the box and does not carry that risk.
+
+## Known limits and traps
+
+- **A prompt fails with no GPU box.** Expected until `workbench llm up` runs.
+- **A rebuilt box breaks ssh.** Run `workbench ec2 trust-host`, then reconnect.
+- **A rebuilt box leaves a dead tailnet node** holding the name while the live one
+  becomes `agent-llm-1`. The stale address times out from everywhere. The launchers
+  filter on `.Online`, so they pick the live one. Any hand-written command must too.
+- **Pasted multi-line blocks arrive indented** in this terminal, which breaks heredocs
+  and can put a newline inside a JSON string. Build test files with short single-line
+  commands.
+- **A repo where you already picked a model** may keep it. If `--gpu-box` seems to do
+  nothing in a repo you use daily, that is the first thing to check.
+
+## Flag names
 
 The steps below were written against `--local-model`, which was the only flag at the
 time. The user-facing flag is now `--gpu-box`, on the Mac and on the EC2 box, so one
@@ -108,6 +185,11 @@ So `OPENCODE_CONFIG_CONTENT` can add the provider and override `.model` for one
 session, and the user's permissions, MCP, and watcher blocks survive untouched.
 
 Source: <https://opencode.ai/docs/config/>
+
+---
+
+Everything below is the build record: what was changed, why, and what was tested. You
+do not need it to use the feature.
 
 ## Step 0 — Verify on the box before you write code (done)
 
