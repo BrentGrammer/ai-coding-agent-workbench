@@ -145,6 +145,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	install_skill_creator "$REPO_ROOT" antigravity-cli
 	install_no_mistakes "$REPO_ROOT" antigravity-cli
+	install_github_tools "$REPO_ROOT" antigravity-cli
 	usage_instructions
 else
 	echo "🆕 Creating new sandbox: $SANDBOX_NAME"
@@ -170,6 +171,7 @@ else
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	install_skill_creator "$REPO_ROOT" antigravity-cli
 	install_no_mistakes "$REPO_ROOT" antigravity-cli
+	install_github_tools "$REPO_ROOT" antigravity-cli
 	usage_instructions
 fi
 

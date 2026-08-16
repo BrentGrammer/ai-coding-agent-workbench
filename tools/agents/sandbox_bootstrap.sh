@@ -169,6 +169,108 @@ npx --yes skills@1.5.20 add kunchenguid/no-mistakes \
   fi
 }
 
+# gh-axi and npm-axi give agents compact GitHub and npm registry output. gh-axi
+# shells out to gh, so the gh binary goes in first. The EC2 box authenticates gh
+# from its GitHub App token relay, which does not exist here, so the sandbox
+# needs `gh auth login` once. The sandbox keeps that login until it is deleted.
+install_github_tools() {
+  local workspace_dir="$1"
+  shift
+
+  local agent_flags=()
+  local agent_slug
+  for agent_slug in "$@"; do
+    agent_flags+=(--agent "$agent_slug")
+  done
+
+  echo "Installing gh, gh-axi, and npm-axi for: $*"
+
+  # gh downloads its release from GitHub and `gh auth login` talks to the API,
+  # so open those hosts here instead of trusting each launcher to do it.
+  allow_skills_marketplace_network
+  sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
+
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+source /etc/sandbox-persistent.sh 2>/dev/null || true
+
+gh_version=2.97.0
+
+if ! gh --version 2>/dev/null | grep -q "gh version $gh_version"; then
+  case "$(uname -m)" in
+    aarch64|arm64) gh_arch="arm64" ;;
+    x86_64|amd64) gh_arch="amd64" ;;
+    *)
+      echo "ERROR: Unsupported architecture for gh: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+
+  gh_tmp="$(mktemp -d)"
+  gh_release="gh_${gh_version}_linux_${gh_arch}"
+  curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_version}/${gh_release}.tar.gz" \
+    -o "$gh_tmp/gh.tar.gz"
+  tar -xzf "$gh_tmp/gh.tar.gz" -C "$gh_tmp"
+  sudo install -m 755 "$gh_tmp/$gh_release/bin/gh" /usr/local/bin/gh
+  rm -rf "$gh_tmp"
+fi
+
+npm install -g --ignore-scripts gh-axi@0.1.29 npm-axi@0.1.1
+
+gh --version
+gh-axi --version
+npm-axi --version
+'
+
+  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
+
+npx --yes skills@1.5.20 add kunchenguid/gh-axi \
+  --skill gh-axi \
+  ${agent_flags[*]} \
+  --global \
+  --yes \
+  --copy
+
+npx --yes skills@1.5.20 add SSBrouhard/npm-axi \
+  --skill npm-axi \
+  ${agent_flags[*]} \
+  --global \
+  --yes \
+  --copy
+"; then
+    echo "WARN: Could not install the gh-axi or npm-axi skills for: $*" >&2
+  fi
+
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+source /etc/sandbox-persistent.sh 2>/dev/null || true
+
+gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2
+npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2
+
+# Every launcher shares this reminder, and it stops showing after the login.
+cat > "$HOME/.gh-login-reminder.sh" <<'"'"'REMINDER'"'"'
+if ! gh auth status >/dev/null 2>&1; then
+  printf "\ngh has no GitHub login. gh, gh-axi, and no-mistakes need one.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\n\n"
+fi
+REMINDER
+
+if ! grep ".gh-login-reminder.sh" "$HOME/.bashrc" 2>/dev/null; then
+  cat >> "$HOME/.bashrc" <<'"'"'HOOK'"'"'
+
+if [ -t 1 ] && [ -f "$HOME/.gh-login-reminder.sh" ]; then
+  bash "$HOME/.gh-login-reminder.sh"
+fi
+HOOK
+fi
+
+bash "$HOME/.gh-login-reminder.sh"
+'
+}
+
 # The skills repo doubles as a Claude Code plugin marketplace, so Claude gets the
 # plugin rather than files copied into its skills directory.
 install_matt_pocock_skills_plugin() {

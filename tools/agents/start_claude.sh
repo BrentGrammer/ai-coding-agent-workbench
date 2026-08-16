@@ -153,8 +153,6 @@ cat <<MSG
 
 ✅ sandbox is ready: '"$SANDBOX_NAME"'
 
-Prerequisite: gh (GitHub CLI) must be installed and authenticated here.
-
 Run Claude Code:
 
   claude
@@ -204,6 +202,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_matt_pocock_skills_plugin
   install_skill_creator "$REPO_ROOT" claude-code
   install_no_mistakes "$REPO_ROOT" claude-code
+  install_github_tools "$REPO_ROOT" claude-code
   usage_instructions
 
   sbx run "$SANDBOX_NAME"
@@ -224,6 +223,7 @@ else
   install_matt_pocock_skills_plugin
   install_skill_creator "$REPO_ROOT" claude-code
   install_no_mistakes "$REPO_ROOT" claude-code
+  install_github_tools "$REPO_ROOT" claude-code
   usage_instructions
 
   sbx run "$SANDBOX_NAME"

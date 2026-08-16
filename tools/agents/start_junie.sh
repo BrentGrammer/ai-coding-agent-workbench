@@ -182,6 +182,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 	install_matt_pocock_skills "$REPO_ROOT" junie
 	install_skill_creator "$REPO_ROOT" junie
 	install_no_mistakes "$REPO_ROOT" junie
+	install_github_tools "$REPO_ROOT" junie
 	usage_instructions
 else
 	echo "🆕 Creating new sandbox: $SANDBOX_NAME"
@@ -204,6 +205,7 @@ else
 	install_matt_pocock_skills "$REPO_ROOT" junie
 	install_skill_creator "$REPO_ROOT" junie
 	install_no_mistakes "$REPO_ROOT" junie
+	install_github_tools "$REPO_ROOT" junie
 	usage_instructions
 fi
 

@@ -43,6 +43,10 @@ It checks for command collisions, confirms the profile change, and creates a bac
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for the coding agent you plan to use.
 
+The launchers also install `gh`, `gh-axi`, and `npm-axi` in the sandbox. Locally, run `gh auth login` once in each new sandbox. The login stays until you delete the sandbox.
+
+Choose **HTTPS** at the protocol prompt, and answer yes to authenticating Git. One token then serves `gh`, `gh-axi`, and `git push`. SSH instead uploads a new key to your GitHub account for every sandbox, and sandboxes are per repository and per agent. If `git remote -v` shows a `git@github.com:` URL, change it to the `https://github.com/` form or the token cannot push.
+
 Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. For skills, MCP tools, and hooks installed on top of those CLIs, see [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
 
 ### Start locally
@@ -314,8 +318,8 @@ Launchers install the items below unless you remove the install steps from the s
 | --- | --- | --- | --- |
 | [Exa](https://exa.ai/) MCP / plugin | Web search and fetch | Claude, Codex, Cursor, Cline, Herdr | `install_exa_tools` / agent MCP configs |
 | [Matt Pocock skills](https://github.com/mattpocock/skills) | Workflow skills (e.g. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr | `install_matt_pocock_skills(_plugin)` in `sandbox_bootstrap.sh` / `start_*.sh` |
-| [gh-axi](https://github.com/kunchenguid/gh-axi) | Agent-friendly `gh` wrapper (TOON output) | EC2 | `setup-workbench.sh` npm pin + skills/hooks |
-| [npm-axi](https://github.com/SSBrouhard/npm-axi) | Agent-friendly npm registry CLI | EC2 | `setup-workbench.sh` npm pin + skills/hooks |
+| [gh](https://cli.github.com/) + [gh-axi](https://github.com/kunchenguid/gh-axi) | GitHub CLI and its agent-friendly wrapper (TOON output) | EC2 + local agents above (not Gemini) | `install_github_tools` / `setup-workbench.sh` |
+| [npm-axi](https://github.com/SSBrouhard/npm-axi) | Agent-friendly npm registry CLI | EC2 + local agents above (not Gemini) | `install_github_tools` / `setup-workbench.sh` |
 | [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Create and refine agent skills | EC2 + local agents above (not Gemini) | `install_skill_creator` / `setup-workbench.sh` |
 | [no-mistakes](https://github.com/kunchenguid/no-mistakes) | Validate/ship gate before push/PR/CI | EC2 + local agents above (not Gemini) | `install_no_mistakes` / `setup-workbench.sh` |
 | Secret-file deny hook | Blocks reads of `.env` and related files | Claude, Herdr | `runtime/deny-protected-file-reads`, `claude-settings.json` |

@@ -113,6 +113,7 @@ install_skills() {
   install_matt_pocock_skills "$REPO_ROOT" opencode
   install_skill_creator "$REPO_ROOT" opencode
   install_no_mistakes "$REPO_ROOT" opencode
+  install_github_tools "$REPO_ROOT" opencode
 }
 
 copy_config() {

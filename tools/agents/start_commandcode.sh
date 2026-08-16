@@ -89,6 +89,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_matt_pocock_skills "$REPO_ROOT" command-code
   install_skill_creator "$REPO_ROOT" command-code
   install_no_mistakes "$REPO_ROOT" command-code
+  install_github_tools "$REPO_ROOT" command-code
 
   usage_instructions
   sbx run "$SANDBOX_NAME"
@@ -107,6 +108,7 @@ else
   install_matt_pocock_skills "$REPO_ROOT" command-code
   install_skill_creator "$REPO_ROOT" command-code
   install_no_mistakes "$REPO_ROOT" command-code
+  install_github_tools "$REPO_ROOT" command-code
 
   usage_instructions
   sbx run "$SANDBOX_NAME"
