@@ -96,6 +96,11 @@ find_instance_id() {
   echo "$instance_id"
 }
 
+instance_state() {
+  aws ec2 describe-instances --instance-ids "$1" \
+    --query 'Reservations[0].Instances[0].State.Name' --output text
+}
+
 # A replaced instance has new SSH host keys, so ssh refuses to connect and mosh
 # fails with it. Read the real key over SSM, which AWS authenticates and which
 # does not use ssh, then replace the stale known_hosts entries. Reading it over
@@ -171,8 +176,23 @@ case "${1:-}" in
     case "${2:-}" in
       up)
         instance_id="$(find_instance_id)"
-        aws ec2 start-instances --instance-ids "$instance_id" >/dev/null
-        echo "Starting $instance_id..."
+        state="$(instance_state "$instance_id")"
+
+        # The idle timer stops the box on its own. EC2 refuses a start while the
+        # instance is still stopping, so wait for the stop to finish first.
+        if [ "$state" = "stopping" ]; then
+          echo "$instance_id is stopping. Waiting for it to stop..."
+          aws ec2 wait instance-stopped --instance-ids "$instance_id"
+          state=stopped
+        fi
+
+        if [ "$state" = "stopped" ]; then
+          aws ec2 start-instances --instance-ids "$instance_id" >/dev/null
+          echo "Starting $instance_id..."
+        else
+          echo "$instance_id is $state."
+        fi
+
         aws ec2 wait instance-running --instance-ids "$instance_id"
         echo "Running. Connect with: workbench ec2 mosh"
         echo "A new instance joins the tailnet by itself on first boot. Give it a few minutes."
