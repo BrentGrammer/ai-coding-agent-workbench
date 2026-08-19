@@ -158,8 +158,9 @@ fi
 
 echo "== Warming the model"
 # Pay the load now, while the user is already waiting on llm up.
+# num_predict 1 because loading the model is the point, not the answer.
 curl -fsS http://127.0.0.1:11434/api/generate \
-  -d "{\"model\":\"$LLM_MODEL\",\"prompt\":\"hi\",\"stream\":false}" \
+  -d "{\"model\":\"$LLM_MODEL\",\"prompt\":\"hi\",\"stream\":false,\"options\":{\"num_predict\":1}}" \
   >/dev/null || echo "WARN: Could not warm the model." >&2
 
 # Last, so the timer never runs while the model is still restoring.

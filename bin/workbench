@@ -8,8 +8,9 @@ INSTANCE_NAME_TAG="agent-workbench-ec2"
 LLM_INSTANCE_NAME_TAG="agent-workbench-gpu-llm"
 LLM_CACHE_STACK="AgentWorkbenchLlmCacheStack"
 LLM_STACK="AgentWorkbenchLlmStack"
-# Must match INSTANCE_TYPE in infra/aws/lib/workbench-llm-stack.ts.
+# Must match INSTANCE_TYPE and LLM_MODEL in infra/aws/lib/workbench-llm-stack.ts.
 LLM_INSTANCE_TYPE="g6.xlarge"
+LLM_MODEL="qwen3.8:27b"
 # AWS forecasts Spot capacity from 1 to 10. Below this, skip the Spot attempt
 # and its failed deploy and rollback.
 LLM_SPOT_SCORE_MIN=7
@@ -17,7 +18,8 @@ CONNECT_USER="${WORKBENCH_EC2_USER:-ubuntu}"
 
 tailscale_ip() {
   tailscale status --json 2>/dev/null |
-    jq -r '[.Peer[]? | select(.Online and (.HostName == "agent-workbench" or (.HostName | test("^agent-workbench-[0-9]+$"))))][0].TailscaleIPs[0] // empty' \
+    jq -r --arg name "$1" \
+      '[.Peer[]? | select(.Online and (.HostName == $name or (.HostName | test("^\($name)-[0-9]+$"))))][0].TailscaleIPs[0] // empty' \
       2>/dev/null || true
 }
 
@@ -30,7 +32,7 @@ find_connect_host() {
     return
   fi
   local ip
-  ip="$(tailscale_ip)"
+  ip="$(tailscale_ip agent-workbench)"
   echo "${ip:-agent-workbench}"
 }
 
@@ -54,9 +56,10 @@ ec2 commands:
   trust-host Read the SSH host key over SSM and refresh known_hosts
 
 llm commands:
-  up      Try Spot, then deploy On-Demand if Spot is unavailable
-  down    Destroy the GPU instance. The cache bucket stays.
-  status  Show whether the GPU instance is running
+  up         Try Spot, then deploy On-Demand if Spot is unavailable
+  down       Destroy the GPU instance. The cache bucket stays.
+  status     Show whether the GPU instance is running
+  trust-host Read the SSH host key over SSM and refresh known_hosts
 
 Environment:
   WORKBENCH_EC2_HOST  Tailscale host override (default: found with tailscale status)
@@ -71,7 +74,7 @@ EOF
 sync_host() {
   local ip tries=0
   while :; do
-    ip="$(tailscale_ip)"
+    ip="$(tailscale_ip agent-workbench)"
     [ -n "$ip" ] && break
     tries=$((tries + 1))
     if [ "$tries" -eq 1 ]; then echo "Waiting for the workbench to come online on the tailnet..."; fi
@@ -111,8 +114,8 @@ instance_state() {
 # does not use ssh, then replace the stale known_hosts entries. Reading it over
 # ssh would prove nothing: that is the channel in doubt.
 trust_host() {
-  local instance_id command_id status key ip key_file
-  instance_id="$(find_instance_id)"
+  local instance_id="$1" name="$2"
+  local command_id status key ip key_file
 
   echo "Reading the host key from $instance_id over SSM..."
   command_id="$(aws ssm send-command \
@@ -151,8 +154,8 @@ trust_host() {
 
   # ssh connects by MagicDNS name or by Tailscale IP, depending on which node
   # holds the name, so trust both.
-  ip="$(tailscale_ip)"
-  for host in agent-workbench ${ip:+$ip}; do
+  ip="$(tailscale_ip "$name")"
+  for host in "$name" ${ip:+$ip}; do
     ssh-keygen -R "$host" -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1 || true
     printf '%s %s\n' "$host" "$key" >> "$HOME/.ssh/known_hosts"
     echo "Trusted $host"
@@ -203,6 +206,43 @@ spot_score_is_poor() {
 
   [ "$score" -lt "$LLM_SPOT_SCORE_MIN" ] &&
     echo "Spot capacity score for $LLM_INSTANCE_TYPE in $region is $score." >&2
+}
+
+# Ollama serves one request at a time, so a completion returns only once the
+# boot warmup has finished and the model sits in VRAM.
+wait_llm_ready() {
+  local ip minutes=0
+  while :; do
+    ip="$(tailscale_ip agent-llm)"
+    [ -n "$ip" ] && break
+    minutes=$((minutes + 1))
+    if [ "$minutes" -eq 1 ]; then echo "Waiting for the GPU box to join the tailnet..."; fi
+    if [ "$minutes" -gt 5 ]; then
+      echo "WARN: The box is not on the tailnet after 5 minutes." >&2
+      echo "Look at the boot log: workbench llm trust-host, then" >&2
+      echo "  ssh $CONNECT_USER@agent-llm 'sudo cat /var/log/cloud-init-output.log'" >&2
+      return 1
+    fi
+    sleep 60
+  done
+
+  minutes=0
+  while :; do
+    if curl -fsS --max-time 60 "http://$ip:11435/v1/chat/completions" \
+      -H 'Content-Type: application/json' \
+      -d "{\"model\":\"$LLM_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}" \
+      >/dev/null 2>&1; then
+      return 0
+    fi
+    minutes=$((minutes + 1))
+    echo "Loading the model. $minutes min so far."
+    if [ "$minutes" -gt 10 ]; then
+      echo "WARN: No answer after 10 minutes. A first-ever boot pulls 17 GB and" >&2
+      echo "takes about 30, so give it longer only if the log says Cache miss:" >&2
+      echo "  ssh $CONNECT_USER@agent-llm 'sudo tail /var/log/cloud-init-output.log'" >&2
+      return 1
+    fi
+  done
 }
 
 deploy_llm_with_spot() {
@@ -304,7 +344,7 @@ case "${1:-}" in
         sync_host
         ;;
       trust-host)
-        trust_host
+        trust_host "$(find_instance_id)" agent-workbench
         ;;
       *)
         usage
@@ -333,8 +373,12 @@ case "${1:-}" in
           fi
           deploy_llm_on_demand
         fi
-        echo "GPU stack deployed. First boot restores the model (a few minutes)."
-        echo "Check with: workbench llm status"
+        if wait_llm_ready; then
+          echo "Model ready. Start an agent with --gpu-box."
+        else
+          echo "Check with: workbench llm status"
+        fi
+        echo "Before ssh to the box: workbench llm trust-host"
         ;;
       down)
         require_aws_dir
@@ -350,6 +394,14 @@ case "${1:-}" in
         aws ec2 describe-instances --instance-ids $instance_ids \
           --query 'Reservations[].Instances[].{Id:InstanceId,State:State.Name,Type:InstanceType,StartedAt:LaunchTime,PublicIp:PublicIpAddress}' \
           --output table
+        ;;
+      trust-host)
+        instance_ids="$(llm_instance_ids)"
+        if [ -z "$instance_ids" ] || [ "$instance_ids" = "None" ]; then
+          echo "ERROR: No GPU box is running. Deploy it first." >&2
+          exit 1
+        fi
+        trust_host "${instance_ids%%[[:space:]]*}" agent-llm
         ;;
       *)
         usage
