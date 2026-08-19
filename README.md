@@ -284,7 +284,7 @@ Both paths: --gpu-box sets Qwen as the default model. Switch with /model and you
 
 `workbench llm up` tries Spot capacity first. If AWS has no Spot capacity, the command clears the failed GPU stack and retries once with On-Demand capacity. It prints a large warning before the On-Demand retry because On-Demand costs more. Other deployment failures stop without a retry.
 
-The box terminates itself after an hour with nothing using the model, and again on a 12-hour fuse. An idle GPU is the expensive mistake here, so the box is built to disappear: `workbench llm up` rebuilds it from the S3 model cache, and clears the dead stack first if the last box terminated itself.
+The box terminates itself about 70 minutes after the last prompt, and again on a 12-hour fuse. Ollama holds the model for 59 minutes so prompts stay fast within a session, and the idle check adds 10 minutes after it unloads. An idle GPU is the expensive mistake here, so the box is built to disappear: `workbench llm up` rebuilds it from the S3 model cache, and clears the dead stack first if the last box terminated itself.
 
 `--local-model` runs the model on your Mac. `--gpu-box` runs it on the GPU box, which keeps the heat and the fans off your MacBook. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.
 
