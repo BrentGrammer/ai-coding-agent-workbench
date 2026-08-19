@@ -4,11 +4,16 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
-const INSTANCE_TYPE = "g6.xlarge";
+// L40S, 48 GB VRAM: fits the model plus a 131K q8_0 KV cache. Override with
+// -c llmInstanceType, or WORKBENCH_LLM_INSTANCE_TYPE through bin/workbench.
+const DEFAULT_INSTANCE_TYPE = "g6e.xlarge";
+// The KV cache costs ~128 KB/token: ~48K fits a 24 GB card, ~200K a 48 GB one.
+// Override with -c llmContextLength, or WORKBENCH_LLM_CONTEXT_LENGTH.
+const DEFAULT_CONTEXT_LENGTH = 131072;
 const SPOT = "spot";
 const ON_DEMAND = "on-demand";
-// The AMI snapshot size. It leaves room for two models, and the 24 GB card
-// caps a usable model near 20 GB, so more disk buys nothing.
+// The AMI snapshot size. It leaves room for two models, since a single card
+// caps a usable model near its VRAM size.
 const DISK_GIB = 75;
 const INSTANCE_NAME = "agent-workbench-gpu-llm";
 export const LLM_MODEL = "qwen3.8:27b";
@@ -42,6 +47,15 @@ export class WorkbenchLlmStack extends cdk.Stack {
       );
     }
     const useSpot = purchaseOption === SPOT;
+    const instanceType =
+      (this.node.tryGetContext("llmInstanceType") as string) ??
+      DEFAULT_INSTANCE_TYPE;
+    const contextLength = Number(
+      this.node.tryGetContext("llmContextLength") ?? DEFAULT_CONTEXT_LENGTH,
+    );
+    if (!Number.isInteger(contextLength) || contextLength <= 0) {
+      throw new Error("llmContextLength must be a positive integer");
+    }
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
@@ -78,7 +92,7 @@ export class WorkbenchLlmStack extends cdk.Stack {
       "set -euo pipefail",
       "hostnamectl set-hostname agent-llm",
       "mkdir -p /etc/agent-workbench",
-      `printf 'AWS_REGION=%s\\nLLM_CACHE_BUCKET=%s\\nLLM_MODEL=%s\\n' '${this.region}' '${props.cacheBucket.bucketName}' '${LLM_MODEL}' > /etc/agent-workbench/workbench.env`,
+      `printf 'AWS_REGION=%s\\nLLM_CACHE_BUCKET=%s\\nLLM_MODEL=%s\\nOLLAMA_CONTEXT_LENGTH=%s\\n' '${this.region}' '${props.cacheBucket.bucketName}' '${LLM_MODEL}' '${contextLength}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
       "export DEBIAN_FRONTEND=noninteractive",
       "apt-get update",
@@ -89,7 +103,7 @@ export class WorkbenchLlmStack extends cdk.Stack {
     );
 
     const launchTemplate = new ec2.LaunchTemplate(this, "LaunchTemplate", {
-      instanceType: new ec2.InstanceType(INSTANCE_TYPE),
+      instanceType: new ec2.InstanceType(instanceType),
       machineImage: ec2.MachineImage.fromSsmParameter(amiParameter, {
         os: ec2.OperatingSystemType.LINUX,
       }),

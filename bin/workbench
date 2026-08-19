@@ -8,8 +8,10 @@ INSTANCE_NAME_TAG="agent-workbench-ec2"
 LLM_INSTANCE_NAME_TAG="agent-workbench-gpu-llm"
 LLM_CACHE_STACK="AgentWorkbenchLlmCacheStack"
 LLM_STACK="AgentWorkbenchLlmStack"
-# Must match INSTANCE_TYPE and LLM_MODEL in infra/aws/lib/workbench-llm-stack.ts.
-LLM_INSTANCE_TYPE="g6.xlarge"
+# Defaults must match workbench-llm-stack.ts. Both pass to the stack as CDK
+# context, so the value here is the one the box gets.
+LLM_INSTANCE_TYPE="${WORKBENCH_LLM_INSTANCE_TYPE:-g6e.xlarge}"
+LLM_CONTEXT_LENGTH="${WORKBENCH_LLM_CONTEXT_LENGTH:-131072}"
 LLM_MODEL="qwen3.8:27b"
 # AWS forecasts Spot capacity from 1 to 10. Below this, skip the Spot attempt
 # and its failed deploy and rollback.
@@ -62,8 +64,10 @@ llm commands:
   trust-host Read the SSH host key over SSM and refresh known_hosts
 
 Environment:
-  WORKBENCH_EC2_HOST  Tailscale host override (default: found with tailscale status)
-  WORKBENCH_EC2_USER  Login user (default: ubuntu)
+  WORKBENCH_EC2_HOST            Tailscale host override (default: found with tailscale status)
+  WORKBENCH_EC2_USER            Login user (default: ubuntu)
+  WORKBENCH_LLM_INSTANCE_TYPE   GPU instance type (default: g6e.xlarge)
+  WORKBENCH_LLM_CONTEXT_LENGTH  Ollama context window (default: 131072)
 EOF
   exit 1
 }
@@ -251,6 +255,8 @@ deploy_llm_with_spot() {
 
   if (cd "$AWS_DIR" && npx cdk deploy "$LLM_CACHE_STACK" "$LLM_STACK" \
     --require-approval never \
+    -c llmInstanceType="$LLM_INSTANCE_TYPE" \
+    -c llmContextLength="$LLM_CONTEXT_LENGTH" \
     -c llmPurchaseOption=spot 2>&1 | tee "$deploy_log"); then
     rm -f "$deploy_log"
     return 0
@@ -266,11 +272,11 @@ deploy_llm_with_spot() {
 }
 
 deploy_llm_on_demand() {
-  cat >&2 <<'EOF'
+  cat >&2 <<EOF
 
 ========================================================================
 WARNING: SPOT GPU CAPACITY IS UNAVAILABLE
-Falling back to an On-Demand g6.xlarge instance.
+Falling back to an On-Demand $LLM_INSTANCE_TYPE instance.
 This instance costs more than Spot.
 The 1-hour idle shutdown and 12-hour safety limit remain active.
 ========================================================================
@@ -281,6 +287,8 @@ EOF
   fi
   (cd "$AWS_DIR" && npx cdk deploy "$LLM_CACHE_STACK" "$LLM_STACK" \
     --require-approval never \
+    -c llmInstanceType="$LLM_INSTANCE_TYPE" \
+    -c llmContextLength="$LLM_CONTEXT_LENGTH" \
     -c llmPurchaseOption=on-demand)
 }
 

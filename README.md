@@ -282,7 +282,17 @@ Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pic
 
 Both paths: --gpu-box sets Qwen as the default model. Switch with /model and you are on the other provider that doesn't use the gpu box.
 
-`workbench llm up` tries Spot capacity first. If AWS has no Spot capacity, the command clears the failed GPU stack and retries once with On-Demand capacity. It prints a large warning before the On-Demand retry because On-Demand costs more. Other deployment failures stop without a retry.
+`workbench llm up` tries Spot capacity first. If AWS has no Spot capacity, the command clears the failed GPU stack and retries once with On-Demand capacity.
+
+The default box is a `g6e.xlarge` (L40S, 48 GB VRAM) serving a 131,072-token context. Override both with env vars on `workbench llm up`:
+
+```shell
+WORKBENCH_LLM_INSTANCE_TYPE=g6.xlarge WORKBENCH_LLM_CONTEXT_LENGTH=32768 workbench llm up
+```
+
+The KV cache costs ~128 KB per token, so context must fit the card next to the ~15 GB of model weights: a 24 GB `g6.xlarge` caps near 48K, the 48 GB `g6e.xlarge` fits 131K with room to spare. The model cache is keyed by model tag, so switching instance types does not re-pull the model.
+
+A rebuilt box has new SSH host keys, so `ssh agent-llm` refuses to connect. Run `workbench llm trust-host` once after a rebuild.
 
 The box terminates itself about 70 minutes after the last prompt, and again on a 12-hour fuse. Ollama holds the model for 59 minutes so prompts stay fast within a session, and the idle check adds 10 minutes after it unloads. An idle GPU is the expensive mistake here, so the box is built to disappear: `workbench llm up` rebuilds it from the S3 model cache, and clears the dead stack first if the last box terminated itself.
 

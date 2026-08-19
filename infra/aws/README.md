@@ -103,10 +103,20 @@ Also recommended: create an AWS Budget in the Billing console with an alert thre
 - AWS scores Spot capacity from 1 to 10. `workbench llm up` uses On-Demand when the score is under 7, because Spot would likely fail. Check the score first:
 
 ```shell
-aws ec2 get-spot-placement-scores --instance-types g6.xlarge \
+aws ec2 get-spot-placement-scores --instance-types g6e.xlarge \
   --target-capacity 1 --target-capacity-unit-type units \
   --region-names us-west-2 --query 'SpotPlacementScores[0].Score' --output text
 ```
+
+## GPU box configuration
+
+The GPU box defaults to `g6e.xlarge` (L40S, 48 GB VRAM) with a 131,072-token Ollama context. `workbench llm up` passes both to the stack as CDK context, so set the env vars there:
+
+```shell
+WORKBENCH_LLM_INSTANCE_TYPE=g6.xlarge WORKBENCH_LLM_CONTEXT_LENGTH=32768 workbench llm up
+```
+
+For a direct `cdk deploy`, pass `-c llmInstanceType=... -c llmContextLength=...` instead.
 
 ## GPU box checks
 
@@ -118,11 +128,12 @@ Is it serving?
 curl -s http://agent-llm:11435/v1/models
 ```
 
-`data: null` means Ollama is up but the model is not loaded yet. First boot pulls 17 GB from the registry (~10 min) and uploads it to the S3 cache. Later boots restore from the cache (~3-5 min).
+`data: null` means Ollama is up but the model is not loaded yet. A first-ever boot pulls 17 GB from the registry (~30 min) and uploads it to the S3 cache. Later boots restore from the cache (~5 min).
 
-Read the setup log:
+Read the setup log. A rebuilt box has new host keys, so trust it first:
 
 ```shell
+workbench llm trust-host
 ssh ubuntu@agent-llm 'sudo cat /var/log/cloud-init-output.log'
 ```
 

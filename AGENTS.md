@@ -17,6 +17,7 @@
 - Use clear names that state the action and purpose.
 - Do not use `resolve` in a function name unless no clearer name exists.
 - Do not write code comments unless they explain a necessary reason that the code cannot state clearly.
+- If writing comments in code, they must be no longer than 2 lines at most.
 - Do not end user-facing text with a semicolon.
 
 ## Tests

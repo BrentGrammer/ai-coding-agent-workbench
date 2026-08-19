@@ -30,7 +30,7 @@ interface FleetProperties {
   }>;
 }
 
-function synthesizeFleet(purchaseOption?: string): FleetProperties {
+function synthesize(extraContext: Record<string, unknown> = {}): Template {
   const context: Record<string, unknown> = {
     [contextKey]: {
       vpcId: "vpc-00000000",
@@ -50,8 +50,8 @@ function synthesizeFleet(purchaseOption?: string): FleetProperties {
         },
       ],
     },
+    ...extraContext,
   };
-  if (purchaseOption) context.llmPurchaseOption = purchaseOption;
 
   const app = new cdk.App({ context });
   const cacheStack = new cdk.Stack(app, "Cache", {
@@ -62,16 +62,26 @@ function synthesizeFleet(purchaseOption?: string): FleetProperties {
     env: { account, region },
     cacheBucket,
   });
-  const template = Template.fromStack(stack);
+  return Template.fromStack(stack);
+}
 
+function fleetProperties(template: Template): FleetProperties {
   template.resourceCountIs("AWS::EC2::Instance", 0);
   template.resourceCountIs("AWS::EC2::EC2Fleet", 1);
-
   const fleets = template.findResources("AWS::EC2::EC2Fleet");
   return Object.values(fleets)[0].Properties as FleetProperties;
 }
 
-const spotFleet = synthesizeFleet();
+function launchTemplateData(template: Template): {
+  InstanceType: string;
+  UserData: unknown;
+} {
+  const launchTemplates = template.findResources("AWS::EC2::LaunchTemplate");
+  return Object.values(launchTemplates)[0].Properties.LaunchTemplateData;
+}
+
+const defaultTemplate = synthesize();
+const spotFleet = fleetProperties(defaultTemplate);
 
 assert.equal(spotFleet.Type, "instant");
 assert.equal(
@@ -91,7 +101,9 @@ assert.deepEqual(
   [...subnetIds].sort(),
 );
 
-const onDemandFleet = synthesizeFleet("on-demand");
+const onDemandFleet = fleetProperties(synthesize({
+  llmPurchaseOption: "on-demand",
+}));
 assert.equal(onDemandFleet.SpotOptions, undefined);
 assert.deepEqual(onDemandFleet.TargetCapacitySpecification, {
   DefaultTargetCapacityType: "on-demand",
@@ -101,8 +113,31 @@ assert.deepEqual(onDemandFleet.TargetCapacitySpecification, {
 });
 
 assert.throws(
-  () => synthesizeFleet("reserved"),
+  () => synthesize({ llmPurchaseOption: "reserved" }),
   /llmPurchaseOption must be "spot" or "on-demand"/,
 );
 
-console.log("workbench LLM stack supports Spot and On-Demand capacity");
+const defaultLaunch = launchTemplateData(defaultTemplate);
+assert.equal(defaultLaunch.InstanceType, "g6e.xlarge");
+assert.match(
+  JSON.stringify(defaultLaunch.UserData),
+  /OLLAMA_CONTEXT_LENGTH=%s/,
+);
+assert.match(JSON.stringify(defaultLaunch.UserData), /'131072'/);
+
+const overriddenLaunch = launchTemplateData(synthesize({
+  llmInstanceType: "g6.xlarge",
+  llmContextLength: "32768",
+}));
+assert.equal(overriddenLaunch.InstanceType, "g6.xlarge");
+assert.match(JSON.stringify(overriddenLaunch.UserData), /'32768'/);
+
+assert.throws(
+  () => synthesize({ llmContextLength: "large" }),
+  /llmContextLength must be a positive integer/,
+);
+
+console.log(
+  "workbench LLM stack supports Spot and On-Demand capacity, " +
+    "and a configurable instance type and context length",
+);
