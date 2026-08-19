@@ -8,11 +8,16 @@ INSTANCE_NAME_TAG="agent-workbench-ec2"
 LLM_INSTANCE_NAME_TAG="agent-workbench-gpu-llm"
 LLM_CACHE_STACK="AgentWorkbenchLlmCacheStack"
 LLM_STACK="AgentWorkbenchLlmStack"
+# Must match INSTANCE_TYPE in infra/aws/lib/workbench-llm-stack.ts.
+LLM_INSTANCE_TYPE="g6.xlarge"
+# AWS forecasts Spot capacity from 1 to 10. Below this, skip the Spot attempt
+# and its failed deploy and rollback.
+LLM_SPOT_SCORE_MIN=7
 CONNECT_USER="${WORKBENCH_EC2_USER:-ubuntu}"
 
 tailscale_ip() {
   tailscale status --json 2>/dev/null |
-    jq -r '[.Peer[]? | select(.HostName == "agent-workbench" and .Online)][0].TailscaleIPs[0] // empty' \
+    jq -r '[.Peer[]? | select(.Online and (.HostName == "agent-workbench" or (.HostName | test("^agent-workbench-[0-9]+$"))))][0].TailscaleIPs[0] // empty' \
       2>/dev/null || true
 }
 
@@ -176,6 +181,30 @@ llm_instance_ids() {
     --output text
 }
 
+# The fleet spans every public subnet, so it needs capacity in any one AZ.
+# That is what the region score answers.
+spot_score_is_poor() {
+  local region score
+  region="${AWS_REGION:-$(aws configure get region 2>/dev/null)}"
+  [ -n "$region" ] || return 1
+
+  score="$(aws ec2 get-spot-placement-scores \
+    --instance-types "$LLM_INSTANCE_TYPE" \
+    --target-capacity 1 \
+    --target-capacity-unit-type units \
+    --region-names "$region" \
+    --query 'SpotPlacementScores[0].Score' \
+    --output text 2>/dev/null)" || return 1
+
+  # No score means no forecast, so try Spot rather than overpay on a guess.
+  case "$score" in
+    "" | *[!0-9]*) return 1 ;;
+  esac
+
+  [ "$score" -lt "$LLM_SPOT_SCORE_MIN" ] &&
+    echo "Spot capacity score for $LLM_INSTANCE_TYPE in $region is $score." >&2
+}
+
 deploy_llm_with_spot() {
   local deploy_log
   deploy_log="$(mktemp)"
@@ -207,8 +236,10 @@ The 1-hour idle shutdown and 12-hour safety limit remain active.
 ========================================================================
 
 EOF
-  (cd "$AWS_DIR" && npx cdk destroy "$LLM_STACK" --force)
-  (cd "$AWS_DIR" && npx cdk deploy "$LLM_STACK" \
+  if llm_stack_exists; then
+    (cd "$AWS_DIR" && npx cdk destroy "$LLM_STACK" --force)
+  fi
+  (cd "$AWS_DIR" && npx cdk deploy "$LLM_CACHE_STACK" "$LLM_STACK" \
     --require-approval never \
     -c llmPurchaseOption=on-demand)
 }
@@ -291,7 +322,9 @@ case "${1:-}" in
           echo "The last GPU box is gone. Clearing the old stack first."
           (cd "$AWS_DIR" && npx cdk destroy "$LLM_STACK" --force)
         fi
-        if deploy_llm_with_spot; then
+        if spot_score_is_poor; then
+          deploy_llm_on_demand
+        elif deploy_llm_with_spot; then
           :
         else
           deploy_status=$?

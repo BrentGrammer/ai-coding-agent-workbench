@@ -54,15 +54,15 @@ host_from_url() {
   echo "${rest%%:*}"
 }
 
-# The online node only. A rebuilt box leaves a dead node holding the name, and
-# the stale address times out from everywhere.
+# The online node only. A dead node keeps the name until Tailscale reaps it,
+# so the live box joins as name-1 and the name itself times out.
 tailnet_ip() {
   command -v tailscale >/dev/null 2>&1 || return 1
   command -v jq >/dev/null 2>&1 || return 1
   local ip
   ip="$(tailscale status --json 2>/dev/null |
     jq -r --arg name "$1" \
-      '[.Peer[]? | select(.HostName == $name and .Online)][0].TailscaleIPs[0] // empty' \
+      '[.Peer[]? | select(.Online and (.HostName == $name or (.HostName | test("^\($name)-[0-9]+$"))))][0].TailscaleIPs[0] // empty' \
       2>/dev/null)" || return 1
   [ -n "$ip" ] || return 1
   echo "$ip"

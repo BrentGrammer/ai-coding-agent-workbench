@@ -99,3 +99,50 @@ Also recommended: create an AWS Budget in the Billing console with an alert thre
 - One Lambda function (GitHub token minting, 256 MB, 15 s timeout) runs only when Git requests a credential — a few short invocations per session. Its log group keeps logs for one week.
 - One t4g.large instance bills only while running. Two mechanisms stop it when idle: an on-box timer (15 minutes with no client) and a CloudWatch alarm (CPU under 5% for 6 hours). A stopped instance bills only its 30 GB disk.
 - The public IPv4 address bills hourly while the instance runs.
+- The GPU box bills only while it exists. `workbench llm down` stops the cost.
+- AWS scores Spot capacity from 1 to 10. `workbench llm up` uses On-Demand when the score is under 7, because Spot would likely fail. Check the score first:
+
+```shell
+aws ec2 get-spot-placement-scores --instance-types g6.xlarge \
+  --target-capacity 1 --target-capacity-unit-type units \
+  --region-names us-west-2 --query 'SpotPlacementScores[0].Score' --output text
+```
+
+## GPU box checks
+
+`workbench llm status` gives the instance ID and state.
+
+Is it serving?
+
+```shell
+curl -s http://agent-llm:11435/v1/models
+```
+
+`data: null` means Ollama is up but the model is not loaded yet. First boot pulls 17 GB from the registry (~10 min) and uploads it to the S3 cache. Later boots restore from the cache (~3-5 min).
+
+Read the setup log:
+
+```shell
+ssh ubuntu@agent-llm 'sudo cat /var/log/cloud-init-output.log'
+```
+
+Wait for `== Done. Serving qwen3.8:27b`.
+
+If ssh or curl hangs, a dead node still holds the name and the live box joined as `agent-llm-1`:
+
+```shell
+tailscale status | grep agent-llm
+```
+
+Use the online node's address. Tailscale reaps the dead one in about 30 minutes.
+
+Cache contents:
+
+```shell
+aws s3 ls s3://$(aws cloudformation describe-stacks \
+  --stack-name AgentWorkbenchLlmCacheStack \
+  --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
+  --output text)/qwen3.8:27b/ --summarize --human-readable | tail -3
+```
+
+The `_COMPLETE` key is written last. Without it the next boot pulls from the registry again.
