@@ -3,7 +3,9 @@
 # it, because the stack sets instanceInitiatedShutdownBehavior to terminate.
 set -euo pipefail
 
-IDLE_CHECK_LIMIT=12
+# OLLAMA_KEEP_ALIVE holds the model 59 minutes, and a loaded model reads as in
+# use. So this only covers the tail: 10 more minutes, about an hour in total.
+IDLE_CHECK_LIMIT=2
 LLM_PROXY_PORT=11435
 COUNT_FILE=/run/agent-workbench/llm-idle-count
 # systemd sets no HOME, and a panicking `ollama ps` reads as idle.

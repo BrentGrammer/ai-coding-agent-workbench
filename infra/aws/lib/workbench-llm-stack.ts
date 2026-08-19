@@ -106,6 +106,10 @@ export class WorkbenchLlmStack extends cdk.Stack {
           deviceName: "/dev/sda1",
           volume: ec2.BlockDeviceVolume.ebs(DISK_GIB, {
             volumeType: ec2.EbsDeviceVolumeType.GP3,
+            // Loading 15 GB into VRAM is disk-bound. Defaults of 3000/125 cost
+            // three minutes. Provisioned capacity bills hourly, so this is cents.
+            iops: 6000,
+            throughput: 750,
             encrypted: true,
             deleteOnTermination: true,
           }),

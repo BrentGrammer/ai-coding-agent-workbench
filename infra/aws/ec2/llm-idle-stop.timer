@@ -2,8 +2,8 @@
 Description=Check every five minutes for use of the model
 
 [Timer]
-# The first check waits out a reboot, so a restored model is never cut short.
-OnBootSec=20min
+# No model is loaded until the first prompt, so this is the window to send one.
+OnBootSec=30min
 OnUnitActiveSec=5min
 
 [Install]

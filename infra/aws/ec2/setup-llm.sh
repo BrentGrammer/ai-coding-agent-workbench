@@ -95,6 +95,9 @@ Environment=OLLAMA_CONTEXT_LENGTH=32768
 Environment=OLLAMA_FLASH_ATTENTION=1
 Environment=OLLAMA_KV_CACHE_TYPE=q8_0
 Environment=OLLAMA_NUM_PARALLEL=1
+# Loading 15 GB into VRAM costs about 3 minutes, so stay warm across a session.
+# llm-idle-stop reads a loaded model as in use, so this also sets the idle floor.
+Environment=OLLAMA_KEEP_ALIVE=59m
 EOF
 systemctl daemon-reload
 systemctl enable --now ollama
@@ -152,6 +155,12 @@ else
     echo "WARN: Could not upload the model cache to S3." >&2
   fi
 fi
+
+echo "== Warming the model"
+# Pay the load now, while the user is already waiting on llm up.
+curl -fsS http://127.0.0.1:11434/api/generate \
+  -d "{\"model\":\"$LLM_MODEL\",\"prompt\":\"hi\",\"stream\":false}" \
+  >/dev/null || echo "WARN: Could not warm the model." >&2
 
 # Last, so the timer never runs while the model is still restoring.
 echo "== Idle stop"
