@@ -5,6 +5,8 @@
 set -euo pipefail
 
 LLM_MODEL_DIR=/usr/share/ollama/.ollama/models
+# Cloud-init sets no HOME, and the Ollama CLI panics reading $HOME/.ollama.
+export OLLAMA_MODELS="$LLM_MODEL_DIR"
 LLM_PROXY_PORT=11435
 EC2_DIR=/opt/agent-workbench/infra/aws/ec2
 INFERENCE_PROXY_SCRIPT=/opt/agent-workbench/tools/llm/ollama_inference_proxy.py

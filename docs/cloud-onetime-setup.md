@@ -92,32 +92,11 @@ Do these in order:
 3. Keep the tailnet single-user: no invites, no shared nodes. Tailscale SSH means tailnet membership is shell access to the box.
 4. Adding a future device needs a signature from a trusted one: `tailscale lock sign <nodekey>`.
 
-## 5. GPU spot quota (local LLM only)
+## 5. GPU quotas (local LLM only)
 
-The optional GPU box (`workbench llm up`) is a spot gpu instance. AWS limits how many G-family spot vCPUs an account can use. New accounts often have a limit of 0. Request 4 vCPUs in your region once, before the first `workbench llm up`.
+The optional GPU box (`workbench llm up`) tries Spot capacity first and falls back to On-Demand capacity when Spot is unavailable. AWS has separate G-family vCPU quotas for Spot and On-Demand instances. New accounts often have a limit of 0. Request 4 vCPUs for both quotas in your region before the first `workbench llm up`.
 
-Check the current limit:
-
-```shell
-aws service-quotas get-service-quota \
-  --service-code ec2 \
-  --quota-code L-3819A6DF \
-  --region us-west-2 \
-  --query 'Quota.{Name:QuotaName,Value:Value}' \
-  --output table
-```
-
-If the value is below 4, request an increase:
-
-```shell
-aws service-quotas request-service-quota-increase \
-  --service-code ec2 \
-  --quota-code L-3819A6DF \
-  --region us-west-2 \
-  --desired-value 4
-```
-
-Or in the AWS console: **Service Quotas → Amazon EC2 → All G and VT Spot Instance Requests**, region `us-west-2`. AWS reviews the request. Wait for approval before `workbench llm up`.
+Use the AWS CLI, or open the AWS console in region `us-west-2` and go to **Service Quotas → Amazon EC2 → search for the quota name → Request quota increase**. Request 4 vCPUs for both **All G and VT Spot Instance Requests** and **Running On-Demand G and VT instances**. AWS reviews each request. Wait for approval before `workbench llm up`.
 
 ## 6. GPU AMI
 

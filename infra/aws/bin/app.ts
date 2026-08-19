@@ -36,6 +36,6 @@ const llmCacheStack = new WorkbenchLlmCacheStack(
 
 new WorkbenchLlmStack(app, "AgentWorkbenchLlmStack", {
   env,
-  description: "Spot GPU instance that serves workbench local LLMs.",
+  description: "GPU instance that serves workbench local LLMs.",
   cacheBucket: llmCacheStack.bucket,
 });

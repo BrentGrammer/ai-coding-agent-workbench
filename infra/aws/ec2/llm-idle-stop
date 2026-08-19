@@ -6,6 +6,8 @@ set -euo pipefail
 IDLE_CHECK_LIMIT=12
 LLM_PROXY_PORT=11435
 COUNT_FILE=/run/agent-workbench/llm-idle-count
+# systemd sets no HOME, and a panicking `ollama ps` reads as idle.
+export OLLAMA_MODELS=/usr/share/ollama/.ollama/models
 
 mkdir -p /run/agent-workbench
 

@@ -10,7 +10,7 @@ This CDK project deploys two stacks: `AgentWorkbenchTokenStack`, the Lambda func
 
 ## Prerequisites
 
-Create the GitHub App and the Tailscale auth key first, and store all three parameters below in AWS Systems Manager Parameter Store, in the region where the stack deploys. The steps are in [Cloud one-time setup](../../docs/cloud-onetime-setup.md). Before `workbench llm up`, also raise the [G-family spot quota](../../docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only).
+Create the GitHub App and the Tailscale auth key first, and store all three parameters below in AWS Systems Manager Parameter Store, in the region where the stack deploys. The steps are in [Cloud one-time setup](../../docs/cloud-onetime-setup.md). Before `workbench llm up`, also raise the [G-family GPU quotas](../../docs/cloud-onetime-setup.md#5-gpu-quotas-local-llm-only).
 
 | Parameter                                    | Type           | Value                            |
 | -------------------------------------------- | -------------- | -------------------------------- |

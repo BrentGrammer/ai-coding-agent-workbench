@@ -35,7 +35,7 @@ Usage: workbench <target> <command>
 
 Targets:
   ec2   Persistent workbench instance
-  llm   Spot GPU instance for the local LLM
+  llm   GPU instance for the local LLM
 
 ec2 commands:
   up         Start the instance and wait until it runs
@@ -49,7 +49,7 @@ ec2 commands:
   trust-host Read the SSH host key over SSM and refresh known_hosts
 
 llm commands:
-  up      Deploy the cache (if needed) and the GPU instance
+  up      Try Spot, then deploy On-Demand if Spot is unavailable
   down    Destroy the GPU instance. The cache bucket stays.
   status  Show whether the GPU instance is running
 
@@ -176,6 +176,43 @@ llm_instance_ids() {
     --output text
 }
 
+deploy_llm_with_spot() {
+  local deploy_log
+  deploy_log="$(mktemp)"
+
+  if (cd "$AWS_DIR" && npx cdk deploy "$LLM_CACHE_STACK" "$LLM_STACK" \
+    --require-approval never \
+    -c llmPurchaseOption=spot 2>&1 | tee "$deploy_log"); then
+    rm -f "$deploy_log"
+    return 0
+  fi
+
+  if grep -q "Unable to fulfill capacity" "$deploy_log"; then
+    rm -f "$deploy_log"
+    return 2
+  fi
+
+  rm -f "$deploy_log"
+  return 1
+}
+
+deploy_llm_on_demand() {
+  cat >&2 <<'EOF'
+
+========================================================================
+WARNING: SPOT GPU CAPACITY IS UNAVAILABLE
+Falling back to an On-Demand g6.xlarge instance.
+This instance costs more than Spot.
+The 1-hour idle shutdown and 12-hour safety limit remain active.
+========================================================================
+
+EOF
+  (cd "$AWS_DIR" && npx cdk destroy "$LLM_STACK" --force)
+  (cd "$AWS_DIR" && npx cdk deploy "$LLM_STACK" \
+    --require-approval never \
+    -c llmPurchaseOption=on-demand)
+}
+
 case "${1:-}" in
   ec2)
     case "${2:-}" in
@@ -254,7 +291,15 @@ case "${1:-}" in
           echo "The last GPU box is gone. Clearing the old stack first."
           (cd "$AWS_DIR" && npx cdk destroy "$LLM_STACK" --force)
         fi
-        (cd "$AWS_DIR" && npx cdk deploy "$LLM_CACHE_STACK" "$LLM_STACK")
+        if deploy_llm_with_spot; then
+          :
+        else
+          deploy_status=$?
+          if [ "$deploy_status" -ne 2 ]; then
+            exit "$deploy_status"
+          fi
+          deploy_llm_on_demand
+        fi
         echo "GPU stack deployed. First boot restores the model (a few minutes)."
         echo "Check with: workbench llm status"
         ;;

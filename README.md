@@ -169,8 +169,8 @@ The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 A
 - A [Tailscale](https://tailscale.com/) account. The free personal plan is enough.
 - A GitHub account that can create a GitHub App. The app supplies the short-lived repository tokens. You create it in [Cloud one-time setup](docs/cloud-onetime-setup.md#2-github-app).
 - Node.js on the machine you deploy from.
-- Local tools: 
-  - `brew install mosh awscli` 
+- Local tools:
+  - `brew install mosh awscli`
   - Tailscale macOS app from either [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`.
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for each coding agent you plan to use.
@@ -181,6 +181,8 @@ The cloud implementation is a persistent EC2 instance (t4g.large, Ubuntu 24.04 A
 start-workbench          # starts the box if stopped, connects with mosh
 cd ~/workspace/<repo>
 start-herdr [agent]      # cursor (default) | claude | codex | opencode
+# Optionally:
+start-herdr [agent] --gpu-box      # run inference on a AWS hosted GPU box for using models like Qwen 3.8 27b locally
 ```
 
 Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
@@ -208,20 +210,26 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, one flag each:
 
 - **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
-- **GPU box** — `--gpu-box`. An optional spot GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and from the EC2 workbench box.
+- **GPU box** — `--gpu-box`. An optional GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and sends to EC2 G series box.
 
 ### Prerequisites
 
 - On Mac host (Local only): [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
 - On Mac host (Local only): the model pulled once with `ollama pull qwen3.8:27b-mlx`.
 - GPU box: its own [Tailscale auth key](docs/cloud-onetime-setup.md#7-gpu-auth-key), which is ephemeral, unlike the workbench key.
-- GPU box: the [GPU spot quota](docs/cloud-onetime-setup.md#5-gpu-spot-quota-local-llm-only) raised, before the first `workbench llm up`.
-- GPU box: nothing to deploy by hand. `workbench llm up` deploys its two CDK stacks (`AgentWorkbenchLlmCacheStack`, `AgentWorkbenchLlmStack`) itself, every time — a no-op if they're already up to date. This needs CDK already bootstrapped for the account/region, which the base Cloud setup already requires.
+- GPU box: request 4 vCPUs for both **All G and VT Spot Instance Requests** and **Running On-Demand G and VT instances** before the first `workbench llm up`. Use AWS CLI, or open the AWS console in the region and go to **Service Quotas → Amazon EC2 → search for the quota name → Request quota increase**. See [GPU quotas](docs/cloud-onetime-setup.md#5-gpu-quotas-local-llm-only).
+- GPU box: nothing to deploy by hand. `workbench llm up` deploys its two CDK stacks (`AgentWorkbenchLlmCacheStack`, `AgentWorkbenchLlmStack`) every time — a no-op if they're already up to date. This needs CDK already bootstrapped for the account/region.
 
 ### Run on a Mac
 
 ```shell
+# run the model locally on your machine:
 start-opencode --local-model
+```
+
+```shell
+# run the local model using the AWS hosted GPU box:
+start-opencode --gpu-box
 ```
 
 ```shell
@@ -231,6 +239,8 @@ start-pi --local-model
 Both start Ollama on loopback and serve `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
 
 Inside the sandbox, `opencode` already defaults to the local model by updating `/etc/opencode/opencode.json` — no `/connect` needed. `pi` adds it as a `local-llm` provider in `~/.pi/agent/models.json`; select it with `Ctrl+L` or `/model`.
+
+Both flags add a `local-llm` provider and make it the default model. Nothing else changes: an OpenAI or OpenRouter model picked with `/model` still goes to that provider, and still needs its own login. The GPU box serves one model and cannot forward requests to anyone else.
 
 Ollama and the proxy run on the host. A second run reuses them instead of starting more. To stop them:
 
@@ -252,33 +262,33 @@ Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pic
 
 `workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box.
 
+#### From a Mac
+
+1. `workbench llm up` # 3-5 min
+2. `workbench llm status` # confirm it is running
+3. `start-opencode --gpu-box` # or start-pi --gpu-box
+4. `workbench llm down` # when done
+
+#### From the EC2 workbench box
+
+1. `workbench llm up` # on your Mac — it is a CDK deploy
+2. `workbench llm status` # confirm it is running
+3. `start-workbench` # connect to the t4g box
+4. `start-herdr opencode ~/some-repo --gpu-box` # on the t4g box
+5. `workbench llm down` # back on your Mac, when done
+
+- OpenCode only. start-herdr rejects --gpu-box for claude, codex, and cursor.
+- One-time check on the t4g box: cat /etc/agent-workbench/workbench.env should show port 11435. If it shows 11434 or the line is missing, that box predates the proxy change and needs an EC2 stack redeploy.
+
+Both paths: --gpu-box sets Qwen as the default model. Switch with /model and you are on the other provider that doesn't use the gpu box.
+
+`workbench llm up` tries Spot capacity first. If AWS has no Spot capacity, the command clears the failed GPU stack and retries once with On-Demand capacity. It prints a large warning before the On-Demand retry because On-Demand costs more. Other deployment failures stop without a retry.
+
 The box terminates itself after an hour with nothing using the model, and again on a 12-hour fuse. An idle GPU is the expensive mistake here, so the box is built to disappear: `workbench llm up` rebuilds it from the S3 model cache, and clears the dead stack first if the last box terminated itself.
-
-From the EC2 workbench box, point OpenCode at it with `--gpu-box`:
-
-```shell
-start-herdr opencode ~/some-repo --gpu-box
-```
-
-The endpoint comes from `LOCAL_LLM_BASE_URL`/`LOCAL_LLM_MODEL` in the box's `workbench.env`. The launcher passes the provider to OpenCode in `OPENCODE_CONFIG_CONTENT`, which OpenCode merges over your own config, so your model choice and permission rules stay as they are for every other session.
-
-On the EC2 box this is OpenCode only. `start-herdr` rejects the flag for `claude`, `codex`, and `cursor` rather than ignoring it. `--local-model` is accepted there as the same thing, since that is what it always meant on that box.
-
-From a Mac, use the GPU box instead of your own Ollama:
-
-```shell
-start-opencode --gpu-box
-```
-
-```shell
-start-pi --gpu-box
-```
 
 `--local-model` runs the model on your Mac. `--gpu-box` runs it on the GPU box, which keeps the heat and the fans off your MacBook. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.
 
-The Docker sandbox routes to the tailnet but cannot resolve MagicDNS names, so the launcher looks `agent-llm` up on the host and puts its Tailscale address in the URL. It uses the online node, because a rebuilt box leaves a dead node holding the name.
-
-Not yet run against a live GPU box, which is waiting on a vCPU quota.
+The Docker sandbox routes to the tailnet but cannot resolve MagicDNS names, so the launcher looks `agent-llm` up on the host and puts its Tailscale address in the URL.
 
 ### Why port 11435
 
@@ -318,16 +328,16 @@ If you see `error: nested herdr is disabled by default`:
 
 Launchers install the items below unless you remove the install steps from the scripts.
 
-| Item | What it does | Where | Remove / change |
-| --- | --- | --- | --- |
-| [Exa](https://exa.ai/) MCP / plugin | Web search and fetch | Claude, Codex, Cursor, Cline, Herdr | `install_exa_tools` / agent MCP configs |
-| [Matt Pocock skills](https://github.com/mattpocock/skills) | Workflow skills (e.g. Wayfinder) | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr | `install_matt_pocock_skills(_plugin)` in `sandbox_bootstrap.sh` / `start_*.sh` |
-| [gh](https://cli.github.com/) + [gh-axi](https://github.com/kunchenguid/gh-axi) | GitHub CLI and its agent-friendly wrapper (TOON output) | EC2 + local agents above (not Gemini) | `install_github_tools` / `setup-workbench.sh` |
-| [npm-axi](https://github.com/SSBrouhard/npm-axi) | Agent-friendly npm registry CLI | EC2 + local agents above (not Gemini) | `install_github_tools` / `setup-workbench.sh` |
-| [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Create and refine agent skills | EC2 + local agents above (not Gemini) | `install_skill_creator` / `setup-workbench.sh` |
-| [no-mistakes](https://github.com/kunchenguid/no-mistakes) | Validate/ship gate before push/PR/CI | EC2 + local agents above (not Gemini) | `install_no_mistakes` / `setup-workbench.sh` |
-| Secret-file deny hook | Blocks reads of `.env` and related files | Claude, Herdr | `runtime/deny-protected-file-reads`, `claude-settings.json` |
-| [Hunk](https://www.hunk.dev/) review skill | Act on Hunk diff review comments | Herdr (local + EC2) | `hunk skill path` symlink in setup / `start_herdr.sh` |
+| Item                                                                                 | What it does                                            | Where                                                                                             | Remove / change                                                                |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Exa](https://exa.ai/) MCP / plugin                                                  | Web search and fetch                                    | Claude, Codex, Cursor, Cline, Herdr                                                               | `install_exa_tools` / agent MCP configs                                        |
+| [Matt Pocock skills](https://github.com/mattpocock/skills)                           | Workflow skills (e.g. Wayfinder)                        | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr | `install_matt_pocock_skills(_plugin)` in `sandbox_bootstrap.sh` / `start_*.sh` |
+| [gh](https://cli.github.com/) + [gh-axi](https://github.com/kunchenguid/gh-axi)      | GitHub CLI and its agent-friendly wrapper (TOON output) | EC2 + local agents above (not Gemini)                                                             | `install_github_tools` / `setup-workbench.sh`                                  |
+| [npm-axi](https://github.com/SSBrouhard/npm-axi)                                     | Agent-friendly npm registry CLI                         | EC2 + local agents above (not Gemini)                                                             | `install_github_tools` / `setup-workbench.sh`                                  |
+| [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Create and refine agent skills                          | EC2 + local agents above (not Gemini)                                                             | `install_skill_creator` / `setup-workbench.sh`                                 |
+| [no-mistakes](https://github.com/kunchenguid/no-mistakes)                            | Validate/ship gate before push/PR/CI                    | EC2 + local agents above (not Gemini)                                                             | `install_no_mistakes` / `setup-workbench.sh`                                   |
+| Secret-file deny hook                                                                | Blocks reads of `.env` and related files                | Claude, Herdr                                                                                     | `runtime/deny-protected-file-reads`, `claude-settings.json`                    |
+| [Hunk](https://www.hunk.dev/) review skill                                           | Act on Hunk diff review comments                        | Herdr (local + EC2)                                                                               | `hunk skill path` symlink in setup / `start_herdr.sh`                          |
 
 ## Updates and maintenance
 

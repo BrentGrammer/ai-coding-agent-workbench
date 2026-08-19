@@ -27,9 +27,10 @@
 ## Tools
 
 - Use `gh-axi` instead of `gh` for GitHub operations (issues, PRs, runs, releases, labels, search).
+- GitHub CLI setup in this environment: `gh` is a wrapper script (`/usr/local/bin/gh`). It reads `$WORKSPACE_DIR`, gets the `origin` remote of that directory, and mints a token for that one repo. `WORKSPACE_DIR` points at the workspace root, which is not a git repo. So `gh` and `gh-axi` fail with `fatal: not a git repository` from every directory. Fix: set `WORKSPACE_DIR` to the repo you want to operate on, for example `WORKSPACE_DIR=/home/ubuntu/workspace/Stockglasses/stockglasses-backend gh api ...` (use the `stockglasses-frontend` path for frontend operations — the token is scoped per repo). The git credential helper (`git-credential-github-app`) uses the same scope, so `git pull` and `git push` fail with `Repository not found` without the same `WORKSPACE_DIR` override. Run these commands with the sandbox disabled: the token comes from a host the sandbox does not allow. Do not use unauthenticated `curl` to `api.github.com` — the repos are private and return 404.
 - Use `npm-axi` for npm registry lookups (search, view, versions, downloads).
 - Use the Exa MCP server for documentation when it is available.
-IMPORTANT: If Exa hangs and takes longer than 10 seconds to fetch, abandon using it and try something else. Do not wait minutes for it.
+  IMPORTANT: If Exa hangs and takes longer than 10 seconds to fetch, abandon using it and try something else. Do not wait minutes for it.
 
 ## Agent skills
 

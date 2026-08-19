@@ -5,6 +5,8 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 const INSTANCE_TYPE = "g6.xlarge";
+const SPOT = "spot";
+const ON_DEMAND = "on-demand";
 // The AMI snapshot size. It leaves room for two models, and the 24 GB card
 // caps a usable model near 20 GB, so more disk buys nothing.
 const DISK_GIB = 75;
@@ -32,6 +34,14 @@ export class WorkbenchLlmStack extends cdk.Stack {
     const amiParameter =
       (this.node.tryGetContext("llmAmiParameter") as string) ??
       DEFAULT_GPU_AMI_PARAMETER;
+    const purchaseOption =
+      (this.node.tryGetContext("llmPurchaseOption") as string) ?? SPOT;
+    if (purchaseOption !== SPOT && purchaseOption !== ON_DEMAND) {
+      throw new Error(
+        `llmPurchaseOption must be "${SPOT}" or "${ON_DEMAND}"`,
+      );
+    }
+    const useSpot = purchaseOption === SPOT;
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
@@ -78,25 +88,7 @@ export class WorkbenchLlmStack extends cdk.Stack {
       "bash /opt/agent-workbench/infra/aws/ec2/setup-llm.sh",
     );
 
-    const launchTemplate = new ec2.CfnLaunchTemplate(this, "LaunchTemplate", {
-      launchTemplateData: {
-        metadataOptions: {
-          httpTokens: "required",
-          httpPutResponseHopLimit: 1,
-        },
-        instanceMarketOptions: {
-          marketType: "spot",
-          spotOptions: {
-            spotInstanceType: "one-time",
-            instanceInterruptionBehavior: "terminate",
-          },
-        },
-      },
-    });
-
-    const instance = new ec2.Instance(this, "LlmInstance", {
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+    const launchTemplate = new ec2.LaunchTemplate(this, "LaunchTemplate", {
       instanceType: new ec2.InstanceType(INSTANCE_TYPE),
       machineImage: ec2.MachineImage.fromSsmParameter(amiParameter, {
         os: ec2.OperatingSystemType.LINUX,
@@ -105,9 +97,10 @@ export class WorkbenchLlmStack extends cdk.Stack {
       securityGroup,
       userData,
       associatePublicIpAddress: true,
-      // Spot one-time cannot stop. shutdown must terminate so billing ends.
       instanceInitiatedShutdownBehavior:
         ec2.InstanceInitiatedShutdownBehavior.TERMINATE,
+      requireImdsv2: true,
+      httpPutResponseHopLimit: 1,
       blockDevices: [
         {
           deviceName: "/dev/sda1",
@@ -119,12 +112,35 @@ export class WorkbenchLlmStack extends cdk.Stack {
         },
       ],
     });
-    instance.instance.launchTemplate = {
-      launchTemplateId: launchTemplate.ref,
-      version: launchTemplate.attrLatestVersionNumber,
-    };
-    cdk.Tags.of(instance).add("Name", INSTANCE_NAME);
+    cdk.Tags.of(launchTemplate).add("Name", INSTANCE_NAME);
 
-    new cdk.CfnOutput(this, "InstanceId", { value: instance.instanceId });
+    const fleet = new ec2.CfnEC2Fleet(this, "LlmFleet", {
+      type: "instant",
+      launchTemplateConfigs: [
+        {
+          launchTemplateSpecification: {
+            launchTemplateId: launchTemplate.launchTemplateId,
+            version: launchTemplate.latestVersionNumber,
+          },
+          overrides: vpc.publicSubnets.map((subnet) => ({
+            subnetId: subnet.subnetId,
+          })),
+        },
+      ],
+      spotOptions: useSpot
+        ? {
+            allocationStrategy: "price-capacity-optimized",
+            instanceInterruptionBehavior: "terminate",
+          }
+        : undefined,
+      targetCapacitySpecification: {
+        defaultTargetCapacityType: purchaseOption,
+        onDemandTargetCapacity: useSpot ? 0 : 1,
+        spotTargetCapacity: useSpot ? 1 : 0,
+        totalTargetCapacity: 1,
+      },
+    });
+
+    new cdk.CfnOutput(this, "FleetId", { value: fleet.attrFleetId });
   }
 }
