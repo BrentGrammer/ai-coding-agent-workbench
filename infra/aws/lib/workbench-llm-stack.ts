@@ -140,9 +140,13 @@ export class WorkbenchLlmStack extends cdk.Stack {
             launchTemplateId: launchTemplate.launchTemplateId,
             version: launchTemplate.latestVersionNumber,
           },
-          overrides: vpc.publicSubnets.map((subnet) => ({
-            subnetId: subnet.subnetId,
-          })),
+          // Spot spreads the AZs so price-capacity-optimized picks one with
+          // capacity. On-Demand: name no subnet for auto placement.
+          overrides: useSpot
+            ? vpc.publicSubnets.map((subnet) => ({
+                subnetId: subnet.subnetId,
+              }))
+            : undefined,
         },
       ],
       spotOptions: useSpot

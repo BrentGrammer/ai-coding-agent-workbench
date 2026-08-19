@@ -26,7 +26,7 @@ interface FleetProperties {
     TotalTargetCapacity: number;
   };
   LaunchTemplateConfigs: Array<{
-    Overrides: Array<{ SubnetId: string }>;
+    Overrides?: Array<{ SubnetId: string }>;
   }>;
 }
 
@@ -95,7 +95,7 @@ assert.deepEqual(spotFleet.TargetCapacitySpecification, {
   TotalTargetCapacity: 1,
 });
 assert.deepEqual(
-  spotFleet.LaunchTemplateConfigs[0].Overrides.map(({ SubnetId }) =>
+  spotFleet.LaunchTemplateConfigs[0].Overrides?.map(({ SubnetId }) =>
     SubnetId
   ).sort(),
   [...subnetIds].sort(),
@@ -111,6 +111,11 @@ assert.deepEqual(onDemandFleet.TargetCapacitySpecification, {
   SpotTargetCapacity: 0,
   TotalTargetCapacity: 1,
 });
+assert.equal(
+  onDemandFleet.LaunchTemplateConfigs[0].Overrides,
+  undefined,
+  "On-Demand must pin no subnet, so EC2 places it in an AZ with capacity",
+);
 
 assert.throws(
   () => synthesize({ llmPurchaseOption: "reserved" }),
