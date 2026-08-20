@@ -80,7 +80,7 @@ export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.local}"
 
 mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
 
-npm install -g @kilocode/cli@7.4.15 --ignore-scripts
+npm install -g @kilocode/cli@7.4.22 --ignore-scripts
 
 if ! grep "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null; then
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
@@ -97,8 +97,6 @@ copy_config() {
   fi
 }
 
-# Overwrites any bundled kilo.jsonc, because the provider block and the default
-# model have to agree.
 install_kilo_local_model_config() {
   if [ "$USE_LOCAL_MODEL" != true ]; then
     return
@@ -106,7 +104,7 @@ install_kilo_local_model_config() {
   local kilo_config
   kilo_config="$(mktemp)"
   kilo_local_model_config > "$kilo_config"
-  install_file_into_sandbox "$kilo_config" /home/agent/.config/kilo/kilo.jsonc
+  merge_json_into_sandbox_file "$kilo_config" /home/agent/.config/kilo/kilo.jsonc
   rm -f "$kilo_config"
 }
 

@@ -188,6 +188,28 @@ qwen_local_model_config() {
      }'
 }
 
+# Harnesses write their own state back to these files, so replacing one would
+# discard the model, permission and MCP choices made in the last session.
+merge_json_into_sandbox_file() {
+  local fragment="$1" dest="$2"
+  require_jq
+  local existing merged
+  existing="$(mktemp)"
+  merged="$(mktemp)"
+
+  sbx exec "$SANDBOX_NAME" bash -c "cat '$dest' 2>/dev/null" > "$existing" || true
+  if ! jq -e . "$existing" >/dev/null 2>&1; then
+    if [ -s "$existing" ]; then
+      echo "WARN: $dest is not plain JSON in the sandbox, replacing it." >&2
+    fi
+    echo '{}' > "$existing"
+  fi
+
+  jq -s '.[0] * .[1]' "$existing" "$fragment" > "$merged"
+  install_file_into_sandbox "$merged" "$dest"
+  rm -f "$existing" "$merged"
+}
+
 # Allowlists the sandbox to reach LOCAL_LLM_BASE_URL. Needs $SANDBOX_NAME.
 allow_local_llm_network() {
   local without_scheme="${LOCAL_LLM_BASE_URL#*://}"

@@ -72,7 +72,7 @@ copy_config() {
     qwen_settings="$generated_settings"
   fi
 
-  install_file_into_sandbox "$qwen_settings" /home/agent/.qwen/settings.json
+  merge_json_into_sandbox_file "$qwen_settings" /home/agent/.qwen/settings.json
   if [ -n "$generated_settings" ]; then
     rm -f "$generated_settings"
   fi
