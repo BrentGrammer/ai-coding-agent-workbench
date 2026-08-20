@@ -19,6 +19,10 @@ therefore only destroys, never stops. The idle stop and the 12-hour fuse both
 destroy the droplet through the API. The Spaces subscription is a flat
 $5/month while any bucket exists.
 
+The idle stop destroys the droplet about **70 minutes** after the last
+prompt, or **40 minutes** after boot if nothing ever prompts it. The fuse
+destroys it **12 hours** after boot no matter what.
+
 ### Prerequisites
 
 - [Terraform](https://developer.hashicorp.com/terraform/install)
