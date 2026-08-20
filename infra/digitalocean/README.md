@@ -136,3 +136,12 @@ TAILSCALE_AUTH_KEY=<same GPU-box key the AWS path uses>
    WORKBENCH_LLM_PROVIDER=digitalocean workbench llm down
    WORKBENCH_LLM_PROVIDER=digitalocean workbench llm status # must say "off"
    That last check is the one that costs money if it's wrong — confirm the droplet is really gone.
+
+- Tailnet join: a few minutes — cloud-init has to install git, clone the repo, and get through the setup script to the Tailscale step.
+- This first-ever boot is the slow one: the cache is empty, so it pulls the 17 GB model from the registry and uploads it to Spaces — roughly 30 minutes total. The llm up readiness wait gives up warning after ~10
+  minutes of no model; on this boot that warning is expected, not a failure. It will tell you to check the log for Cache miss: — that's this case.
+- To watch progress once it's on the tailnet: ssh root@agent-llm 'tail -f /var/log/cloud-init-output.log'
+- Every later boot restores from Spaces instead: ~5 minutes.
+
+If the wait times out, just poll with WORKBENCH_LLM_PROVIDER=digitalocean workbench llm status and try a prompt once the log reaches == Warming the model. And remember the test that matters at the end of the
+session: llm down, then status must say off.
