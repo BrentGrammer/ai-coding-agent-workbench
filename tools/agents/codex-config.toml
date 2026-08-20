@@ -1,12 +1,7 @@
-model_verbosity = "low"
-
 default_permissions = "protected-workspace"
 
 [analytics]
 enabled = false
-
-[tui]
-status_line = ["model-with-reasoning", "current-dir", "context-remaining", "five-hour-limit", "weekly-limit"]
 
 [permissions.protected-workspace]
 description = "Workspace writes with secret files unreadable."

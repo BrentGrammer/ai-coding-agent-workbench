@@ -1,61 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-USE_LOCAL_MODEL=false
-POSITIONAL=()
-for arg in "$@"; do
-  case "$arg" in
-    -h|--help)
-      echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box]"
-      echo "Agents: claude codex opencode cursor. Default: cursor in the current directory."
-      echo "--gpu-box: use the GPU box from workbench.env. opencode only."
-      echo "--local-model: the same thing, kept for compatibility."
-      exit 0
-      ;;
-    --local-model | --gpu-box) USE_LOCAL_MODEL=true ;;
-    -*)
-      echo "ERROR: Unknown option: $arg" >&2
-      exit 1
-      ;;
-    *) POSITIONAL+=("$arg") ;;
-  esac
-done
-
-WORKBENCH_AGENT="${POSITIONAL[0]:-cursor}"
-WORKSPACE_DIR="$(cd "${POSITIONAL[1]:-$PWD}" && pwd)"
-
-session_suffix=""
-if [ "$USE_LOCAL_MODEL" = true ]; then
-  if [ "$WORKBENCH_AGENT" != opencode ]; then
-    echo "ERROR: --gpu-box supports opencode only, not $WORKBENCH_AGENT." >&2
-    exit 1
-  fi
-  # shellcheck disable=SC1091
-  . /usr/local/lib/agent-workbench/local_llm.sh
-  resolve_local_llm
-  OPENCODE_CONFIG_CONTENT="$(opencode_local_model_config)"
-  export OPENCODE_CONFIG_CONTENT
-  # An agent already running keeps the model it started with, so key the session
-  # to the endpoint. Switching models then builds a new one instead of attaching.
-  session_suffix="-local-$(
-    printf '%s|%s' "$LOCAL_LLM_BASE_URL" "$LOCAL_LLM_MODEL" | sha256sum | cut -c1-6
-  )"
-  echo "Model: $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL"
+if [ "$#" -gt 2 ]; then
+  echo "Usage: start-herdr [claude|codex|opencode|cursor] [WORKSPACE_PATH]" >&2
+  exit 1
 fi
 
-# Key the session to the workspace firectory name/path (like local_workspace.sh does) so a stale
-# server from another project is never reused. It used to just key sessions as "main" which spun up other sessions in different projects.
+WORKBENCH_AGENT="${1:-cursor}"
+case "$WORKBENCH_AGENT" in
+  claude|codex|opencode|cursor) ;;
+  *) echo "ERROR: Unknown harness: $WORKBENCH_AGENT" >&2; exit 1 ;;
+esac
+
+WORKSPACE_DIR="$(cd "${2:-$PWD}" && pwd -P)"
 workspace_name="$(
   basename "$WORKSPACE_DIR" |
     tr '[:upper:]_' '[:lower:]-' |
     tr -cs '[:alnum:]-' '-' |
     sed 's/^-//; s/-$//'
 )"
-if [ -z "$workspace_name" ]; then
-  workspace_name="workspace"
-fi
+workspace_name="${workspace_name:-workspace}"
 workspace_path_hash="$(printf '%s' "$WORKSPACE_DIR" | sha256sum | cut -c1-8)"
-WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT$session_suffix}"
-export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
+WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT}"
 
+export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
 exec herdr-session

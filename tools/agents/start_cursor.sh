@@ -3,156 +3,27 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
-configureLocalWorkspace "$@"
-copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
-REPO_ROOT="$WORKSPACE_ROOT_DIR"
-REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
-SANDBOX_NAME="cursor-$REPO_REPLACE_UNDERSCORES"
-START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
-
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
-
-echo "Using sandbox name: $SANDBOX_NAME"
-
-bash "$START_DOCKER"
-
-openLocalWorkspace
+configureLocalWorkspace "$@"
+SANDBOX_NAME="cursor-$SANDBOX_WORKSPACE_NAME"
 
 allow_cursor_network() {
   allow_system_update_network
-  allow_vendor_docs_network
-  allow_exa_mcp_network
-  allow_skills_marketplace_network
-
-  # Cursor CLI installer + runtime/auth endpoints.
-  sbx policy allow network --sandbox "$SANDBOX_NAME" cursor.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" api.cursor.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" "*.cursor.sh:443"
-  sbx policy allow network --sandbox "$SANDBOX_NAME" "*.cursor.com:443"
-  sbx policy allow network --sandbox "$SANDBOX_NAME" "agentn.global.*.cursor.sh"
-  sbx policy allow network --sandbox "$SANDBOX_NAME" downloads.cursor.com:443
-
-  # Often needed by install/update flows and Node-based project work.
-  sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
+  local host
+  for host in cursor.com:443 api.cursor.com:443 "*.cursor.sh:443" "*.cursor.com:443" downloads.cursor.com:443; do
+    sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
+  done
 }
 
-install_or_update_cursor_cli() {
-  echo "Installing/updating Cursor CLI..."
-
+install_cursor() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-
 export PATH="$HOME/.local/bin:$PATH"
-
-curl https://cursor.com/install -fsS | bash
-
-if ! grep "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null; then
+curl -fsS https://cursor.com/install | bash
+grep -q "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null ||
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
-fi
-
-echo "Cursor CLI version:"
-agent --version || cursor-agent --version || true
 '
+  install_file_into_sandbox "$SCRIPT_DIR/cursor-cli-config.json" /home/agent/.cursor/cli-config.json
 }
 
-configure_cursor_env() {
-  echo "Configuring Cursor CLI environment..."
-
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-mkdir -p "$HOME/.cursor"
-
-if ! grep "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null; then
-  echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
-fi
-'
-}
-
-copy_cursor_mcp_config() {
-  [ "$INSTALL_EXA" = "true" ] || return 0
-
-  local cursor_mcp_config="$SCRIPT_DIR/cursor-mcp.json"
-
-  if [ -f "$cursor_mcp_config" ]; then
-    install_file_into_sandbox "$cursor_mcp_config" /home/agent/.cursor/mcp.json
-  fi
-}
-
-usage_instructions() {
-  echo "Installing Cursor shell reminder..."
-
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-cat > "$HOME/.cursor-sandbox-reminder" <<'"'"'EOF'"'"'
-
------- Usage Instructions: ------
-
-Run command:
-
-  agent
-
-Update command:
-
-  agent update
-  
-Notes:
-  - Cursor CLI installs to ~/.local/bin via the official installer.
-
-EOF
-
-if ! grep -q ".cursor-sandbox-reminder" "$HOME/.bashrc" 2>/dev/null; then
-  cat >> "$HOME/.bashrc" <<'"'"'EOF'"'"'
-
-# Show Cursor sandbox reminder when entering an interactive shell.
-if [[ $- == *i* ]] && [ -f "$HOME/.cursor-sandbox-reminder" ]; then
-  cat "$HOME/.cursor-sandbox-reminder"
-fi
-EOF
-fi
-'
-}
-
-if sandboxExists "$SANDBOX_NAME"; then
-  echo "✅ Existing sandbox found: $SANDBOX_NAME"
-  echo "Reconnecting..."
-
-  allow_cursor_network
-  configure_sandbox_env
-  configure_cursor_env
-  install_or_update_cursor_cli
-  copy_cursor_mcp_config
-  usage_instructions
-  install_matt_pocock_skills "$REPO_ROOT" cursor
-  install_skill_creator "$REPO_ROOT" cursor
-  install_github_tools "$REPO_ROOT" cursor
-
-  sbx run "$SANDBOX_NAME"
-else
-  echo "🆕 Creating new sandbox: $SANDBOX_NAME"
-
-  createWorkbenchSandbox "$REPO_ROOT" "$SANDBOX_NAME"
-
-  allow_cursor_network
-  upgrade_system_packages
-
-  # Cursor's official installer uses curl and installs into ~/.local/bin.
-  # Node is still useful for most agent coding workflows and npm-based repos.
-  install_node_lts
-  install_or_update_cursor_cli
-
-  configure_sandbox_env
-  configure_cursor_env
-  copy_cursor_mcp_config
-  usage_instructions
-  install_matt_pocock_skills "$REPO_ROOT" cursor
-  install_skill_creator "$REPO_ROOT" cursor
-  install_github_tools "$REPO_ROOT" cursor
-
-  sbx run "$SANDBOX_NAME"
-fi
+runSandboxHarness allow_cursor_network install_cursor false agent

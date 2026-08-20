@@ -71,7 +71,7 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
   fi
 
   herdr pane zoom "$AGENT_PANE" --on >/dev/null
-  exec hunk diff
+  exec "${SHELL:-/bin/bash}"
 fi
 
 exec "${SHELL:-/bin/bash}"

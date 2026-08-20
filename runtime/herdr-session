@@ -15,7 +15,7 @@ if [ "$WORKBENCH_AGENT" = "cursor" ]; then
   AGENT_COMMAND="cursor-agent"
 fi
 
-for command_name in herdr hunk "$AGENT_COMMAND"; do
+for command_name in herdr "$AGENT_COMMAND"; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "ERROR: Required command is not installed: $command_name"
     exit 1

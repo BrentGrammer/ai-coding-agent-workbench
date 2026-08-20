@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "allowManagedPermissionRulesOnly": true,
   "permissions": {
-    "defaultMode": "acceptEdits",
     "deny": [
       "Read(.env)",
       "Read(.env.local)",
@@ -33,7 +32,7 @@
     "enabled": true,
     "failIfUnavailable": true,
     "autoAllowBashIfSandboxed": true,
-    "excludedCommands": ["git:*", "hunk:*"],
+    "excludedCommands": ["git:*"],
     "filesystem": {
       "denyRead": [
         ".env",

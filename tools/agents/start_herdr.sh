@@ -2,78 +2,56 @@
 set -euo pipefail
 
 POSITIONAL=()
-HERDR_EXTRA_FLAGS=()
-for arg in "$@"; do
-  case "$arg" in
-    --*) HERDR_EXTRA_FLAGS+=("$arg") ;;
-    *) POSITIONAL+=("$arg") ;;
+CLONE_ARGS=()
+for argument in "$@"; do
+  case "$argument" in
+    --clone) CLONE_ARGS+=(--clone) ;;
+    --*) echo "Unknown option: $argument" >&2; exit 1 ;;
+    *) POSITIONAL+=("$argument") ;;
   esac
 done
-
 if [ "${#POSITIONAL[@]}" -gt 2 ]; then
-  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor] [FLAGS]" >&2
-  echo "   Options: --matt-pocock-skills --skill-creator --exa --gh --gh-axi --npm-axi" >&2
+  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor] [--clone]" >&2
   exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
-
-WORKBENCH_AGENT="${POSITIONAL[1]:-${WORKBENCH_AGENT:-cursor}}"
-export WORKBENCH_AGENT
-case "$WORKBENCH_AGENT" in
-  claude|codex|opencode|cursor)
-    ;;
-  *)
-    echo "ERROR: Agent must be claude, codex, opencode, or cursor." >&2
-    exit 1
-    ;;
-esac
-
-configureLocalWorkspace "${POSITIONAL[0]:-$PWD}" ${HERDR_EXTRA_FLAGS[@]+"${HERDR_EXTRA_FLAGS[@]}"}
-
-SANDBOX_NAME="herdr-$SANDBOX_WORKSPACE_NAME"
-START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
-
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
 
-allow_network() {
-  allow_system_update_network
-  allow_vendor_docs_network
-  allow_exa_mcp_network
-  allow_skills_marketplace_network
+WORKBENCH_AGENT="${POSITIONAL[1]:-${WORKBENCH_AGENT:-cursor}}"
+case "$WORKBENCH_AGENT" in
+  claude|codex|opencode|cursor) ;;
+  *) echo "ERROR: Unknown harness: $WORKBENCH_AGENT" >&2; exit 1 ;;
+esac
 
+configureLocalWorkspace ${CLONE_ARGS[@]+"${CLONE_ARGS[@]}"} "${POSITIONAL[0]:-$PWD}"
+SANDBOX_NAME="herdr-$SANDBOX_WORKSPACE_NAME"
+
+allow_herdr_network() {
+  allow_system_update_network
   local host
   for host in \
-    ab.chatgpt.com:443 \
-    api.anthropic.com:443 \
-    api.github.com:443 \
-    api.openai.com:443 \
-    auth.openai.com:443 \
-    challenges.cloudflare.com:443 \
-    chatgpt.com:443 \
-    claude.ai:443 \
+    github.com:443 \
+    objects.githubusercontent.com:443 \
+    release-assets.githubusercontent.com:443 \
+    herdr.dev:443 \
     claude.com:443 \
-    cdn.jsdelivr.net:443 \
-    codeload.github.com:443 \
+    claude.ai:443 \
     downloads.claude.ai:443 \
-    api.cursor.com:443 \
+    api.anthropic.com:443 \
+    chatgpt.com:443 \
+    auth.openai.com:443 \
+    api.openai.com:443 \
     cursor.com:443 \
+    api.cursor.com:443 \
     downloads.cursor.com:443 \
     "*.cursor.com:443" \
     "*.cursor.sh:443" \
-    files.openai.com:443 \
-    github.com:443 \
-    herdr.dev:443 \
     models.dev:443 \
-    nodejs.org:443 \
-    objects.githubusercontent.com:443 \
-    openrouter.ai:443 \
-    platform.claude.com:443 \
-    raw.githubusercontent.com:443 \
-    registry.npmjs.org:443 \
-    release-assets.githubusercontent.com:443 \
-    storage.googleapis.com:443
+    models.opencode.ai:443 \
+    opencode.ai:443 \
+    openrouter.ai:443
   do
     sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
@@ -85,102 +63,61 @@ install_runtime_files() {
   install_file_into_sandbox "$WORKBENCH_ROOT/runtime/herdr-config.toml" /etc/agent-workbench/herdr-config.toml 644 755 root:root
 }
 
-install_system_packages() {
+install_herdr_dependencies() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-
-sudo apt-get install -y --no-install-recommends \
-  ca-certificates \
-  curl \
-  git \
-  less \
-  ncurses-bin \
-  ncurses-term
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends jq
 '
 }
 
-install_or_update_tools() {
+install_herdr_and_harness() {
   sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
-
 mkdir -p "$HOME/.local/bin" "$HOME/.local/npm"
 npm config set prefix "$HOME/.local/npm"
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
 
 case "$(uname -m)" in
-  aarch64|arm64)
-    herdr_arch="aarch64"
+  aarch64|arm64) herdr_arch="aarch64" ;;
+  x86_64|amd64) herdr_arch="x86_64" ;;
+  *) echo "ERROR: Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v0.8.0/herdr-linux-${herdr_arch}" \
+  -o "$HOME/.local/bin/herdr"
+chmod 755 "$HOME/.local/bin/herdr"
+
+case '"$WORKBENCH_AGENT"' in
+  claude)
+    command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash
     ;;
-  x86_64|amd64)
-    herdr_arch="x86_64"
+  codex)
+    npm install -g @openai/codex@0.148.0 --ignore-scripts
     ;;
-  *)
-    echo "ERROR: Unsupported architecture: $(uname -m)" >&2
-    exit 1
+  opencode)
+    npm install -g opencode-ai@1.18.18 --ignore-scripts
+    (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
+    ;;
+  cursor)
+    curl -fsSL https://cursor.com/install | bash
     ;;
 esac
 
-herdr_version="0.8.0"
-herdr_tmp="$(mktemp "$HOME/.local/bin/herdr.XXXXXX")"
-trap "rm -f \"$herdr_tmp\"" EXIT
-curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v${herdr_version}/herdr-linux-${herdr_arch}" \
-  -o "$herdr_tmp"
-chmod 755 "$herdr_tmp"
-"$herdr_tmp" --version | grep -q "$herdr_version"
-mv -f "$herdr_tmp" "$HOME/.local/bin/herdr"
-trap - EXIT
-
-npm install -g --ignore-scripts \
-  "hunkdiff@0.17.3" \
-  "@openai/codex@0.148.0" \
-  "opencode-ai@1.18.18"
-
-cd "$(npm root -g)/opencode-ai"
-node postinstall.mjs
-cd "$HOME"
-
-hunk_skill_path="$(hunk skill path)"
-for agent_skills_dir in \
-  "$HOME/.claude/skills" \
-  "$HOME/.codex/skills" \
-  "$HOME/.agents/skills" \
-  "$HOME/.config/opencode/skills" \
-  "$HOME/.cursor/skills"
-do
-  mkdir -p "$agent_skills_dir/hunk-review"
-  ln -sf "$hunk_skill_path" "$agent_skills_dir/hunk-review/SKILL.md"
-done
-
-if command -v claude >/dev/null 2>&1; then
-  claude update || true
-else
-  curl -fsSL https://claude.ai/install.sh | bash
-fi
-
-curl -fsS https://cursor.com/install | bash
-
-herdr --version
-hunk --version
-claude --version
-codex --version
-opencode --version
-cursor-agent --version
+herdr integration install '"$WORKBENCH_AGENT"'
 '
 }
 
-copy_agent_settings() {
-  local claude_settings_file="$SCRIPT_DIR/claude-settings.json"
-  local codex_config_file="$SCRIPT_DIR/codex-config.toml"
-  local opencode_config_file="$SCRIPT_DIR/opencode.json"
-  local cursor_mcp_config_file="$SCRIPT_DIR/cursor-mcp.json"
-  local cursor_cli_config_file="$SCRIPT_DIR/cursor-cli-config.json"
-
-  if [ -f "$claude_settings_file" ]; then
-    sbx cp "$claude_settings_file" "$SANDBOX_NAME":/tmp/claude-settings.json
-    sbx cp "$WORKBENCH_ROOT/runtime/deny-protected-file-reads" \
-      "$SANDBOX_NAME":/tmp/deny-protected-file-reads
-    sbx cp "$WORKBENCH_ROOT/runtime/install-claude-settings" \
-      "$SANDBOX_NAME":/tmp/install-claude-settings
-    sbx exec "$SANDBOX_NAME" bash -c '
+install_harness_security() {
+  case "$WORKBENCH_AGENT" in
+    claude)
+      install_bash_sandbox_runtime
+      sbx cp "$SCRIPT_DIR/claude-settings.json" "$SANDBOX_NAME":/tmp/claude-settings.json
+      sbx cp "$WORKBENCH_ROOT/runtime/deny-protected-file-reads" \
+        "$SANDBOX_NAME":/tmp/deny-protected-file-reads
+      sbx cp "$WORKBENCH_ROOT/runtime/install-claude-settings" \
+        "$SANDBOX_NAME":/tmp/install-claude-settings
+      sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
 bash /tmp/install-claude-settings \
   /tmp/claude-settings.json \
@@ -188,112 +125,31 @@ bash /tmp/install-claude-settings \
 sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
   /tmp/deny-protected-file-reads
 '
-  else
-    echo "WARN: No bundled Claude settings at $claude_settings_file" >&2
-  fi
-
-  if [ -f "$codex_config_file" ]; then
-    install_file_into_sandbox "$codex_config_file" /home/agent/.codex/config.toml
-  else
-    echo "WARN: No workbench Codex config at $codex_config_file" >&2
-  fi
-
-  if [ -f "$opencode_config_file" ]; then
-    install_file_into_sandbox "$opencode_config_file" /etc/opencode/opencode.json 644 755 root:root
-  else
-    echo "WARN: No workbench OpenCode config at $opencode_config_file" >&2
-  fi
-
-  if [ -f "$cursor_mcp_config_file" ]; then
-    install_file_into_sandbox "$cursor_mcp_config_file" /home/agent/.cursor/mcp.json
-  else
-    echo "WARN: No workbench Cursor MCP config at $cursor_mcp_config_file" >&2
-  fi
-
-  if [ -f "$cursor_cli_config_file" ]; then
-    install_file_into_sandbox "$cursor_cli_config_file" /home/agent/.cursor/cli-config.json
-  else
-    echo "WARN: No workbench Cursor permissions at $cursor_cli_config_file" >&2
-  fi
+      ;;
+    codex)
+      install_file_into_sandbox "$SCRIPT_DIR/codex-config.toml" /home/agent/.codex/config.toml
+      ;;
+    opencode)
+      install_file_into_sandbox "$SCRIPT_DIR/opencode.json" /etc/opencode/opencode.json 644 755 root:root
+      ;;
+    cursor)
+      install_file_into_sandbox "$SCRIPT_DIR/cursor-cli-config.json" /home/agent/.cursor/cli-config.json
+      ;;
+  esac
 }
 
-install_integrations() {
-  sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor"
-chmod 700 "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor"
-
-for agent_name in claude codex opencode cursor; do
-  herdr integration install "$agent_name"
-done
-'
-}
-
-# The codex, opencode and cursor panes get Exa from their config files, so only
-# Claude Code needs it installed through its own CLI.
-install_exa_tools() {
-  [ "$INSTALL_EXA" = "true" ] || return 0
-
-  echo "Installing Exa web search for Claude Code..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-export PATH="$HOME/.local/bin:$PATH"
-
-if claude plugin list 2>/dev/null | grep -q exa; then
-  echo "Exa plugin already installed."
-else
-  claude plugin marketplace add anthropics/claude-plugins-official </dev/null >/dev/null 2>&1 || true
-  if claude plugin install exa@claude-plugins-official </dev/null >/dev/null 2>&1; then
-    echo "Installed the Exa plugin."
-  elif claude mcp get exa >/dev/null 2>&1; then
-    echo "Exa MCP server already registered."
-  else
-    echo "Plugin install did not work, falling back to the MCP server."
-    claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
-  fi
-fi
-
-if ! claude plugin list 2>/dev/null | grep -q exa &&
-  ! claude mcp list 2>/dev/null | grep -q exa; then
-  echo "WARN: Claude Code has neither the Exa plugin nor the Exa MCP server." >&2
-fi
-'
-}
-
-bash "$START_DOCKER"
-openLocalWorkspace
-
-if sandboxExists "$SANDBOX_NAME"; then
-  echo "Reusing sandbox: $SANDBOX_NAME"
-else
-  echo "Creating sandbox: $SANDBOX_NAME"
+bash "$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
+if ! sandboxExists "$SANDBOX_NAME"; then
   createWorkbenchSandbox "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME"
-  allow_network
-  upgrade_system_packages
-  install_system_packages
+  allow_herdr_network
+  install_herdr_dependencies
   install_node_lts
 fi
 
-allow_network
-configure_sandbox_env
-if ! sbx exec "$SANDBOX_NAME" bash -c 'command -v node >/dev/null 2>&1'; then
-  install_node_lts
-fi
+allow_herdr_network
 install_runtime_files
-install_or_update_tools
-install_bash_sandbox_runtime
-copy_agent_settings
-install_integrations
-install_exa_tools
-install_matt_pocock_skills_plugin
-install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
-install_skill_creator "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
-install_github_tools "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
-link_codex_skills_for_discovery
-
-echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"
+install_herdr_and_harness
+install_harness_security
 
 sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
   env \

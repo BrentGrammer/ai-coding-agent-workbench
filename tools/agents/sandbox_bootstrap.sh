@@ -1,456 +1,79 @@
-#!/bin/bash
-
-find_user_owned_home_dir() {
-  local dest_dir="$1" user="$2"
-  local user_home home_relative_dir
-  user_home="/home/$user"
-
-  case "$dest_dir" in
-    "$user_home"/*)
-      home_relative_dir="${dest_dir#"$user_home"/}"
-      echo "$user_home/${home_relative_dir%%/*}"
-      ;;
-  esac
-}
+#!/usr/bin/env bash
+set -euo pipefail
 
 install_file_into_sandbox() {
-  local src="$1" dest="$2"
-  local file_mode="${3:-600}" dir_mode="${4:-700}" owner="${5:-agent:agent}"
-  local dest_dir user group staged user_owned_home_dir
-  dest_dir="$(dirname "$dest")"
-  user="${owner%:*}"
-  group="${owner#*:}"
-  staged="/tmp/sbx-staged-$(basename "$dest")"
+  local source_file="$1"
+  local target_file="$2"
+  local file_mode="${3:-600}"
+  local directory_mode="${4:-700}"
+  local owner="${5:-agent:agent}"
+  local staged_file="/tmp/sbx-staged-$(basename "$target_file")"
 
-  # Agent/harness tools create runtime files here (i.e. settings config such as mcp_config.json etc.), 
-  # so the sandbox user must be able to write to it.
-  user_owned_home_dir="$(find_user_owned_home_dir "$dest_dir" "$user")"
-
-  sbx cp "$src" "$SANDBOX_NAME":"$staged"
+  sbx cp "$source_file" "$SANDBOX_NAME:$staged_file"
   sbx exec "$SANDBOX_NAME" bash -c "
 set -euo pipefail
-# Keep the tool's runtime directory writable by the sandbox user.
-if [ -n '$user_owned_home_dir' ]; then
-  sudo install -d -m $dir_mode -o $user -g $group '$user_owned_home_dir'
-fi
-# Create the copied file's parent directory with private, user-owned permissions.
-sudo install -d -m $dir_mode -o $user -g $group '$dest_dir'
-# Copy the staged file with its required permissions and ownership.
-sudo install -m $file_mode -o $user -g $group '$staged' '$dest'
-# Remove the temporary file from the sandbox.
-sudo rm -f '$staged'
+sudo install -d -m $directory_mode -o ${owner%:*} -g ${owner#*:} '$(dirname "$target_file")'
+sudo install -m $file_mode -o ${owner%:*} -g ${owner#*:} '$staged_file' '$target_file'
+sudo rm -f '$staged_file'
 "
 }
 
 allow_system_update_network() {
-  sbx policy allow network --sandbox "$SANDBOX_NAME" debian.org:443
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" ports.ubuntu.com:80
-  sbx policy allow network --sandbox "$SANDBOX_NAME" ports.ubuntu.com:443
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" deb.debian.org:80
-  sbx policy allow network --sandbox "$SANDBOX_NAME" deb.debian.org:443
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" archive.ubuntu.com:80
-  sbx policy allow network --sandbox "$SANDBOX_NAME" archive.ubuntu.com:443
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" security.ubuntu.com:80
-  sbx policy allow network --sandbox "$SANDBOX_NAME" security.ubuntu.com:443
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" astral.sh:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" download.docker.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" files.pythonhosted.org:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" pypi.org:443
-}
-
-allow_vendor_docs_network() {
-  sbx policy allow network --sandbox "$SANDBOX_NAME" json.schemastore.org:443
-}
-
-allow_skills_marketplace_network() {
-  [ "${INSTALL_ANY_SKILL:-false}" = "true" ] || return 0
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" add-skill.vercel.sh:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" codeload.github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
-}
-
-# Agent slugs come from the Supported Agents table in vercel-labs/skills, which
-# decides where each agent reads its skills from.
-install_matt_pocock_skills() {
-  [ "$INSTALL_MATT_POCOCK_SKILLS" = "true" ] || return 0
-
-  local workspace_dir="$1"
-  shift
-
-  local agent_flags=()
-  local agent_slug
-  for agent_slug in "$@"; do
-    agent_flags+=(--agent "$agent_slug")
+  local host
+  for host in \
+    debian.org:443 \
+    ports.ubuntu.com:80 \
+    ports.ubuntu.com:443 \
+    deb.debian.org:80 \
+    deb.debian.org:443 \
+    archive.ubuntu.com:80 \
+    archive.ubuntu.com:443 \
+    security.ubuntu.com:80 \
+    security.ubuntu.com:443 \
+    nodejs.org:443 \
+    registry.npmjs.org:443
+  do
+    sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
-
-  echo "Installing Matt Pocock skills for: $*"
-
-  if ! sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-
-npx --yes skills@1.5.23 add mattpocock/skills \
-  ${agent_flags[*]} \
-  --skill '*' \
-  --global \
-  --yes \
-  --copy
-"; then
-    echo "WARN: Could not install Matt Pocock skills for: $*" >&2
-  fi
 }
 
-install_skill_creator() {
-  [ "$INSTALL_SKILL_CREATOR" = "true" ] || return 0
-
-  local workspace_dir="$1"
-  shift
-
-  local agent_flags=()
-  local agent_slug
-  for agent_slug in "$@"; do
-    agent_flags+=(--agent "$agent_slug")
+allow_standard_model_network() {
+  local host
+  for host in \
+    api.openai.com:443 \
+    api.anthropic.com:443 \
+    generativelanguage.googleapis.com:443 \
+    openrouter.ai:443 \
+    api.openrouter.ai:443
+  do
+    sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
-
-  echo "Installing skill-creator for: $*"
-
-  if ! sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-
-npx --yes skills@1.5.23 add anthropics/skills \
-  --skill skill-creator \
-  ${agent_flags[*]} \
-  --global \
-  --yes \
-  --copy
-"; then
-    echo "WARN: Could not install skill-creator for: $*" >&2
-  fi
-}
-
-# The sandbox has no GitHub App token relay, so gh needs `gh auth login` once.
-# The sandbox keeps that login until it is deleted.
-install_github_tools() {
-  [ "$INSTALL_ANY_GH_TOOL" = "true" ] || return 0
-
-  local workspace_dir="$1"
-  shift
-
-  local agent_flags=()
-  local agent_slug
-  for agent_slug in "$@"; do
-    agent_flags+=(--agent "$agent_slug")
-  done
-
-  if [ "$INSTALL_GH" = "true" ]; then
-    echo "Installing gh for: $*"
-
-    # gh downloads its release from GitHub and `gh auth login` talks to the API,
-    # so open those hosts here instead of trusting each launcher to do it.
-    sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-    sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
-    sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
-    sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
-
-    sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-source /etc/sandbox-persistent.sh 2>/dev/null || true
-
-gh_version=2.97.0
-
-if ! gh --version 2>/dev/null | grep -q "gh version $gh_version"; then
-  case "$(uname -m)" in
-    aarch64|arm64) gh_arch="arm64" ;;
-    x86_64|amd64) gh_arch="amd64" ;;
-    *)
-      echo "ERROR: Unsupported architecture for gh: $(uname -m)" >&2
-      exit 1
-      ;;
-  esac
-
-  gh_tmp="$(mktemp -d)"
-  gh_release="gh_${gh_version}_linux_${gh_arch}"
-  curl -fsSL "https://github.com/cli/cli/releases/download/v${gh_version}/${gh_release}.tar.gz" \
-    -o "$gh_tmp/gh.tar.gz"
-  tar -xzf "$gh_tmp/gh.tar.gz" -C "$gh_tmp"
-  sudo install -m 755 "$gh_tmp/$gh_release/bin/gh" /usr/local/bin/gh
-  rm -rf "$gh_tmp"
-fi
-
-gh --version
-'
-  fi
-
-  if [ "$INSTALL_GH_AXI" = "true" ]; then
-    echo "Installing gh-axi for: $*"
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts gh-axi@0.1.30'
-  fi
-
-  if [ "$INSTALL_NPM_AXI" = "true" ]; then
-    echo "Installing npm-axi for: $*"
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts npm-axi@0.1.1'
-  fi
-
-  if [ "$INSTALL_GH_AXI" = "true" ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-
-npx --yes skills@1.5.23 add kunchenguid/gh-axi \
-  --skill gh-axi \
-  ${agent_flags[*]} \
-  --global \
-  --yes \
-  --copy
-" || echo "WARN: Could not install the gh-axi skill for: $*" >&2
-  fi
-
-  if [ "$INSTALL_NPM_AXI" = "true" ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-
-npx --yes skills@1.5.23 add SSBrouhard/npm-axi \
-  --skill npm-axi \
-  ${agent_flags[*]} \
-  --global \
-  --yes \
-  --copy
-" || echo "WARN: Could not install the npm-axi skill for: $*" >&2
-  fi
-
-  if [ "$INSTALL_GH_AXI" = "true" ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc 'gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2'
-  fi
-
-  if [ "$INSTALL_NPM_AXI" = "true" ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2'
-  fi
-
-  if [ "$INSTALL_GH" = "true" ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-source /etc/sandbox-persistent.sh 2>/dev/null || true
-
-# Every launcher shares this check. It verifies the API path that gh-axi uses
-# instead of trusting saved login state alone.
-cat > "$HOME/.gh-login-reminder.sh" <<'"'"'REMINDER'"'"'
-if ! gh auth status >/dev/null 2>&1 || ! gh api user --jq .login >/dev/null 2>&1; then
-  printf "\nGitHub access is not ready. gh and gh-axi need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\nThen run: gh-workbench-check\n\n"
-fi
-REMINDER
-
-mkdir -p "$HOME/.local/bin"
-cat > "$HOME/.local/bin/gh-workbench-check" <<'"'"'CHECK'"'"'
-#!/usr/bin/env bash
-set -euo pipefail
-
-gh auth status
-login="$(gh api user --jq .login)"
-if command -v gh-axi >/dev/null 2>&1; then
-  gh-axi issue list --limit 1 >/dev/null
-fi
-printf "GitHub access is ready for %s. gh and gh-axi can use this repository.\n" "$login"
-CHECK
-chmod 755 "$HOME/.local/bin/gh-workbench-check"
-
-if ! grep ".gh-login-reminder.sh" "$HOME/.bashrc" 2>/dev/null; then
-  cat >> "$HOME/.bashrc" <<'"'"'HOOK'"'"'
-
-if [ -t 1 ] && [ -f "$HOME/.gh-login-reminder.sh" ]; then
-  bash "$HOME/.gh-login-reminder.sh"
-fi
-HOOK
-fi
-
-bash "$HOME/.gh-login-reminder.sh"
-'
-  fi
-}
-
-# The skills repo doubles as a Claude Code plugin marketplace, so Claude gets the
-# plugin rather than files copied into its skills directory.
-install_matt_pocock_skills_plugin() {
-  [ "$INSTALL_MATT_POCOCK_SKILLS" = "true" ] || return 0
-
-  echo "Installing the Matt Pocock skills plugin for Claude Code..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-export PATH="$HOME/.local/bin:$PATH"
-
-if claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
-  echo "Matt Pocock skills plugin already installed."
-else
-  claude plugin marketplace add mattpocock/skills </dev/null >/dev/null 2>&1 || true
-  claude plugin install mattpocock-skills@mattpocock </dev/null >/dev/null 2>&1 || true
-fi
-
-if ! claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
-  echo "WARN: The Matt Pocock skills plugin did not install for Claude Code." >&2
-fi
-'
-}
-
-# Codex discovers user skills from ~/.agents/skills. Global Codex installs still
-# land in ~/.codex/skills, so link those folders for discovery.
-link_codex_skills_for_discovery() {
-  echo "Linking Codex skills into ~/.agents/skills for discovery..."
-
-  sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-
-mkdir -p "$HOME/.agents/skills"
-for skill_dir in "$HOME/.codex/skills"/*; do
-  [ -d "$skill_dir" ] || continue
-  skill_name="$(basename "$skill_dir")"
-  case "$skill_name" in
-    .system) continue ;;
-  esac
-  ln -sfn "$skill_dir" "$HOME/.agents/skills/$skill_name"
-done
-'
-}
-
-allow_exa_mcp_network() {
-  [ "${INSTALL_EXA:-false}" = "true" ] || return 0
-
-  sbx policy allow network --sandbox "$SANDBOX_NAME" mcp.exa.ai:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" auth.exa.ai:443
-}
-
-configure_sandbox_env() {
-  echo "Configuring privacy/telemetry environment inside sandbox..."
-
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-sudo tee /etc/sandbox-persistent.sh >/dev/null <<\EOF
-export DO_NOT_TRACK=1
-export SBX_NO_TELEMETRY=1
-export DISABLE_TELEMETRY=1
-export DISABLE_ERROR_REPORTING=1
-export DISABLE_FEEDBACK_COMMAND=1
-export DISABLE_AUTOUPDATER=1
-export CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1
-export GEMINI_TELEMETRY_ENABLED=false
-export GEMINI_TELEMETRY_TRACES_ENABLED=false
-export GEMINI_TELEMETRY_LOG_PROMPTS=false
-export OPENCODE_DISABLE_SHARE=1
-export OPENCODE_AUTO_SHARE=false
-export TERM=xterm-256color
-export NPM_CONFIG_PREFIX="$HOME/.local/npm"
-export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
-
-codex() {
-  command codex \
-    -c analytics.enabled=false \
-    -c feedback.enabled=false \
-    -c 'otel.exporter="none"' \
-    -c 'otel.metrics_exporter="none"' \
-    -c 'otel.trace_exporter="none"' \
-    -c otel.log_user_prompt=false \
-    "$@"
-}
-export -f codex
-EOF
-
-for rcfile in "$HOME/.bashrc" "$HOME/.profile"; do
-  if [ -f "$rcfile" ]; then
-    if ! grep "source /etc/sandbox-persistent.sh" "$rcfile"; then
-      echo "source /etc/sandbox-persistent.sh" >> "$rcfile"
-    fi
-  fi
-done
-'
-
 }
 
 install_bash_sandbox_runtime() {
-  echo "Installing bubblewrap so the Claude Code Bash sandbox can start..."
-
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-
 if ! command -v bwrap >/dev/null 2>&1 || ! command -v socat >/dev/null 2>&1; then
-  while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
-    echo "Waiting for apt lock..."
-    sleep 2
-  done
-
   sudo apt-get update
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     bubblewrap socat
 fi
-
-bwrap --version
-command -v socat
-
 if ! bwrap --ro-bind / / --dev /dev true 2>/dev/null; then
-  echo "ERROR: bubblewrap is installed but cannot create a sandbox here." >&2
-  echo "Unprivileged user namespaces are probably disabled on the host." >&2
-  echo "Claude Code will refuse to start until this is fixed." >&2
+  echo "ERROR: The Claude Code Bash sandbox cannot start." >&2
   exit 1
 fi
-
-echo "Bubblewrap sandbox verified."
 '
 }
 
 install_node_lts() {
-  echo "Installing Node LTS..."
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-
 case "$(uname -m)" in
-  aarch64|arm64)
-    node_arch="arm64"
-    ;;
-  x86_64|amd64)
-    node_arch="x64"
-    ;;
-  *)
-    echo "ERROR: Unsupported architecture: $(uname -m)" >&2
-    exit 1
-    ;;
+  aarch64|arm64) node_arch="arm64" ;;
+  x86_64|amd64) node_arch="x64" ;;
+  *) echo "ERROR: Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
-
 curl -fsSL "https://nodejs.org/dist/v24.9.0/node-v24.9.0-linux-${node_arch}.tar.gz" |
   sudo tar -xz -C /usr/local --strip-components=1
 '
-}
-
-# upgrade_system_packages() {
-#   sbx exec "$SANDBOX_NAME" bash -c "sudo apt update && sudo apt upgrade -y"
-# }
-
-upgrade_system_packages() {
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-
-while sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
-  echo "Waiting for apt lock..."
-  sleep 2
-done
-
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
-'
-}
-
-allow_gemini_access() {
-  sbx policy allow network --sandbox "$SANDBOX_NAME" generativelanguage.googleapis.com:443
 }
