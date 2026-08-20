@@ -4,6 +4,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 AWS_DIR="$SCRIPT_DIR/../infra/aws"
 
+LLM_PROVIDER="${WORKBENCH_LLM_PROVIDER:-aws}"
+REPO_URL="https://github.com/BrentGrammer/ai-coding-agent-workbench.git"
+DIGITALOCEAN_ENV_FILE="${WORKBENCH_DIGITALOCEAN_ENV:-$HOME/.config/agent-workbench/digitalocean-llm.env}"
+# The 48 GB cards only exist in Toronto.
+DIGITALOCEAN_REGION="${WORKBENCH_LLM_DIGITALOCEAN_REGION:-tor1}"
+# The AI/ML-ready image for every single-GPU NVIDIA droplet. Ships the driver.
+DIGITALOCEAN_IMAGE="${WORKBENCH_LLM_DIGITALOCEAN_IMAGE:-gpu-h100x1-base}"
+# Both 48 GB cards fit 131K context. Try in order, take the first with stock.
+DIGITALOCEAN_SIZES="${WORKBENCH_LLM_DIGITALOCEAN_SIZES:-gpu-6000adax1-48gb gpu-l40sx1-48gb}"
+DIGITALOCEAN_TAG="agent-workbench-gpu-llm"
+DIGITALOCEAN_SSH_KEY_NAME="${WORKBENCH_LLM_DIGITALOCEAN_SSH_KEY:-agent-workbench}"
+
 INSTANCE_NAME_TAG="agent-workbench-ec2"
 LLM_INSTANCE_NAME_TAG="agent-workbench-gpu-llm"
 LLM_CACHE_STACK="AgentWorkbenchLlmCacheStack"
@@ -58,16 +70,19 @@ ec2 commands:
   trust-host Read the SSH host key over SSM and refresh known_hosts
 
 llm commands:
-  up         Try Spot, then deploy On-Demand if Spot is unavailable
-  down       Destroy the GPU instance. The cache bucket stays.
-  status     Show whether the GPU instance is running
-  trust-host Read the SSH host key over SSM and refresh known_hosts
+  up         Start the GPU box and wait for the model
+  down       Destroy the GPU box. The cache bucket stays.
+  status     Show whether the GPU box is running
+  trust-host Read the SSH host key over SSM and refresh known_hosts (aws only)
 
 Environment:
   WORKBENCH_EC2_HOST            Tailscale host override (default: found with tailscale status)
-  WORKBENCH_EC2_USER            Login user (default: ubuntu)
-  WORKBENCH_LLM_INSTANCE_TYPE   GPU instance type (default: g6e.xlarge)
+  WORKBENCH_EC2_USER            Login user (default: ubuntu on aws, root on digitalocean)
+  WORKBENCH_LLM_PROVIDER        GPU cloud: aws or digitalocean (default: aws)
   WORKBENCH_LLM_CONTEXT_LENGTH  Ollama context window (default: 131072)
+  WORKBENCH_LLM_INSTANCE_TYPE   aws: GPU instance type (default: g6e.xlarge)
+  WORKBENCH_LLM_DIGITALOCEAN_SIZES  digitalocean: droplet sizes to try in order
+  WORKBENCH_DIGITALOCEAN_ENV        digitalocean: secrets file (default: ~/.config/agent-workbench/digitalocean-llm.env)
 EOF
   exit 1
 }
@@ -292,6 +307,142 @@ EOF
     -c llmPurchaseOption=on-demand)
 }
 
+require_doctl() {
+  if ! command -v doctl >/dev/null 2>&1; then
+    echo "ERROR: doctl is not installed. See infra/digitalocean/README.md." >&2
+    exit 1
+  fi
+}
+
+load_digitalocean_env() {
+  if [ ! -f "$DIGITALOCEAN_ENV_FILE" ]; then
+    echo "ERROR: $DIGITALOCEAN_ENV_FILE is missing. See infra/digitalocean/README.md." >&2
+    exit 1
+  fi
+  # shellcheck disable=SC1090
+  . "$DIGITALOCEAN_ENV_FILE"
+  local var
+  for var in DIGITALOCEAN_LLM_CACHE_BUCKET DIGITALOCEAN_SPACES_REGION SPACES_ACCESS_KEY_ID \
+    SPACES_SECRET_ACCESS_KEY DIGITALOCEAN_LLM_DESTROY_TOKEN TAILSCALE_AUTH_KEY; do
+    if [ -z "${!var:-}" ]; then
+      echo "ERROR: $var is not set in $DIGITALOCEAN_ENV_FILE." >&2
+      exit 1
+    fi
+  done
+}
+
+digitalocean_droplet_ids() {
+  doctl compute droplet list --tag-name "$DIGITALOCEAN_TAG" --format ID --no-header
+}
+
+digitalocean_ssh_key_fingerprint() {
+  doctl compute ssh-key list --format Name,FingerPrint --no-header |
+    awk -v name="$DIGITALOCEAN_SSH_KEY_NAME" '$1 == name { print $2; exit }'
+}
+
+# The values expand here, on the laptop. The droplet runs the result as
+# cloud-init, mirroring what the CDK stack does with EC2 user data.
+digitalocean_render_user_data() {
+  cat > "$1" <<EOF
+#!/bin/bash
+set -euo pipefail
+hostnamectl set-hostname agent-llm
+mkdir -p /etc/agent-workbench
+cat > /etc/agent-workbench/workbench.env <<'ENV'
+SPACES_REGION=$DIGITALOCEAN_SPACES_REGION
+LLM_CACHE_BUCKET=$DIGITALOCEAN_LLM_CACHE_BUCKET
+LLM_MODEL=$LLM_MODEL
+OLLAMA_CONTEXT_LENGTH=$LLM_CONTEXT_LENGTH
+ENV
+chmod 644 /etc/agent-workbench/workbench.env
+umask 077
+cat > /etc/agent-workbench/digitalocean-secrets.env <<'ENV'
+DIGITALOCEAN_LLM_DESTROY_TOKEN=$DIGITALOCEAN_LLM_DESTROY_TOKEN
+TAILSCALE_AUTH_KEY=$TAILSCALE_AUTH_KEY
+SPACES_ACCESS_KEY_ID=$SPACES_ACCESS_KEY_ID
+SPACES_SECRET_ACCESS_KEY=$SPACES_SECRET_ACCESS_KEY
+ENV
+umask 022
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y git
+[ -d /opt/agent-workbench/.git ] || git clone --branch main $REPO_URL /opt/agent-workbench
+chown -R root:root /opt/agent-workbench
+bash /opt/agent-workbench/infra/digitalocean/droplet/setup-llm.sh
+EOF
+}
+
+digitalocean_llm_up() {
+  require_doctl
+  load_digitalocean_env
+  if [ -n "$(digitalocean_droplet_ids)" ]; then
+    echo "A GPU droplet is already up."
+  else
+    local fingerprint user_data created="" size
+    fingerprint="$(digitalocean_ssh_key_fingerprint)"
+    if [ -z "$fingerprint" ]; then
+      echo "ERROR: No SSH key named $DIGITALOCEAN_SSH_KEY_NAME in the account." >&2
+      echo "Run terraform apply in infra/digitalocean/terraform first." >&2
+      exit 1
+    fi
+    user_data="$(mktemp)"
+    digitalocean_render_user_data "$user_data"
+    for size in $DIGITALOCEAN_SIZES; do
+      echo "Creating a $size droplet in $DIGITALOCEAN_REGION..."
+      if doctl compute droplet create agent-llm \
+        --region "$DIGITALOCEAN_REGION" \
+        --image "$DIGITALOCEAN_IMAGE" \
+        --size "$size" \
+        --ssh-keys "$fingerprint" \
+        --tag-name "$DIGITALOCEAN_TAG" \
+        --user-data-file "$user_data" \
+        --wait; then
+        created="$size"
+        break
+      fi
+      echo "Could not create a $size droplet. Trying the next card." >&2
+    done
+    rm -f "$user_data"
+    if [ -z "$created" ]; then
+      echo "ERROR: No 48 GB card available in $DIGITALOCEAN_REGION. Try later, or use AWS:" >&2
+      echo "  workbench llm up" >&2
+      exit 1
+    fi
+    echo "Droplet created ($created, ~\$1.57/hr)."
+    echo "The 1-hour idle stop and the 12-hour fuse are active."
+  fi
+  if wait_llm_ready; then
+    echo "Model ready. Start an agent with --gpu-box."
+  else
+    echo "Check with: WORKBENCH_LLM_PROVIDER=digitalocean workbench llm status"
+  fi
+}
+
+digitalocean_llm_down() {
+  require_doctl
+  local ids id
+  ids="$(digitalocean_droplet_ids)"
+  if [ -z "$ids" ]; then
+    echo "off"
+    return
+  fi
+  for id in $ids; do
+    doctl compute droplet delete --force "$id"
+    echo "Destroyed droplet $id."
+  done
+  echo "The model cache remains."
+}
+
+digitalocean_llm_status() {
+  require_doctl
+  if [ -z "$(digitalocean_droplet_ids)" ]; then
+    echo "off"
+    return
+  fi
+  doctl compute droplet list --tag-name "$DIGITALOCEAN_TAG" \
+    --format ID,Name,Status,Region,PublicIPv4
+}
+
 case "${1:-}" in
   ec2)
     case "${2:-}" in
@@ -360,6 +511,25 @@ case "${1:-}" in
     esac
     ;;
   llm)
+    if [ "$LLM_PROVIDER" != "aws" ] && [ "$LLM_PROVIDER" != "digitalocean" ]; then
+      echo "ERROR: WORKBENCH_LLM_PROVIDER must be aws or digitalocean, not $LLM_PROVIDER." >&2
+      exit 1
+    fi
+    if [ "$LLM_PROVIDER" = "digitalocean" ]; then
+      CONNECT_USER="${WORKBENCH_EC2_USER:-root}"
+      case "${2:-}" in
+        up) digitalocean_llm_up ;;
+        down) digitalocean_llm_down ;;
+        status) digitalocean_llm_status ;;
+        trust-host)
+          echo "trust-host reads keys over SSM, which DigitalOcean does not have." >&2
+          echo "If ssh reports a changed host key: ssh-keygen -R agent-llm" >&2
+          exit 1
+          ;;
+        *) usage ;;
+      esac
+      exit 0
+    fi
     case "${2:-}" in
       up)
         require_aws_dir
