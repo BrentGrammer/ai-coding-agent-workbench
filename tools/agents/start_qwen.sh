@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/local_workspace.sh"
+
+selectModelHost "$@"
+configureLocalWorkspace ${LAUNCHER_ARGS[@]+"${LAUNCHER_ARGS[@]}"}
+copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
+REPO_ROOT="$WORKSPACE_ROOT_DIR"
+REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
+SANDBOX_NAME="qwen-$REPO_REPLACE_UNDERSCORES"
+START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
+
+source "$SCRIPT_DIR/sandbox_bootstrap.sh"
+source "$SCRIPT_DIR/local_llm.sh"
+
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  resolve_local_llm
+fi
+
+echo "Using sandbox name: $SANDBOX_NAME"
+
+bash "$START_DOCKER"
+
+openLocalWorkspace
+
+allow_qwen_network() {
+  allow_system_update_network
+  allow_vendor_docs_network
+  allow_exa_mcp_network
+  allow_skills_marketplace_network
+
+  sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" raw.githubusercontent.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
+
+  sbx policy allow network --sandbox "$SANDBOX_NAME" chat.qwen.ai:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" portal.qwen.ai:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" dashscope.aliyuncs.com:443
+
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    allow_local_llm_network
+  fi
+}
+
+install_qwen_cli() {
+  sbx exec "$SANDBOX_NAME" bash -c "
+set -euo pipefail
+
+sudo npm install -g --ignore-scripts @qwen-code/qwen-code@0.21.14
+
+qwen --version
+"
+}
+
+copy_config() {
+  local qwen_settings="$SCRIPT_DIR/qwen-settings.json"
+  local generated_settings=""
+
+  if [ ! -f "$qwen_settings" ]; then
+    echo "WARN: No workbench Qwen settings at $qwen_settings" >&2
+    return
+  fi
+
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    require_jq
+    generated_settings="$(mktemp)"
+    jq -s '.[0] * .[1]' \
+      "$qwen_settings" <(qwen_local_model_config) > "$generated_settings"
+    qwen_settings="$generated_settings"
+  fi
+
+  merge_json_into_sandbox_file "$qwen_settings" /home/agent/.qwen/settings.json
+  if [ -n "$generated_settings" ]; then
+    rm -f "$generated_settings"
+  fi
+}
+
+usage_instructions() {
+  local local_model_lines=""
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    local_model_lines="
+default model:
+
+  $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL
+
+Switch models with /model.
+"
+  fi
+  sbx exec "$SANDBOX_NAME" bash -c '
+cat > "$HOME/.qwen-welcome.sh" <<EOF
+cat <<MSG
+
+✅ sandbox is ready: '"$SANDBOX_NAME"'
+
+Run Qwen Code:
+
+  qwen
+'"$local_model_lines"'
+Helpful commands:
+
+  /model    switch model
+  /auth     sign in to Alibaba ModelStudio
+  /stats    token use for the session
+
+MSG
+EOF
+
+if ! grep ".qwen-welcome.sh" "$HOME/.bashrc" 2>/dev/null; then
+  cat >> "$HOME/.bashrc" <<EOF
+
+if [ -t 1 ] && [ -f "\$HOME/.qwen-welcome.sh" ]; then
+  bash "\$HOME/.qwen-welcome.sh"
+fi
+EOF
+fi
+'
+}
+
+if sandboxExists "$SANDBOX_NAME"; then
+  echo "✅ Existing sandbox found: $SANDBOX_NAME"
+  echo "Reconnecting..."
+
+  allow_qwen_network
+  configure_sandbox_env
+  install_qwen_cli
+  copy_config
+  install_matt_pocock_skills "$REPO_ROOT" qwen-code
+  install_skill_creator "$REPO_ROOT" qwen-code
+  install_no_mistakes "$REPO_ROOT" qwen-code
+  install_github_tools "$REPO_ROOT" qwen-code
+
+  usage_instructions
+  sbx run "$SANDBOX_NAME"
+else
+  echo "🆕 Creating new sandbox: $SANDBOX_NAME"
+
+  createWorkbenchSandbox "$REPO_ROOT" "$SANDBOX_NAME"
+
+  allow_qwen_network
+  upgrade_system_packages
+
+  install_node_lts
+  install_qwen_cli
+  copy_config
+  install_matt_pocock_skills "$REPO_ROOT" qwen-code
+  install_skill_creator "$REPO_ROOT" qwen-code
+  install_no_mistakes "$REPO_ROOT" qwen-code
+  install_github_tools "$REPO_ROOT" qwen-code
+
+  configure_sandbox_env
+
+  echo "✅ Setup complete! Dropping you into the sandbox."
+  usage_instructions
+  sbx run "$SANDBOX_NAME"
+fi

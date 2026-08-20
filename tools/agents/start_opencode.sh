@@ -25,18 +25,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
-USE_LOCAL_MODEL=false
-USE_GPU_BOX=false
-opencode_args=()
-for arg in "$@"; do
-  case "$arg" in
-    --local-model) USE_LOCAL_MODEL=true ;;
-    --gpu-box) USE_LOCAL_MODEL=true; USE_GPU_BOX=true ;;
-    *) opencode_args+=("$arg") ;;
-  esac
-done
-# bash 3.2, which macOS ships, treats an empty array as unset under `set -u`.
-configureLocalWorkspace ${opencode_args[@]+"${opencode_args[@]}"}
+selectModelHost "$@"
+configureLocalWorkspace ${LAUNCHER_ARGS[@]+"${LAUNCHER_ARGS[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_NAME="$WORKSPACE_NAME"

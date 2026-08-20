@@ -99,6 +99,7 @@ resolve_local_llm() {
   fi
   LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
   LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
+  LOCAL_LLM_CONTEXT_LENGTH="${LOCAL_LLM_CONTEXT_LENGTH:-${OLLAMA_CONTEXT_LENGTH:-131072}}"
   # none | low | medium | high
   LOCAL_LLM_REASONING_EFFORT="${LOCAL_LLM_REASONING_EFFORT:-medium}"
   if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]]; then
@@ -109,14 +110,17 @@ resolve_local_llm() {
   fi
 }
 
-# One line, because the EC2 box carries this in OPENCODE_CONFIG_CONTENT.
-# reasoningEffort may be dropped for custom providers (anomalyco/opencode#27361).
-opencode_local_model_config() {
+require_jq() {
   if ! command -v jq >/dev/null 2>&1; then
     echo "ERROR: jq is required for --local-model." >&2
     exit 1
   fi
-  jq -nc --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+}
+
+# reasoningEffort may be dropped for custom providers (anomalyco/opencode#27361).
+opencode_local_model_config() {
+  require_jq
+  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
      --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
     '{
        model: ("local-llm/" + $model),
@@ -134,6 +138,86 @@ opencode_local_model_config() {
          }
        }
      }'
+}
+
+pi_default_model_settings() {
+  require_jq
+  jq -n --arg model "$LOCAL_LLM_MODEL" --arg thinking "$LOCAL_LLM_REASONING_EFFORT" \
+    '{
+       defaultProvider: "local-llm",
+       defaultModel: $model,
+       defaultThinkingLevel: (if $thinking == "" then "medium" else $thinking end)
+     }'
+}
+
+kilo_local_model_config() {
+  require_jq
+  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+     --argjson context "$LOCAL_LLM_CONTEXT_LENGTH" \
+    '{
+       "$schema": "https://app.kilo.ai/config.json",
+       model: ("local-llm/" + $model),
+       provider: {
+         "local-llm": {
+           npm: "@ai-sdk/openai-compatible",
+           name: "Local LLM",
+           options: { baseURL: $url, apiKey: "ollama" },
+           models: {
+             ($model): {
+               name: $model,
+               tool_call: true,
+               limit: { context: $context, output: 32768 }
+             }
+           }
+         }
+       }
+     }'
+}
+
+qwen_local_model_config() {
+  require_jq
+  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+     --argjson context "$LOCAL_LLM_CONTEXT_LENGTH" \
+    '{
+       env: { OLLAMA_API_KEY: "ollama" },
+       security: { auth: { selectedType: "openai" } },
+       model: { name: $model },
+       modelProviders: {
+         openai: [ {
+           id: $model,
+           name: "Local LLM",
+           envKey: "OLLAMA_API_KEY",
+           baseUrl: $url,
+           generationConfig: {
+             timeout: 300000,
+             maxRetries: 1,
+             contextWindowSize: $context
+           }
+         } ]
+       }
+     }'
+}
+
+# Harnesses write their own state back to these files, so replacing one would
+# discard the model, permission and MCP choices made in the last session.
+merge_json_into_sandbox_file() {
+  local fragment="$1" dest="$2"
+  require_jq
+  local existing merged
+  existing="$(mktemp)"
+  merged="$(mktemp)"
+
+  sbx exec "$SANDBOX_NAME" bash -c "cat '$dest' 2>/dev/null" > "$existing" || true
+  if ! jq -e . "$existing" >/dev/null 2>&1; then
+    if [ -s "$existing" ]; then
+      echo "WARN: $dest is not plain JSON in the sandbox, replacing it." >&2
+    fi
+    echo '{}' > "$existing"
+  fi
+
+  jq -s '.[0] * .[1]' "$existing" "$fragment" > "$merged"
+  install_file_into_sandbox "$merged" "$dest"
+  rm -f "$existing" "$merged"
 }
 
 # Allowlists the sandbox to reach LOCAL_LLM_BASE_URL. Needs $SANDBOX_NAME.

@@ -5,7 +5,9 @@ PREFIX_NAME="kilo"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
-configureLocalWorkspace "$@"
+
+selectModelHost "$@"
+configureLocalWorkspace ${LAUNCHER_ARGS[@]+"${LAUNCHER_ARGS[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
@@ -13,6 +15,11 @@ SANDBOX_NAME="$PREFIX_NAME-$REPO_REPLACE_UNDERSCORES"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
+source "$SCRIPT_DIR/local_llm.sh"
+
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  resolve_local_llm
+fi
 
 echo "Using sandbox name: $SANDBOX_NAME"
 
@@ -39,6 +46,10 @@ allow_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" console.anthropic.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" openrouter.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.openrouter.ai:443
+
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    allow_local_llm_network
+  fi
 }
 
 configure_kilo_env() {
@@ -69,7 +80,7 @@ export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$HOME/.local}"
 
 mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
 
-npm install -g @kilocode/cli@7.4.15 --ignore-scripts
+npm install -g @kilocode/cli@7.4.22 --ignore-scripts
 
 if ! grep "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null; then
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
@@ -86,7 +97,27 @@ copy_config() {
   fi
 }
 
+install_kilo_local_model_config() {
+  if [ "$USE_LOCAL_MODEL" != true ]; then
+    return
+  fi
+  local kilo_config
+  kilo_config="$(mktemp)"
+  kilo_local_model_config > "$kilo_config"
+  merge_json_into_sandbox_file "$kilo_config" /home/agent/.config/kilo/kilo.jsonc
+  rm -f "$kilo_config"
+}
+
 usage_instructions() {
+  local local_model_lines=""
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    local_model_lines="
+Already set as the default model:
+
+  $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL
+
+"
+  fi
   sbx exec "$SANDBOX_NAME" bash -c '
 cat > "$HOME/.kilo-code-welcome.sh" <<EOF
 cat <<MSG
@@ -96,7 +127,7 @@ cat <<MSG
 Run Kilo Code CLI:
 
   kilo
-
+'"$local_model_lines"'
 First-time provider setup:
 
   kilo
@@ -106,13 +137,13 @@ Or use CLI auth:
 
   kilo auth login
 
-Helpful commands:
+Switch models with /models inside the session.
 
-  kilo --help
-  kilo auth list
-  kilo models
-  kilo config check
-  kilo debug paths
+Kilo published command list is stale, so ask the binary:
+
+  kilo help --all --format md
+
+There is no kilo update. The version is pinned in start_kilo.sh.
 
 MSG
 EOF
@@ -137,6 +168,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   configure_kilo_env
   install_pinned_kilo
   copy_config
+  install_kilo_local_model_config
   install_matt_pocock_skills "$REPO_ROOT" kilo
   install_skill_creator "$REPO_ROOT" kilo
   install_no_mistakes "$REPO_ROOT" kilo
@@ -156,6 +188,7 @@ else
   configure_kilo_env
   install_pinned_kilo
   copy_config
+  install_kilo_local_model_config
   install_matt_pocock_skills "$REPO_ROOT" kilo
   install_skill_creator "$REPO_ROOT" kilo
   install_no_mistakes "$REPO_ROOT" kilo

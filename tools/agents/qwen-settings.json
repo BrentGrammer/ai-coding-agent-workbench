@@ -1,0 +1,13 @@
+{
+  "privacy": {
+    "usageStatisticsEnabled": false
+  },
+  "telemetry": {
+    "enabled": false
+  },
+  "tools": {
+    "computerUse": {
+      "enabled": false
+    }
+  }
+}

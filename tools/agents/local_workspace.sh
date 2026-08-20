@@ -108,6 +108,21 @@ openPreferredTerminal() {
   exit $?
 }
 
+# Picks the machine that runs the model. i.e. if local model using gpu box, for ex.
+selectModelHost() {
+  USE_LOCAL_MODEL=false
+  USE_GPU_BOX=false
+  LAUNCHER_ARGS=()
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --local-model) USE_LOCAL_MODEL=true ;;
+      --gpu-box) USE_LOCAL_MODEL=true; USE_GPU_BOX=true ;;
+      *) LAUNCHER_ARGS+=("$arg") ;;
+    esac
+  done
+}
+
 # Shared setup for local agent launchers. Uses the current directory or
 # optional local project path and creates a Docker sandbox name from it.
 configureLocalWorkspace() {

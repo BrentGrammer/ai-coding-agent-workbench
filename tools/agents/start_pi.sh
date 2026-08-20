@@ -4,18 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
-USE_LOCAL_MODEL=false
-USE_GPU_BOX=false
-pi_args=()
-for arg in "$@"; do
-  case "$arg" in
-    --local-model) USE_LOCAL_MODEL=true ;;
-    --gpu-box) USE_LOCAL_MODEL=true; USE_GPU_BOX=true ;;
-    *) pi_args+=("$arg") ;;
-  esac
-done
-# bash 3.2, which macOS ships, treats an empty array as unset under `set -u`.
-configureLocalWorkspace ${pi_args[@]+"${pi_args[@]}"}
+selectModelHost "$@"
+configureLocalWorkspace ${LAUNCHER_ARGS[@]+"${LAUNCHER_ARGS[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
@@ -61,16 +51,11 @@ pi install npm:pi-web-access@0.14.0
 "
 }
 
-# pi reads custom providers from ~/.pi/agent/models.json and picks up changes
-# each time /model opens. There is no config field for a default model.
 install_pi_local_model_config() {
     if [ "$USE_LOCAL_MODEL" != true ]; then
         return
     fi
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "ERROR: jq is required for --local-model." >&2
-        exit 1
-    fi
+    require_jq
     local models_config
     models_config="$(mktemp)"
     jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
@@ -89,18 +74,29 @@ install_pi_local_model_config() {
             }
           }
         }' > "$models_config"
-    install_file_into_sandbox "$models_config" /home/agent/.pi/agent/models.json
+    merge_json_into_sandbox_file "$models_config" /home/agent/.pi/agent/models.json
     rm -f "$models_config"
+
+    local settings_config
+    settings_config="$(mktemp)"
+    pi_default_model_settings > "$settings_config"
+    merge_json_into_sandbox_file "$settings_config" /home/agent/.pi/agent/settings.json
+    rm -f "$settings_config"
 }
 
 usage_instructions() {
-    local local_model_lines=""
+    local model_lines="
+First time: run /login to set a key or subscription plan.
+Switch models any time with Ctrl+L or /model.
+"
     if [ "$USE_LOCAL_MODEL" = true ]; then
-        local_model_lines="
-Switch to $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL:
+        model_lines="
+Already the default model, no /login needed:
 
-    Ctrl+L or /model -> local-llm
-    Shift+Tab -> medium (thinking level)
+    $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL
+    thinking level $LOCAL_LLM_REASONING_EFFORT
+
+Switch models with Ctrl+L or /model, thinking level with Shift+Tab.
 "
     fi
     sbx exec "$SANDBOX_NAME" bash -c '
@@ -112,10 +108,7 @@ cat <<MSG
 Run pi:
 
   pi
-
-First time: run /login to set a key or subscription plan.
-Switch models any time with Ctrl+L or /model.
-'"$local_model_lines"'
+'"$model_lines"'
 MSG
 EOF
 
