@@ -4,18 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
-USE_LOCAL_MODEL=false
-USE_GPU_BOX=false
-pi_args=()
-for arg in "$@"; do
-  case "$arg" in
-    --local-model) USE_LOCAL_MODEL=true ;;
-    --gpu-box) USE_LOCAL_MODEL=true; USE_GPU_BOX=true ;;
-    *) pi_args+=("$arg") ;;
-  esac
-done
-# bash 3.2, which macOS ships, treats an empty array as unset under `set -u`.
-configureLocalWorkspace ${pi_args[@]+"${pi_args[@]}"}
+selectModelHost "$@"
+configureLocalWorkspace ${LAUNCHER_ARGS[@]+"${LAUNCHER_ARGS[@]}"}
 copyMissingProjectInstructions "$PROMPT_INSTRUCTION_COPY"
 REPO_ROOT="$WORKSPACE_ROOT_DIR"
 REPO_REPLACE_UNDERSCORES="$SANDBOX_WORKSPACE_NAME"
@@ -67,10 +57,7 @@ install_pi_local_model_config() {
     if [ "$USE_LOCAL_MODEL" != true ]; then
         return
     fi
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "ERROR: jq is required for --local-model." >&2
-        exit 1
-    fi
+    require_jq
     local models_config
     models_config="$(mktemp)"
     jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \

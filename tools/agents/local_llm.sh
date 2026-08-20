@@ -99,6 +99,7 @@ resolve_local_llm() {
   fi
   LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
   LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
+  LOCAL_LLM_CONTEXT_LENGTH="${LOCAL_LLM_CONTEXT_LENGTH:-${OLLAMA_CONTEXT_LENGTH:-131072}}"
   # none | low | medium | high
   LOCAL_LLM_REASONING_EFFORT="${LOCAL_LLM_REASONING_EFFORT:-medium}"
   if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]]; then
@@ -109,14 +110,17 @@ resolve_local_llm() {
   fi
 }
 
-# One line, because the EC2 box carries this in OPENCODE_CONFIG_CONTENT.
-# reasoningEffort may be dropped for custom providers (anomalyco/opencode#27361).
-opencode_local_model_config() {
+require_jq() {
   if ! command -v jq >/dev/null 2>&1; then
     echo "ERROR: jq is required for --local-model." >&2
     exit 1
   fi
-  jq -nc --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+}
+
+# reasoningEffort may be dropped for custom providers (anomalyco/opencode#27361).
+opencode_local_model_config() {
+  require_jq
+  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
      --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
     '{
        model: ("local-llm/" + $model),
@@ -132,6 +136,54 @@ opencode_local_model_config() {
              )
            }
          }
+       }
+     }'
+}
+
+kilo_local_model_config() {
+  require_jq
+  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+     --argjson context "$LOCAL_LLM_CONTEXT_LENGTH" \
+    '{
+       "$schema": "https://app.kilo.ai/config.json",
+       model: ("local-llm/" + $model),
+       provider: {
+         "local-llm": {
+           npm: "@ai-sdk/openai-compatible",
+           name: "Local LLM",
+           options: { baseURL: $url, apiKey: "ollama" },
+           models: {
+             ($model): {
+               name: $model,
+               tool_call: true,
+               limit: { context: $context, output: 32768 }
+             }
+           }
+         }
+       }
+     }'
+}
+
+qwen_local_model_config() {
+  require_jq
+  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
+     --argjson context "$LOCAL_LLM_CONTEXT_LENGTH" \
+    '{
+       env: { OLLAMA_API_KEY: "ollama" },
+       security: { auth: { selectedType: "openai" } },
+       model: { name: $model },
+       modelProviders: {
+         openai: [ {
+           id: $model,
+           name: "Local LLM",
+           envKey: "OLLAMA_API_KEY",
+           baseUrl: $url,
+           generationConfig: {
+             timeout: 300000,
+             maxRetries: 1,
+             contextWindowSize: $context
+           }
+         } ]
        }
      }'
 }
