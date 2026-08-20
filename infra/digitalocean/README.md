@@ -30,12 +30,14 @@ destroys it **12 hours** after boot no matter what.
 
 ## One-time setup
 
-1. Install the tools: 
+1. Install the tools:
+
 ```shell
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
 brew install doctl
 ```
+
 2. Create an API token (control panel: API → Tokens, full access).
    Run `doctl auth init` with it, and export it for Terraform:
    `export DIGITALOCEAN_TOKEN=...`
@@ -84,8 +86,53 @@ WORKBENCH_LLM_PROVIDER=digitalocean workbench llm down
 TOR1 only — and takes the first with stock. Override the order or the list
 with `WORKBENCH_LLM_DIGITALOCEAN_SIZES`.
 
+## Setting up another machine
+
+Install the tools, run `doctl auth init`, and copy
+`~/.config/agent-workbench/digitalocean-llm.env` from the first machine.
+If the first machine is gone, re-create the secrets instead: a new Spaces
+key, destroy token, and Tailscale key from the control panels (delete the
+old ones). Nothing is unrecoverable. The account resources already exist,
+so skip `terraform apply`; run `terraform import` only if Terraform is
+needed again.
+
 ## Terraform state
 
 State stays local and gitignored, because Terraform writes resource secrets
 (the Spaces keys) into `terraform.tfstate` in plain text. If the state file
 is ever lost, `terraform import` recovers it — there are only four resources.
+
+## Setup for Future Reference (new machine)
+
+1. Install the tools: brew install doctl and terraform (see readme links for install)
+2. Main API token: create at cloud.digitalocean.com → API → Tokens (full access). Then doctl auth init (paste it) and export DIGITALOCEAN_TOKEN=<thetoken>
+3. Admin Spaces Access key: control panel → Spaces Keys → create. Then export SPACES_ACCESS_KEY_ID=<key> SPACES_SECRET_ACCESS_KEY=<secret>
+4. Apply Terraform:
+   terraform -chdir=infra/digitalocean/terraform init
+   terraform -chdir=infra/digitalocean/terraform apply
+5. Self-destroy token: control panel → API → Tokens → custom scopes → only droplet delete. This is what the box uses to kill itself.
+6. Write ~/.config/agent-workbench/digitalocean-llm.env, chmod 600, six lines:
+
+```shell
+ mkdir -p ~/.config/agent-workbench
+touch ~/.config/agent-workbench/digitalocean-llm.env
+chmod 600 ~/.config/agent-workbench/digitalocean-llm.env
+```
+
+```shell
+DIGITALOCEAN_LLM_CACHE_BUCKET=agent-workbench-llm-cache
+DIGITALOCEAN_SPACES_REGION=nyc3
+SPACES_ACCESS_KEY_ID=$(terraform -chdir=infra/digitalocean/terraform output -raw spaces_access_key_id)
+SPACES_SECRET_ACCESS_KEY=$(terraform -chdir=infra/digitalocean/terraform output -raw spaces_secret_access_key)
+DIGITALOCEAN_LLM_DESTROY_TOKEN=<token from step 5>
+TAILSCALE_AUTH_KEY=<same GPU-box key the AWS path uses>
+```
+
+     (Note: the two Spaces values here are the bucket-scoped key Terraform created in step 4 — not the admin key from step 3.)
+
+7. First run:
+   WORKBENCH_LLM_PROVIDER=digitalocean workbench llm up
+   First-ever boot is slow (~30 min: registry pull + cache upload). When done, prompt it once, then:
+   WORKBENCH_LLM_PROVIDER=digitalocean workbench llm down
+   WORKBENCH_LLM_PROVIDER=digitalocean workbench llm status # must say "off"
+   That last check is the one that costs money if it's wrong — confirm the droplet is really gone.
