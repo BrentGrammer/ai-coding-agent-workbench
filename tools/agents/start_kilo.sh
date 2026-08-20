@@ -118,9 +118,6 @@ Already set as the default model:
 
   $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL
 
-No /connect needed. Switch models with:
-
-  kilo models
 "
   fi
   sbx exec "$SANDBOX_NAME" bash -c '
@@ -142,13 +139,13 @@ Or use CLI auth:
 
   kilo auth login
 
-Helpful commands:
+Switch models with /models inside the session.
 
-  kilo --help
-  kilo auth list
-  kilo models
-  kilo config check
-  kilo debug paths
+Kilo published command list is stale, so ask the binary:
+
+  kilo help --all --format md
+
+There is no kilo update. The version is pinned in start_kilo.sh.
 
 MSG
 EOF

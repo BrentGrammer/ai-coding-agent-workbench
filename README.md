@@ -97,6 +97,7 @@ start-grok
 start-junie
 start-kilo
 start-pi
+start-qwen
 ```
 
 Each command uses the current directory unless a project path is passed. Sandbox names use the workspace folder name and a hash of its canonical path. Sandboxes are reused only for the same workspace path, so the first launch with the new name can require a new agent login.
@@ -118,7 +119,7 @@ start-codex --prompt-instruction-copy "/path/to/project"
 
 Launchers mount the live folder, so a real `.env` is readable by the agent. Some of the harnesses have sufficient protection, but some do not and `--clone` is recommended for:
 
-**Recommended: Use `--clone` with these:** `start-cline`, `start-cursor`, `start-antigravity`, `start-gemini`, `start-grok`, `start-junie`, `start-kilo`, `start-pi`, `start-commandcode`. None of them can block a secret read.
+**Recommended: Use `--clone` with these:** `start-cline`, `start-cursor`, `start-antigravity`, `start-gemini`, `start-grok`, `start-junie`, `start-kilo`, `start-pi`, `start-qwen`, `start-commandcode`. None of them can block a secret read.
 
 **Skip it with these:** `start-claude`, `start-opencode`, `start-codex`. All three block secret reads on their own.
 
@@ -207,7 +208,7 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 ## Local LLM
 
-Runs an open model instead of a hosted API. Works with `start-opencode` and `start-pi`. Two targets, one flag each:
+Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
 
 - **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
 - **GPU box** — `--gpu-box`. An optional GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and sends to EC2 G series box.
@@ -234,11 +235,20 @@ start-opencode --gpu-box
 
 ```shell
 start-pi --local-model
+start-kilo --gpu-box
+start-qwen --gpu-box
 ```
 
-Both start Ollama on loopback and serve `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
+`--local-model` starts Ollama on loopback and serves `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
 
-Inside the sandbox, `opencode` already defaults to the local model by updating `/etc/opencode/opencode.json` — no `/connect` needed. `pi` adds it as a `local-llm` provider in `~/.pi/agent/models.json`; select it with `Ctrl+L` or `/model`.
+Where each harness reads the model, and what you do inside the sandbox:
+
+| Launcher | Config file written | Inside the sandbox |
+|---|---|---|
+| `start-opencode` | `/etc/opencode/opencode.json` | already the default, nothing to do |
+| `start-qwen` | `~/.qwen/settings.json` | already the default, no `/auth` |
+| `start-kilo` | `~/.config/kilo/kilo.jsonc` | already the default, no `/connect` |
+| `start-pi` | `~/.pi/agent/models.json` | pick it with `Ctrl+L` or `/model` |
 
 Both flags add a `local-llm` provider and make it the default model. Nothing else changes: an OpenAI or OpenRouter model picked with `/model` still goes to that provider, and still needs its own login. The GPU box serves one model and cannot forward requests to anyone else.
 
@@ -256,7 +266,11 @@ Defaults to `medium` thinking. Set it before the launcher command to override:
 LOCAL_LLM_REASONING_EFFORT=low start-opencode --local-model
 ```
 
-Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pick the level yourself each session: `Ctrl+L` or `/model` -> `local-llm`, then `Shift+Tab` to the level you want.
+Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pick the level yourself each session: `Ctrl+L` or `/model` -> `local-llm`, then `Shift+Tab` to the level you want. In `start-qwen`, use `/effort`.
+
+Thinking level reaches the model either way. Ollama's OpenAI-compatible route maps `reasoning_effort` onto its own `Think` field, so `none`, `low`, `medium` and `high` all land. Ollama turns thinking on by default when the field is absent. Its native `think` parameter does **not** work on this route — only `reasoning_effort` does.
+
+Context length defaults to 131072 and follows `OLLAMA_CONTEXT_LENGTH` from the box. Override it with `LOCAL_LLM_CONTEXT_LENGTH` when the box runs a smaller context, or the harness sends prompts the server truncates.
 
 ### GPU box
 
