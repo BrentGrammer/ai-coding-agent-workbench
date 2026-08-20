@@ -104,7 +104,7 @@ install_matt_pocock_skills() {
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@1.5.20 add mattpocock/skills \
+npx --yes skills@1.5.23 add mattpocock/skills \
   ${agent_flags[*]} \
   --skill '*' \
   --global \
@@ -131,7 +131,7 @@ install_skill_creator() {
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@1.5.20 add anthropics/skills \
+npx --yes skills@1.5.23 add anthropics/skills \
   --skill skill-creator \
   ${agent_flags[*]} \
   --global \
@@ -158,7 +158,7 @@ install_no_mistakes() {
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@1.5.20 add kunchenguid/no-mistakes \
+npx --yes skills@1.5.23 add kunchenguid/no-mistakes \
   --skill no-mistakes \
   ${agent_flags[*]} \
   --global \
@@ -216,7 +216,7 @@ if ! gh --version 2>/dev/null | grep -q "gh version $gh_version"; then
   rm -rf "$gh_tmp"
 fi
 
-npm install -g --ignore-scripts gh-axi@0.1.29 npm-axi@0.1.1
+npm install -g --ignore-scripts gh-axi@0.1.30 npm-axi@0.1.1
 
 gh --version
 gh-axi --version
@@ -227,14 +227,14 @@ npm-axi --version
 set -euo pipefail
 cd '$workspace_dir'
 
-npx --yes skills@1.5.20 add kunchenguid/gh-axi \
+npx --yes skills@1.5.23 add kunchenguid/gh-axi \
   --skill gh-axi \
   ${agent_flags[*]} \
   --global \
   --yes \
   --copy
 
-npx --yes skills@1.5.20 add SSBrouhard/npm-axi \
+npx --yes skills@1.5.23 add SSBrouhard/npm-axi \
   --skill npm-axi \
   ${agent_flags[*]} \
   --global \

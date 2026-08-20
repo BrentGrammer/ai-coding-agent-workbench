@@ -92,7 +92,6 @@ start-antigravity
 start-cline
 start-commandcode
 start-cursor
-start-gemini
 start-grok
 start-junie
 start-kilo
@@ -119,7 +118,7 @@ start-codex --prompt-instruction-copy "/path/to/project"
 
 Launchers mount the live folder, so a real `.env` is readable by the agent. Some of the harnesses have sufficient protection, but some do not and `--clone` is recommended for:
 
-**Recommended: Use `--clone` with these:** `start-cline`, `start-cursor`, `start-antigravity`, `start-gemini`, `start-grok`, `start-junie`, `start-kilo`, `start-pi`, `start-qwen`, `start-commandcode`. None of them can block a secret read.
+**Recommended: Use `--clone` with these:** `start-cline`, `start-cursor`, `start-antigravity`, `start-grok`, `start-junie`, `start-kilo`, `start-pi`, `start-qwen`, `start-commandcode`. None of them can block a secret read.
 
 **Skip it with these:** `start-claude`, `start-opencode`, `start-codex`. All three block secret reads on their own.
 
