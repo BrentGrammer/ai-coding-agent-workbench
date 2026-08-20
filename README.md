@@ -248,7 +248,7 @@ Where each harness reads the model, and what you do inside the sandbox:
 | `start-opencode` | `/etc/opencode/opencode.json` | already the default, nothing to do |
 | `start-qwen` | `~/.qwen/settings.json` | already the default, no `/auth` |
 | `start-kilo` | `~/.config/kilo/kilo.jsonc` | already the default, no `/connect` |
-| `start-pi` | `~/.pi/agent/models.json` | pick it with `Ctrl+L` or `/model` |
+| `start-pi` | `~/.pi/agent/models.json` and `settings.json` | already the default, no `/login` |
 
 Both flags add a `local-llm` provider and make it the default model. Nothing else changes: an OpenAI or OpenRouter model picked with `/model` still goes to that provider, and still needs its own login. The GPU box serves one model and cannot forward requests to anyone else.
 
@@ -266,7 +266,7 @@ Defaults to `medium` thinking. Set it before the launcher command to override:
 LOCAL_LLM_REASONING_EFFORT=low start-opencode --local-model
 ```
 
-Values: `none`, `low`, `medium`, `high`. In `start-opencode`. In `start-pi`, pick the level yourself each session: `Ctrl+L` or `/model` -> `local-llm`, then `Shift+Tab` to the level you want. In `start-qwen`, use `/effort`.
+Values: `none`, `low`, `medium`, `high`. Applies to `start-opencode` and `start-pi`. Change it in a session with `Shift+Tab` in pi, or `/effort` in Qwen Code.
 
 Thinking level reaches the model either way. Ollama's OpenAI-compatible route maps `reasoning_effort` onto its own `Think` field, so `none`, `low`, `medium` and `high` all land. Ollama turns thinking on by default when the field is absent. Its native `think` parameter does **not** work on this route — only `reasoning_effort` does.
 

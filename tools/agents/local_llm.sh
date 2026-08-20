@@ -140,6 +140,16 @@ opencode_local_model_config() {
      }'
 }
 
+pi_default_model_settings() {
+  require_jq
+  jq -n --arg model "$LOCAL_LLM_MODEL" --arg thinking "$LOCAL_LLM_REASONING_EFFORT" \
+    '{
+       defaultProvider: "local-llm",
+       defaultModel: $model,
+       defaultThinkingLevel: (if $thinking == "" then "medium" else $thinking end)
+     }'
+}
+
 kilo_local_model_config() {
   require_jq
   jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
