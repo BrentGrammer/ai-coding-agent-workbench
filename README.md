@@ -74,7 +74,7 @@ start-herdr opencode
 
 Herdr installs only the selected harness. It does not install Hunk or review skills.
 
-+## Local LLM
+## Local LLM
 
 Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
 
@@ -83,11 +83,8 @@ Runs an open model instead of a hosted API. Works with `start-opencode`, `start-
 
 ### Prerequisites
 
-- On Mac host (Local only): [Ollama](https://ollama.com/download), `python3`, and `jq` on the host.
-- On Mac host (Local only): the model pulled once with `ollama pull qwen3.8:27b-mlx`.
-- GPU box: its own [Tailscale auth key](docs/cloud-onetime-setup.md#7-gpu-auth-key), which is ephemeral, unlike the workbench key.
-- GPU box: request 4 vCPUs for both **All G and VT Spot Instance Requests** and **Running On-Demand G and VT instances** before the first `workbench llm up`. Use AWS CLI, or open the AWS console in the region and go to **Service Quotas → Amazon EC2 → search for the quota name → Request quota increase**. See [GPU quotas](docs/cloud-onetime-setup.md#5-gpu-quotas-local-llm-only).
-- GPU box: nothing to deploy by hand. `workbench llm up` deploys its two CDK stacks (`AgentWorkbenchLlmCacheStack`, `AgentWorkbenchLlmStack`) every time — a no-op if they're already up to date. This needs CDK already bootstrapped for the account/region.
+- **Local:** Ollama, `python3`, `jq`, and `ollama pull qwen3.8:27b-mlx`.
+- **AWS GPU:** CDK bootstrapped, [4 Spot and On-Demand G-family vCPUs](docs/cloud-onetime-setup.md#5-gpu-quotas-local-llm-only), and an [ephemeral Tailscale key](docs/cloud-onetime-setup.md#7-gpu-auth-key).
 
 ### Run on a Mac
 
