@@ -82,7 +82,7 @@ usage_instructions() {
   local local_model_lines=""
   if [ "$USE_LOCAL_MODEL" = true ]; then
     local_model_lines="
-Already set as the default model, no /auth needed:
+default model:
 
   $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL
 
