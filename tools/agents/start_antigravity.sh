@@ -69,7 +69,7 @@ allow_antigravity_network() {
 sync_files_to_sandbox() {
 	echo "Syncing host-managed files into sandbox..."
 
-	if [ -f "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" ]; then
+	if [ "$INSTALL_EXA" = "true" ] && [ -f "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" ]; then
 		install_file_into_sandbox "$WORKBENCH_ROOT/.gemini/antigravity-cli/mcp_config.json" /home/agent/.gemini/antigravity-cli/mcp_config.json
 	fi
 
@@ -144,7 +144,6 @@ if sandboxExists "$SANDBOX_NAME"; then
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	install_skill_creator "$REPO_ROOT" antigravity-cli
-	install_no_mistakes "$REPO_ROOT" antigravity-cli
 	install_github_tools "$REPO_ROOT" antigravity-cli
 	usage_instructions
 else
@@ -170,7 +169,6 @@ else
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	install_skill_creator "$REPO_ROOT" antigravity-cli
-	install_no_mistakes "$REPO_ROOT" antigravity-cli
 	install_github_tools "$REPO_ROOT" antigravity-cli
 	usage_instructions
 fi

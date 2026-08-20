@@ -102,30 +102,47 @@ opencode --version
 install_skills() {
   install_matt_pocock_skills "$REPO_ROOT" opencode
   install_skill_creator "$REPO_ROOT" opencode
-  install_no_mistakes "$REPO_ROOT" opencode
   install_github_tools "$REPO_ROOT" opencode
 }
 
 copy_config() {
   local opencode_config="$SCRIPT_DIR/opencode.json"
-  local generated_config=""
+  local source_config="$opencode_config"
+  local generated_configs=()
 
-  if [ ! -f "$opencode_config" ]; then
-    echo "WARN: No workbench OpenCode config at $opencode_config" >&2
+  if [ ! -f "$source_config" ]; then
+    echo "WARN: No workbench OpenCode config at $source_config" >&2
     return
   fi
 
-  if [ "$USE_LOCAL_MODEL" = true ]; then
-    generated_config="$(mktemp)"
-    # `*` merges deeply, so the provider is added and .model is replaced.
-    jq -s '.[0] * .[1]' \
-      "$opencode_config" <(opencode_local_model_config) > "$generated_config"
-    opencode_config="$generated_config"
+  if [ "$INSTALL_EXA" = "true" ] || [ "$USE_LOCAL_MODEL" = "true" ]; then
+    require_jq
   fi
 
-  install_file_into_sandbox "$opencode_config" /etc/opencode/opencode.json 644 755 root:root
-  if [ -n "$generated_config" ]; then
-    rm -f "$generated_config"
+  if [ "$INSTALL_EXA" = "true" ]; then
+    local exa_fragment exa_merged
+    exa_fragment="$(mktemp)"
+    jq -n '{mcp:{exa:{type:"remote",url:"https://mcp.exa.ai/mcp",enabled:true}}}' > "$exa_fragment"
+    exa_merged="$(mktemp)"
+    # `*` merges deeply, so only the mcp block is added.
+    jq -s '.[0] * .[1]' "$source_config" "$exa_fragment" > "$exa_merged"
+    rm -f "$exa_fragment"
+    generated_configs+=("$exa_merged")
+    source_config="$exa_merged"
+  fi
+
+  if [ "$USE_LOCAL_MODEL" = "true" ]; then
+    local model_merged
+    # `*` merges deeply, so the provider is added and .model is replaced.
+    model_merged="$(mktemp)"
+    jq -s '.[0] * .[1]' "$source_config" <(opencode_local_model_config) > "$model_merged"
+    generated_configs+=("$model_merged")
+    source_config="$model_merged"
+  fi
+
+  install_file_into_sandbox "$source_config" /etc/opencode/opencode.json 644 755 root:root
+  if [ "${#generated_configs[@]}" -gt 0 ]; then
+    rm -f "${generated_configs[@]}"
   fi
 }
 

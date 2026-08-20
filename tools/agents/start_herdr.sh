@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -gt 2 ]; then
-  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor]" >&2
+POSITIONAL=()
+HERDR_EXTRA_FLAGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --*) HERDR_EXTRA_FLAGS+=("$arg") ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
+done
+
+if [ "${#POSITIONAL[@]}" -gt 2 ]; then
+  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor] [FLAGS]" >&2
+  echo "   Options: --matt-pocock-skills --skill-creator --exa --gh --gh-axi --npm-axi" >&2
   exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 
-WORKBENCH_AGENT="${2:-${WORKBENCH_AGENT:-cursor}}"
+WORKBENCH_AGENT="${POSITIONAL[1]:-${WORKBENCH_AGENT:-cursor}}"
 export WORKBENCH_AGENT
 case "$WORKBENCH_AGENT" in
   claude|codex|opencode|cursor)
@@ -20,7 +30,7 @@ case "$WORKBENCH_AGENT" in
     ;;
 esac
 
-configureLocalWorkspace "${1:-$PWD}"
+configureLocalWorkspace "${POSITIONAL[0]:-$PWD}" ${HERDR_EXTRA_FLAGS[@]+"${HERDR_EXTRA_FLAGS[@]}"}
 
 SANDBOX_NAME="herdr-$SANDBOX_WORKSPACE_NAME"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
@@ -223,6 +233,8 @@ done
 # The codex, opencode and cursor panes get Exa from their config files, so only
 # Claude Code needs it installed through its own CLI.
 install_exa_tools() {
+  [ "$INSTALL_EXA" = "true" ] || return 0
+
   echo "Installing Exa web search for Claude Code..."
 
   sbx exec "$SANDBOX_NAME" bash -lc '
@@ -278,7 +290,6 @@ install_exa_tools
 install_matt_pocock_skills_plugin
 install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
 install_skill_creator "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
-install_no_mistakes "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
 install_github_tools "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
 link_codex_skills_for_discovery
 

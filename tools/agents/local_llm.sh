@@ -112,7 +112,7 @@ resolve_local_llm() {
 
 require_jq() {
   if ! command -v jq >/dev/null 2>&1; then
-    echo "ERROR: jq is required for --local-model." >&2
+    echo "ERROR: jq is required for --exa or --local-model." >&2
     exit 1
   fi
 }

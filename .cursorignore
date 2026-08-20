@@ -52,8 +52,3 @@ htmlcov/
 opencode.json
 .clineignore
 .geminiignore
-
-# Serena MCP
-# Keep .serena/project*.yml and .serena/memories/ visible.
-.serena/cache/
-# ignore this if you have secrets there and have sensitive config setup: .serena/project.local.yml

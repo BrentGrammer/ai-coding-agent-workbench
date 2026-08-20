@@ -76,6 +76,8 @@ copy_config() {
 }
 
 install_exa_mcp_server() {
+  [ "$INSTALL_EXA" = "true" ] || return 0
+
   echo "Registering the Exa MCP server with Codex..."
 
   # The add writes the config entry first, then offers an OAuth flow that would
@@ -101,11 +103,14 @@ fi
 install_skills() {
   install_matt_pocock_skills "$REPO_ROOT" codex
   install_skill_creator "$REPO_ROOT" codex
-  install_no_mistakes "$REPO_ROOT" codex
   install_github_tools "$REPO_ROOT" codex
 }
 
 usage_instructions() {
+  local skills_block=""
+  if [ "$INSTALL_MATT_POCOCK_SKILLS" = "true" ]; then
+    skills_block=$'\nUse Skills in Codex:\n\n  Inside Codex type: /skills\n  Select setup-matt-pocock-skills and run it.\n'
+  fi
   sbx exec "$SANDBOX_NAME" bash -c '
 cat > "$HOME/.codex-welcome.sh" <<EOF
 cat <<MSG
@@ -115,12 +120,7 @@ cat <<MSG
 Run Codex:
 
   codex
-
-Use Skills in Codex:
-  
-  Inside Codex type: /skills
-  Select setup-matt-pocock-skills and run it.
-
+'"$skills_block"'
 MSG
 EOF
 

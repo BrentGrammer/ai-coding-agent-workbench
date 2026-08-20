@@ -68,17 +68,12 @@ allow_system_update_network() {
 }
 
 allow_vendor_docs_network() {
-  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.claude.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" code.claude.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.anthropic.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" developers.openai.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" opencode.ai:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" docs.cline.bot:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" cursor.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" json.schemastore.org:443
 }
 
 allow_skills_marketplace_network() {
+  [ "${INSTALL_ANY_SKILL:-false}" = "true" ] || return 0
+
   sbx policy allow network --sandbox "$SANDBOX_NAME" add-skill.vercel.sh:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
@@ -89,6 +84,8 @@ allow_skills_marketplace_network() {
 # Agent slugs come from the Supported Agents table in vercel-labs/skills, which
 # decides where each agent reads its skills from.
 install_matt_pocock_skills() {
+  [ "$INSTALL_MATT_POCOCK_SKILLS" = "true" ] || return 0
+
   local workspace_dir="$1"
   shift
 
@@ -116,6 +113,8 @@ npx --yes skills@1.5.23 add mattpocock/skills \
 }
 
 install_skill_creator() {
+  [ "$INSTALL_SKILL_CREATOR" = "true" ] || return 0
+
   local workspace_dir="$1"
   shift
 
@@ -142,38 +141,11 @@ npx --yes skills@1.5.23 add anthropics/skills \
   fi
 }
 
-install_no_mistakes() {
-  local workspace_dir="$1"
-  shift
-
-  local agent_flags=()
-  local agent_slug
-  for agent_slug in "$@"; do
-    agent_flags+=(--agent "$agent_slug")
-  done
-
-  echo "Installing no-mistakes for: $*"
-
-  if ! sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-
-npx --yes skills@1.5.23 add kunchenguid/no-mistakes \
-  --skill no-mistakes \
-  ${agent_flags[*]} \
-  --global \
-  --yes \
-  --copy
-"; then
-    echo "WARN: Could not install no-mistakes for: $*" >&2
-  fi
-}
-
-# gh-axi and npm-axi give agents compact GitHub and npm registry output. gh-axi
-# shells out to gh, so the gh binary goes in first. The EC2 box authenticates gh
-# from its GitHub App token relay, which does not exist here, so the sandbox
-# needs `gh auth login` once. The sandbox keeps that login until it is deleted.
+# The sandbox has no GitHub App token relay, so gh needs `gh auth login` once.
+# The sandbox keeps that login until it is deleted.
 install_github_tools() {
+  [ "$INSTALL_ANY_GH_TOOL" = "true" ] || return 0
+
   local workspace_dir="$1"
   shift
 
@@ -183,15 +155,17 @@ install_github_tools() {
     agent_flags+=(--agent "$agent_slug")
   done
 
-  echo "Installing gh, gh-axi, and npm-axi for: $*"
+  if [ "$INSTALL_GH" = "true" ]; then
+    echo "Installing gh for: $*"
 
-  # gh downloads its release from GitHub and `gh auth login` talks to the API,
-  # so open those hosts here instead of trusting each launcher to do it.
-  allow_skills_marketplace_network
-  sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
+    # gh downloads its release from GitHub and `gh auth login` talks to the API,
+    # so open those hosts here instead of trusting each launcher to do it.
+    sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
+    sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
+    sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
+    sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
 
-  sbx exec "$SANDBOX_NAME" bash -lc '
+    sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 source /etc/sandbox-persistent.sh 2>/dev/null || true
 
@@ -216,14 +190,22 @@ if ! gh --version 2>/dev/null | grep -q "gh version $gh_version"; then
   rm -rf "$gh_tmp"
 fi
 
-npm install -g --ignore-scripts gh-axi@0.1.30 npm-axi@0.1.1
-
 gh --version
-gh-axi --version
-npm-axi --version
 '
+  fi
 
-  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+  if [ "$INSTALL_GH_AXI" = "true" ]; then
+    echo "Installing gh-axi for: $*"
+    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts gh-axi@0.1.30'
+  fi
+
+  if [ "$INSTALL_NPM_AXI" = "true" ]; then
+    echo "Installing npm-axi for: $*"
+    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts npm-axi@0.1.1'
+  fi
+
+  if [ "$INSTALL_GH_AXI" = "true" ]; then
+    sbx exec "$SANDBOX_NAME" bash -lc "
 set -euo pipefail
 cd '$workspace_dir'
 
@@ -233,6 +215,13 @@ npx --yes skills@1.5.23 add kunchenguid/gh-axi \
   --global \
   --yes \
   --copy
+" || echo "WARN: Could not install the gh-axi skill for: $*" >&2
+  fi
+
+  if [ "$INSTALL_NPM_AXI" = "true" ]; then
+    sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
 
 npx --yes skills@1.5.23 add SSBrouhard/npm-axi \
   --skill npm-axi \
@@ -240,22 +229,27 @@ npx --yes skills@1.5.23 add SSBrouhard/npm-axi \
   --global \
   --yes \
   --copy
-"; then
-    echo "WARN: Could not install the gh-axi or npm-axi skills for: $*" >&2
+" || echo "WARN: Could not install the npm-axi skill for: $*" >&2
   fi
 
-  sbx exec "$SANDBOX_NAME" bash -lc '
+  if [ "$INSTALL_GH_AXI" = "true" ]; then
+    sbx exec "$SANDBOX_NAME" bash -lc 'gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2'
+  fi
+
+  if [ "$INSTALL_NPM_AXI" = "true" ]; then
+    sbx exec "$SANDBOX_NAME" bash -lc 'npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2'
+  fi
+
+  if [ "$INSTALL_GH" = "true" ]; then
+    sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 source /etc/sandbox-persistent.sh 2>/dev/null || true
 
-gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2
-npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2
-
-# Every launcher shares this check. It verifies the API path that gh-axi and
-# Wayfinder use instead of trusting saved login state alone.
+# Every launcher shares this check. It verifies the API path that gh-axi uses
+# instead of trusting saved login state alone.
 cat > "$HOME/.gh-login-reminder.sh" <<'"'"'REMINDER'"'"'
 if ! gh auth status >/dev/null 2>&1 || ! gh api user --jq .login >/dev/null 2>&1; then
-  printf "\nGitHub access is not ready. gh-axi, Wayfinder, and no-mistakes need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\nThen run: gh-workbench-check\n\n"
+  printf "\nGitHub access is not ready. gh and gh-axi need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\nThen run: gh-workbench-check\n\n"
 fi
 REMINDER
 
@@ -266,8 +260,10 @@ set -euo pipefail
 
 gh auth status
 login="$(gh api user --jq .login)"
-gh-axi issue list --limit 1 >/dev/null
-printf "GitHub access is ready for %s. gh, gh-axi, and Wayfinder can use this repository.\n" "$login"
+if command -v gh-axi >/dev/null 2>&1; then
+  gh-axi issue list --limit 1 >/dev/null
+fi
+printf "GitHub access is ready for %s. gh and gh-axi can use this repository.\n" "$login"
 CHECK
 chmod 755 "$HOME/.local/bin/gh-workbench-check"
 
@@ -282,11 +278,14 @@ fi
 
 bash "$HOME/.gh-login-reminder.sh"
 '
+  fi
 }
 
 # The skills repo doubles as a Claude Code plugin marketplace, so Claude gets the
 # plugin rather than files copied into its skills directory.
 install_matt_pocock_skills_plugin() {
+  [ "$INSTALL_MATT_POCOCK_SKILLS" = "true" ] || return 0
+
   echo "Installing the Matt Pocock skills plugin for Claude Code..."
 
   sbx exec "$SANDBOX_NAME" bash -lc '
@@ -327,20 +326,10 @@ done
 }
 
 allow_exa_mcp_network() {
+  [ "${INSTALL_EXA:-false}" = "true" ] || return 0
+
   sbx policy allow network --sandbox "$SANDBOX_NAME" mcp.exa.ai:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" auth.exa.ai:443
-}
-
-allow_serena_mcp_network() {
-  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" pypi.org:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" files.pythonhosted.org:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" astral.sh:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" uv.sh:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" oraios-software.de:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
 }
 
 configure_sandbox_env() {
