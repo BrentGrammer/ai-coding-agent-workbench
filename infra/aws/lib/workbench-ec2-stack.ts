@@ -5,6 +5,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
+import { LLM_MODEL } from "./workbench-llm-stack";
 
 // Resizing is this one line plus a stop/start.
 const INSTANCE_TYPE = "t4g.large";
@@ -15,13 +16,14 @@ const TAILSCALE_AUTH_KEY_PARAMETER = "/coding-agent-workbench/tailscale/auth-key
 // Override with CDK context: -c repoUrl=https://github.com/you/fork.git
 const DEFAULT_REPO_URL =
   "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
+// The GPU box joins the tailnet as agent-llm. 11435 is its inference-only proxy.
+const LOCAL_LLM_BASE_URL = "http://agent-llm:11435/v1";
 const UBUNTU_2404_ARM64_AMI_PARAMETER =
   "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id";
 
 export interface WorkbenchEc2StackProps extends cdk.StackProps {
   githubTokenFunction: lambda.IFunction;
 }
-
 export class WorkbenchEc2Stack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WorkbenchEc2StackProps) {
     super(scope, id, props);
@@ -67,7 +69,7 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       "mkdir -p /etc/agent-workbench",
       // This truncates, so every key the box needs belongs here. The setup
       // script only tops up what is missing on an already-running box.
-      `printf 'AWS_REGION=%s\\nGITHUB_APP_TOKEN_FUNCTION_NAME=%s\\n' '${this.region}' '${props.githubTokenFunction.functionName}' > /etc/agent-workbench/workbench.env`,
+      `printf 'AWS_REGION=%s\\nGITHUB_APP_TOKEN_FUNCTION_NAME=%s\\nLOCAL_LLM_BASE_URL=%s\\nLOCAL_LLM_MODEL=%s\\n' '${this.region}' '${props.githubTokenFunction.functionName}' '${LOCAL_LLM_BASE_URL}' '${LLM_MODEL}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
       "export DEBIAN_FRONTEND=noninteractive",
       "apt-get update",

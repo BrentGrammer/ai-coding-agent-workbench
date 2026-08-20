@@ -24,6 +24,10 @@ fi
 install -d -m 755 /etc/agent-workbench
 touch /etc/agent-workbench/workbench.env
 chmod 644 /etc/agent-workbench/workbench.env
+grep -q '^LOCAL_LLM_BASE_URL=' /etc/agent-workbench/workbench.env ||
+  echo 'LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1' >> /etc/agent-workbench/workbench.env
+grep -q '^LOCAL_LLM_MODEL=' /etc/agent-workbench/workbench.env ||
+  echo 'LOCAL_LLM_MODEL=qwen3.8:27b' >> /etc/agent-workbench/workbench.env
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -119,6 +123,7 @@ install -m 644 "$REPO_DIR/infra/aws/runtime/github-token-relay.mjs" /usr/local/l
 install -m 644 "$REPO_DIR/infra/aws/runtime/github-app-token-client.mjs" /usr/local/lib/agent-workbench/github-app-token-client.mjs
 install -m 644 "$REPO_DIR/infra/aws/ec2/github-token-relay-service.mjs" /usr/local/lib/agent-workbench/github-token-relay-service.mjs
 
+install -m 644 "$REPO_DIR/tools/agents/local_llm.sh" /usr/local/lib/agent-workbench/local_llm.sh
 install -m 755 "$REPO_DIR/infra/aws/ec2/start-herdr" /usr/local/bin/start-herdr
 rm -f /usr/local/bin/workbench-open
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop

@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "scripts": {
     "build": "tsc",
+    "test:llm": "ts-node test/workbench-llm-stack.test.ts",
     "deploy": "cdk deploy AgentWorkbenchTokenStack AgentWorkbenchEc2Stack && ../../bin/workbench ec2 sync-host",
-    "diff": "cdk diff AgentWorkbenchTokenStack AgentWorkbenchEc2Stack",
-    "synth": "cdk synth AgentWorkbenchTokenStack AgentWorkbenchEc2Stack"
+    "diff": "cdk diff AgentWorkbenchTokenStack AgentWorkbenchEc2Stack AgentWorkbenchLlmCacheStack AgentWorkbenchLlmStack",
+    "synth": "cdk synth AgentWorkbenchTokenStack AgentWorkbenchEc2Stack AgentWorkbenchLlmCacheStack AgentWorkbenchLlmStack"
   },
   "dependencies": {
     "aws-cdk-lib": "2.263.0",
