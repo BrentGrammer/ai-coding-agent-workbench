@@ -146,6 +146,7 @@ TAILSCALE_AUTH_KEY=<same GPU-box key the AWS path uses>
   == Done. Serving qwen3.8:27b on http://agent-llm:11435/v1
   Cloud-init v. 26.1-0ubuntu1~22.04.1 finished at Thu, 20 Aug 2026 01:10:08 +0000. Datasource DataSourceConfigDrive [net,ver=2][source=/dev/vdb].  Up 213.54 seconds`
   ```
+
   - confirm: `curl http://agent-llm:11435/v1/models`
 - To watch progress once it's on the tailnet: ssh root@agent-llm 'tail -f /var/log/cloud-init-output.log'
 - Every later boot restores from Spaces instead: ~5 minutes.
@@ -154,3 +155,9 @@ If the wait times out, just poll with WORKBENCH_LLM_PROVIDER=digitalocean workbe
 session: llm down, then status must say off.
 
 - check context available: `ssh root@agent-llm 'nvidia-smi --query-gpu=memory.used,memory.total --format=csv && ollama ps'`
+
+### KV Cache Precision
+
+- On DO boxes we can up it to a higher precision since the boxes have more memory than some of the default AWS instances in the G Series.
+- More bits = more decimal places = a more exact number. The KV cache is the model's working notes on your conversation — for each token
+  it has read, it keeps a batch of numbers so it doesn't have to re-read everything on every reply. f16 writes those notes with 16 bits per number (full detail). q8_0 squeezes each one into 8 bits — half the memory, but every number gets slightly rounded. A short conversation shrugs that off; at 100K+ tokens the model is reasoning over a hundred thousand slightly-rounded notes, and the rounding can start to show as dumber answers. That's the whole trade: memory versus exactness.

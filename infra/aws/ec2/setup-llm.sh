@@ -29,6 +29,7 @@ fi
 : "${LLM_CACHE_BUCKET:?LLM_CACHE_BUCKET is not set in workbench.env}"
 : "${LLM_MODEL:?LLM_MODEL is not set in workbench.env}"
 OLLAMA_CONTEXT_LENGTH="${OLLAMA_CONTEXT_LENGTH:-131072}"
+OLLAMA_KV_CACHE_TYPE="${OLLAMA_KV_CACHE_TYPE:-q8_0}"
 
 mkdir -p "$SETUP_STATE_DIR"
 exec 9>"$SETUP_STATE_DIR/setup.lock"
@@ -87,14 +88,14 @@ fi
 echo "== Ollama"
 command -v ollama >/dev/null 2>&1 || curl -fsSL https://ollama.com/install.sh | sh
 install -d -m 755 /etc/systemd/system/ollama.service.d
-# A q8_0 KV cache halves what the context costs (~128 KB/token) but can cost
-# quality at long context. 131K is the known-safe edge; check output past it.
+# q8_0 halves what the context costs in KV cache but can cost quality at long
+# context. It is required on the 24 GB card; use f16 on a 48 GB one.
 cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_CONTEXT_LENGTH=$OLLAMA_CONTEXT_LENGTH
 Environment=OLLAMA_FLASH_ATTENTION=1
-Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+Environment=OLLAMA_KV_CACHE_TYPE=$OLLAMA_KV_CACHE_TYPE
 Environment=OLLAMA_NUM_PARALLEL=1
 # Loading 15 GB into VRAM costs about 3 minutes, so stay warm across a session.
 # llm-idle-stop reads a loaded model as in use, so this also sets the idle floor.

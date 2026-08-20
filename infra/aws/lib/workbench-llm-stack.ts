@@ -10,6 +10,9 @@ const DEFAULT_INSTANCE_TYPE = "g6e.xlarge";
 // The KV cache costs ~128 KB/token: ~48K fits a 24 GB card, ~200K a 48 GB one.
 // Override with -c llmContextLength, or WORKBENCH_LLM_CONTEXT_LENGTH.
 const DEFAULT_CONTEXT_LENGTH = 131072;
+// q8_0 halves the KV cache so it fits the 24 GB floor card. f16 keeps full
+// quality at long context but needs a 48 GB card.
+const DEFAULT_KV_CACHE_TYPE = "q8_0";
 const SPOT = "spot";
 const ON_DEMAND = "on-demand";
 // The AMI snapshot size. It leaves room for two models, since a single card
@@ -56,6 +59,12 @@ export class WorkbenchLlmStack extends cdk.Stack {
     if (!Number.isInteger(contextLength) || contextLength <= 0) {
       throw new Error("llmContextLength must be a positive integer");
     }
+    const kvCacheType =
+      (this.node.tryGetContext("llmKvCacheType") as string) ??
+      DEFAULT_KV_CACHE_TYPE;
+    if (kvCacheType !== "q8_0" && kvCacheType !== "f16") {
+      throw new Error('llmKvCacheType must be "q8_0" or "f16"');
+    }
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
@@ -92,7 +101,7 @@ export class WorkbenchLlmStack extends cdk.Stack {
       "set -euo pipefail",
       "hostnamectl set-hostname agent-llm",
       "mkdir -p /etc/agent-workbench",
-      `printf 'AWS_REGION=%s\\nLLM_CACHE_BUCKET=%s\\nLLM_MODEL=%s\\nOLLAMA_CONTEXT_LENGTH=%s\\n' '${this.region}' '${props.cacheBucket.bucketName}' '${LLM_MODEL}' '${contextLength}' > /etc/agent-workbench/workbench.env`,
+      `printf 'AWS_REGION=%s\\nLLM_CACHE_BUCKET=%s\\nLLM_MODEL=%s\\nOLLAMA_CONTEXT_LENGTH=%s\\nOLLAMA_KV_CACHE_TYPE=%s\\n' '${this.region}' '${props.cacheBucket.bucketName}' '${LLM_MODEL}' '${contextLength}' '${kvCacheType}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
       "export DEBIAN_FRONTEND=noninteractive",
       "apt-get update",

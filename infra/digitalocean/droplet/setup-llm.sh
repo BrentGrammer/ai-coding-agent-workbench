@@ -39,6 +39,7 @@ chmod 600 /etc/agent-workbench/digitalocean-secrets.env
 : "${SPACES_ACCESS_KEY_ID:?SPACES_ACCESS_KEY_ID is not set in digitalocean-secrets.env}"
 : "${SPACES_SECRET_ACCESS_KEY:?SPACES_SECRET_ACCESS_KEY is not set in digitalocean-secrets.env}"
 OLLAMA_CONTEXT_LENGTH="${OLLAMA_CONTEXT_LENGTH:-131072}"
+OLLAMA_KV_CACHE_TYPE="${OLLAMA_KV_CACHE_TYPE:-f16}"
 SPACES_ENDPOINT="https://${SPACES_REGION}.digitaloceanspaces.com"
 
 mkdir -p "$SETUP_STATE_DIR"
@@ -97,14 +98,14 @@ fi
 echo "== Ollama"
 command -v ollama >/dev/null 2>&1 || curl -fsSL https://ollama.com/install.sh | sh
 install -d -m 755 /etc/systemd/system/ollama.service.d
-# A q8_0 KV cache halves what the context costs (~128 KB/token) but can cost
-# quality at long context. 131K is the known-safe edge; check output past it.
+# f16 KV keeps full quality at long context. The 48 GB cards have the room:
+# measured 131K costs ~8 GiB at q8_0, so ~16 GiB at f16, on 15.3 GiB weights.
 cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
 [Service]
 Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_CONTEXT_LENGTH=$OLLAMA_CONTEXT_LENGTH
 Environment=OLLAMA_FLASH_ATTENTION=1
-Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+Environment=OLLAMA_KV_CACHE_TYPE=$OLLAMA_KV_CACHE_TYPE
 Environment=OLLAMA_NUM_PARALLEL=1
 # Loading 15 GB into VRAM costs about 3 minutes, so stay warm across a session.
 # llm-idle-stop reads a loaded model as in use, so this also sets the idle floor.

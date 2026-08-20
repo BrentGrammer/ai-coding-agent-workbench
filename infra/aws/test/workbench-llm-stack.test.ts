@@ -144,7 +144,19 @@ assert.throws(
   /llmContextLength must be a positive integer/,
 );
 
+assert.match(
+  JSON.stringify(defaultLaunch.UserData),
+  /OLLAMA_KV_CACHE_TYPE=%s/,
+);
+assert.match(JSON.stringify(defaultLaunch.UserData), /'q8_0'/);
+const f16Launch = launchTemplateData(synthesize({ llmKvCacheType: "f16" }));
+assert.match(JSON.stringify(f16Launch.UserData), /'f16'/);
+assert.throws(
+  () => synthesize({ llmKvCacheType: "fp8" }),
+  /llmKvCacheType must be "q8_0" or "f16"/,
+);
+
 console.log(
-  "workbench LLM stack supports Spot and On-Demand capacity, " +
-    "and a configurable instance type and context length",
+  "workbench LLM stack supports Spot and On-Demand capacity, and a " +
+    "configurable instance type, context length, and KV cache type",
 );

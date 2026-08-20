@@ -24,6 +24,13 @@ LLM_STACK="AgentWorkbenchLlmStack"
 # context, so the value here is the one the box gets.
 LLM_INSTANCE_TYPE="${WORKBENCH_LLM_INSTANCE_TYPE:-g6e.xlarge}"
 LLM_CONTEXT_LENGTH="${WORKBENCH_LLM_CONTEXT_LENGTH:-131072}"
+# f16 keeps full KV quality but needs a 48 GB card. DigitalOcean cards are
+# always 48 GB; the AWS default instance is not.
+if [ "$LLM_PROVIDER" = "digitalocean" ]; then
+  LLM_KV_CACHE_TYPE="${WORKBENCH_LLM_KV_CACHE_TYPE:-f16}"
+else
+  LLM_KV_CACHE_TYPE="${WORKBENCH_LLM_KV_CACHE_TYPE:-q8_0}"
+fi
 LLM_MODEL="qwen3.8:27b"
 # AWS forecasts Spot capacity from 1 to 10. Below this, skip the Spot attempt
 # and its failed deploy and rollback.
@@ -80,6 +87,7 @@ Environment:
   WORKBENCH_EC2_USER            Login user (default: ubuntu on aws, root on digitalocean)
   WORKBENCH_LLM_PROVIDER        GPU cloud: aws or digitalocean (default: aws)
   WORKBENCH_LLM_CONTEXT_LENGTH  Ollama context window (default: 131072)
+  WORKBENCH_LLM_KV_CACHE_TYPE   q8_0 or f16 (default: q8_0 on aws, f16 on digitalocean)
   WORKBENCH_LLM_INSTANCE_TYPE   aws: GPU instance type (default: g6e.xlarge)
   WORKBENCH_LLM_DIGITALOCEAN_SIZES  digitalocean: droplet sizes to try in order
   WORKBENCH_DIGITALOCEAN_ENV        digitalocean: secrets file (default: ~/.config/agent-workbench/digitalocean-llm.env)
@@ -272,6 +280,7 @@ deploy_llm_with_spot() {
     --require-approval never \
     -c llmInstanceType="$LLM_INSTANCE_TYPE" \
     -c llmContextLength="$LLM_CONTEXT_LENGTH" \
+    -c llmKvCacheType="$LLM_KV_CACHE_TYPE" \
     -c llmPurchaseOption=spot 2>&1 | tee "$deploy_log"); then
     rm -f "$deploy_log"
     return 0
@@ -304,6 +313,7 @@ EOF
     --require-approval never \
     -c llmInstanceType="$LLM_INSTANCE_TYPE" \
     -c llmContextLength="$LLM_CONTEXT_LENGTH" \
+    -c llmKvCacheType="$LLM_KV_CACHE_TYPE" \
     -c llmPurchaseOption=on-demand)
 }
 
@@ -353,6 +363,7 @@ SPACES_REGION=$DIGITALOCEAN_SPACES_REGION
 LLM_CACHE_BUCKET=$DIGITALOCEAN_LLM_CACHE_BUCKET
 LLM_MODEL=$LLM_MODEL
 OLLAMA_CONTEXT_LENGTH=$LLM_CONTEXT_LENGTH
+OLLAMA_KV_CACHE_TYPE=$LLM_KV_CACHE_TYPE
 ENV
 chmod 644 /etc/agent-workbench/workbench.env
 umask 077
