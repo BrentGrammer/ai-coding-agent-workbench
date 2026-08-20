@@ -79,12 +79,13 @@ Herdr installs only the selected harness. It does not install Hunk or review ski
 Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
 
 - **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
-- **GPU box** — `--gpu-box`. An optional GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and sends to EC2 G series box.
+- **GPU box** — `--gpu-box`. Runs on AWS or DigitalOcean through Tailscale.
 
 ### Prerequisites
 
 - **Local:** Ollama, `python3`, `jq`, and `ollama pull qwen3.8:27b-mlx`.
 - **AWS GPU:** CDK bootstrapped, [4 Spot and On-Demand G-family vCPUs](docs/cloud-onetime-setup.md#5-gpu-quotas-local-llm-only), and an [ephemeral Tailscale key](docs/cloud-onetime-setup.md#7-gpu-auth-key).
+- **DigitalOcean GPU:** Terraform, `doctl`, and the [one-time secrets setup](infra/digitalocean/README.md#one-time-setup).
 
 ### Run on a Mac
 
@@ -137,7 +138,7 @@ Thinking level reaches the model either way. Ollama's OpenAI-compatible route ma
 
 Context length defaults to 131072 and follows `OLLAMA_CONTEXT_LENGTH` from the box. Override it with `LOCAL_LLM_CONTEXT_LENGTH` when the box runs a smaller context, or the harness sends prompts the server truncates.
 
-### GPU box
+### AWS GPU
 
 `workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box.
 
@@ -178,6 +179,18 @@ The box terminates itself about 70 minutes after the last prompt, and again on a
 `--local-model` runs the model on your Mac. `--gpu-box` runs it on the GPU box, which keeps the heat and the fans off your MacBook. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.
 
 The Docker sandbox routes to the tailnet but cannot resolve MagicDNS names, so the launcher looks `agent-llm` up on the host and puts its Tailscale address in the URL.
+
+### DigitalOcean GPU
+
+After the [one-time setup](infra/digitalocean/README.md#one-time-setup):
+
+```shell
+WORKBENCH_LLM_PROVIDER=digitalocean workbench llm up
+start-opencode --gpu-box
+WORKBENCH_LLM_PROVIDER=digitalocean workbench llm down
+```
+
+It serves the same model at `agent-llm:11435`; the launcher needs no other changes.
 
 ### Why port 11435
 
