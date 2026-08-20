@@ -19,9 +19,19 @@ therefore only destroys, never stops. The idle stop and the 12-hour fuse both
 destroy the droplet through the API. The Spaces subscription is a flat
 $5/month while any bucket exists.
 
+### Prerequisites
+
+- [Terraform](https://developer.hashicorp.com/terraform/install)
+- [doctl](https://docs.digitalocean.com/reference/doctl/how-to/install/) cli for DigitalOcean
+
 ## One-time setup
 
-1. Install the tools: `brew install doctl terraform`.
+1. Install the tools: 
+```shell
+brew tap hashicorp/tap
+brew install hashicorp/tap/terraform
+brew install doctl
+```
 2. Create an API token (control panel: API → Tokens, full access).
    Run `doctl auth init` with it, and export it for Terraform:
    `export DIGITALOCEAN_TOKEN=...`
