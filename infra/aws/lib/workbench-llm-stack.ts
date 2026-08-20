@@ -132,37 +132,44 @@ export class WorkbenchLlmStack extends cdk.Stack {
     });
     cdk.Tags.of(launchTemplate).add("Name", INSTANCE_NAME);
 
-    const fleet = new ec2.CfnEC2Fleet(this, "LlmFleet", {
-      type: "instant",
-      launchTemplateConfigs: [
-        {
-          launchTemplateSpecification: {
-            launchTemplateId: launchTemplate.launchTemplateId,
-            version: launchTemplate.latestVersionNumber,
+    if (useSpot) {
+      // The fleet spreads the AZs so price-capacity-optimized picks one
+      // with Spot capacity.
+      const fleet = new ec2.CfnEC2Fleet(this, "LlmFleet", {
+        type: "instant",
+        launchTemplateConfigs: [
+          {
+            launchTemplateSpecification: {
+              launchTemplateId: launchTemplate.launchTemplateId,
+              version: launchTemplate.latestVersionNumber,
+            },
+            overrides: vpc.publicSubnets.map((subnet) => ({
+              subnetId: subnet.subnetId,
+            })),
           },
-          // Spot spreads the AZs so price-capacity-optimized picks one with
-          // capacity. On-Demand: name no subnet for auto placement.
-          overrides: useSpot
-            ? vpc.publicSubnets.map((subnet) => ({
-                subnetId: subnet.subnetId,
-              }))
-            : undefined,
+        ],
+        spotOptions: {
+          allocationStrategy: "price-capacity-optimized",
+          instanceInterruptionBehavior: "terminate",
         },
-      ],
-      spotOptions: useSpot
-        ? {
-            allocationStrategy: "price-capacity-optimized",
-            instanceInterruptionBehavior: "terminate",
-          }
-        : undefined,
-      targetCapacitySpecification: {
-        defaultTargetCapacityType: purchaseOption,
-        onDemandTargetCapacity: useSpot ? 0 : 1,
-        spotTargetCapacity: useSpot ? 1 : 0,
-        totalTargetCapacity: 1,
-      },
-    });
-
-    new cdk.CfnOutput(this, "FleetId", { value: fleet.attrFleetId });
+        targetCapacitySpecification: {
+          defaultTargetCapacityType: SPOT,
+          onDemandTargetCapacity: 0,
+          spotTargetCapacity: 1,
+          totalTargetCapacity: 1,
+        },
+      });
+      new cdk.CfnOutput(this, "FleetId", { value: fleet.attrFleetId });
+    } else {
+      // A fleet pins On-Demand to one AZ with no capacity check. A plain
+      // launch with no subnet lets EC2 place it in an AZ that has capacity.
+      const instance = new ec2.CfnInstance(this, "LlmInstance", {
+        launchTemplate: {
+          launchTemplateId: launchTemplate.launchTemplateId,
+          version: launchTemplate.latestVersionNumber,
+        },
+      });
+      new cdk.CfnOutput(this, "InstanceId", { value: instance.ref });
+    }
   }
 }

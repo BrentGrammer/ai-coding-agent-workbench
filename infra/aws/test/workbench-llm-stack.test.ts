@@ -101,20 +101,22 @@ assert.deepEqual(
   [...subnetIds].sort(),
 );
 
-const onDemandFleet = fleetProperties(synthesize({
-  llmPurchaseOption: "on-demand",
-}));
-assert.equal(onDemandFleet.SpotOptions, undefined);
-assert.deepEqual(onDemandFleet.TargetCapacitySpecification, {
-  DefaultTargetCapacityType: "on-demand",
-  OnDemandTargetCapacity: 1,
-  SpotTargetCapacity: 0,
-  TotalTargetCapacity: 1,
-});
-assert.equal(
-  onDemandFleet.LaunchTemplateConfigs[0].Overrides,
-  undefined,
-  "On-Demand must pin no subnet, so EC2 places it in an AZ with capacity",
+// On-Demand launches a plain instance with no fleet, subnet, or AZ, so EC2
+// places it in an AZ that has capacity.
+const onDemandTemplate = synthesize({ llmPurchaseOption: "on-demand" });
+onDemandTemplate.resourceCountIs("AWS::EC2::EC2Fleet", 0);
+onDemandTemplate.resourceCountIs("AWS::EC2::Instance", 1);
+const onDemandInstance = Object.values(
+  onDemandTemplate.findResources("AWS::EC2::Instance"),
+)[0].Properties;
+assert.ok(onDemandInstance.LaunchTemplate.LaunchTemplateId);
+assert.equal(onDemandInstance.SubnetId, undefined);
+assert.equal(onDemandInstance.AvailabilityZone, undefined);
+// workbench llm status finds the box by this tag, which the launch
+// template must carry because the instance resource sets none.
+assert.match(
+  JSON.stringify(launchTemplateData(onDemandTemplate)),
+  /agent-workbench-gpu-llm/,
 );
 
 assert.throws(
