@@ -182,7 +182,7 @@ start-workbench          # starts the box if stopped, connects with mosh
 cd ~/workspace/<repo>
 start-herdr [agent]      # cursor (default) | claude | codex | opencode
 # Optionally:
-start-herdr [agent] --gpu-box      # run inference on a AWS hosted GPU box for using models like Qwen 3.8 27b locally
+start-herdr opencode --gpu-box      # run inference on a AWS hosted GPU box for using models like Qwen 3.8 27b locally
 ```
 
 Note: Mosh survives Wi-Fi drops and laptop sleep. The box stops itself when you disconnect for 15+ minutes.
@@ -207,7 +207,7 @@ Do this once before the first deploy: [docs/cloud-onetime-setup.md](docs/cloud-o
 
 ## Local LLM
 
-Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
+Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo`, `start-qwen`, and `start-herdr opencode`. Two targets, one flag each:
 
 - **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
 - **GPU box** — `--gpu-box`. An optional GPU instance in the cloud, managed with `workbench llm`. Keeps inference off your MacBook. Works from a Mac and sends to EC2 G series box.
@@ -248,6 +248,7 @@ Where each harness reads the model, and what you do inside the sandbox:
 | `start-qwen` | `~/.qwen/settings.json` | already the default, no `/auth` |
 | `start-kilo` | `~/.config/kilo/kilo.jsonc` | already the default, no `/connect` |
 | `start-pi` | `~/.pi/agent/models.json` and `settings.json` | already the default, no `/login` |
+| `start-herdr opencode` | `/etc/opencode/opencode.json` in the herdr sandbox | already the default, nothing to do |
 
 Both flags add a `local-llm` provider and make it the default model. Nothing else changes: an OpenAI or OpenRouter model picked with `/model` still goes to that provider, and still needs its own login. The GPU box serves one model and cannot forward requests to anyone else.
 

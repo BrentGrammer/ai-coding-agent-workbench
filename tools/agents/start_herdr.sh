@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -gt 2 ]; then
-  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor]" >&2
+POSITIONAL=()
+HERDR_FLAGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --*) HERDR_FLAGS+=("$arg") ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
+done
+
+if [ "${#POSITIONAL[@]}" -gt 2 ]; then
+  echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor] [--local-model|--gpu-box]" >&2
   exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
+source "$SCRIPT_DIR/local_llm.sh"
 
-WORKBENCH_AGENT="${2:-${WORKBENCH_AGENT:-cursor}}"
+WORKBENCH_AGENT="${POSITIONAL[1]:-${WORKBENCH_AGENT:-cursor}}"
 export WORKBENCH_AGENT
 case "$WORKBENCH_AGENT" in
   claude|codex|opencode|cursor)
@@ -20,7 +30,18 @@ case "$WORKBENCH_AGENT" in
     ;;
 esac
 
-configureLocalWorkspace "${1:-$PWD}"
+selectModelHost ${HERDR_FLAGS[@]+"${HERDR_FLAGS[@]}"}
+
+if [ "$USE_LOCAL_MODEL" = true ] && [ "$WORKBENCH_AGENT" != "opencode" ]; then
+  echo "ERROR: --local-model and --gpu-box work with the opencode agent only." >&2
+  exit 1
+fi
+
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  resolve_local_llm
+fi
+
+configureLocalWorkspace "${POSITIONAL[0]:-$PWD}"
 
 SANDBOX_NAME="herdr-$SANDBOX_WORKSPACE_NAME"
 START_DOCKER="$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
@@ -32,6 +53,9 @@ allow_network() {
   allow_vendor_docs_network
   allow_exa_mcp_network
   allow_skills_marketplace_network
+  if [ "$USE_LOCAL_MODEL" = true ]; then
+    allow_local_llm_network
+  fi
 
   local host
   for host in \
@@ -189,7 +213,19 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
   fi
 
   if [ -f "$opencode_config_file" ]; then
-    install_file_into_sandbox "$opencode_config_file" /etc/opencode/opencode.json 644 755 root:root
+    local opencode_install_file="$opencode_config_file"
+    local merged_config=""
+    if [ "$USE_LOCAL_MODEL" = true ]; then
+      require_jq
+      merged_config="$(mktemp)"
+      # `*` merges deeply, so the provider is added and .model is replaced.
+      jq -s '.[0] * .[1]' "$opencode_config_file" <(opencode_local_model_config) > "$merged_config"
+      opencode_install_file="$merged_config"
+    fi
+    install_file_into_sandbox "$opencode_install_file" /etc/opencode/opencode.json 644 755 root:root
+    if [ -n "$merged_config" ]; then
+      rm -f "$merged_config"
+    fi
   else
     echo "WARN: No workbench OpenCode config at $opencode_config_file" >&2
   fi
@@ -283,6 +319,9 @@ install_github_tools "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
 link_codex_skills_for_discovery
 
 echo "Starting Herdr with $WORKBENCH_AGENT in $WORKSPACE_ROOT_DIR"
+if [ "$USE_LOCAL_MODEL" = true ]; then
+  echo "Model: $LOCAL_LLM_MODEL at $LOCAL_LLM_BASE_URL (opencode pane only)"
+fi
 
 sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
   env \
