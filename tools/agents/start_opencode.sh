@@ -91,7 +91,7 @@ install_pinned_opencode() {
   sbx exec -d "$SANDBOX_NAME" bash -c '
 set -euo pipefail
 
-npm install -g opencode-ai@1.18.18 --ignore-scripts
+npm install -g opencode-ai@1.18.21 --ignore-scripts
 
 (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
 

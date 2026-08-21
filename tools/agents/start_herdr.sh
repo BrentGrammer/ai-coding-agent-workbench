@@ -146,7 +146,7 @@ trap - EXIT
 npm install -g --ignore-scripts \
   "hunkdiff@0.17.3" \
   "@openai/codex@0.148.0" \
-  "opencode-ai@1.18.18"
+  "opencode-ai@1.18.21"
 
 cd "$(npm root -g)/opencode-ai"
 node postinstall.mjs
