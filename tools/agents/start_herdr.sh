@@ -12,7 +12,7 @@ done
 
 if [ "${#POSITIONAL[@]}" -gt 2 ]; then
   echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor] [FLAGS]" >&2
-  echo "   Options: --matt-pocock-skills --skill-creator --exa --gh --gh-axi --npm-axi" >&2
+  echo "   Options: --prompt-instruction-copy --clone --matt-pocock-skills --skill-creator --exa --gh --gh-axi --npm-axi" >&2
   exit 1
 fi
 
