@@ -175,13 +175,22 @@ configureLocalWorkspace() {
       --npm-axi)
         INSTALL_NPM_AXI="true"
         ;;
+      --full)
+        INSTALL_MATT_POCOCK_SKILLS="true"
+        INSTALL_SKILL_CREATOR="true"
+        INSTALL_NO_MISTAKES="true"
+        INSTALL_EXA="true"
+        INSTALL_GH="true"
+        INSTALL_GH_AXI="true"
+        INSTALL_NPM_AXI="true"
+        ;;
       --*)
         echo "Unknown option: $1" >&2
         return 1
         ;;
       *)
         if [ "$workspace_path_was_given" = "true" ]; then
-          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [--matt-pocock-skills] [--skill-creator] [--no-mistakes] [--exa] [--gh] [--gh-axi] [--npm-axi] [WORKSPACE_PATH]" >&2
+          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [--matt-pocock-skills] [--skill-creator] [--no-mistakes] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full] [WORKSPACE_PATH]" >&2
           return 1
         fi
         workspace_input="$1"

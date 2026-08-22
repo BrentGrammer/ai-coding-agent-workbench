@@ -349,7 +349,7 @@ If you see `error: nested herdr is disabled by default`:
 
 ## Optional tools, skills, and MCP servers
 
-Launchers start bare. Pass a flag to install that item inside the sandbox. All flags compose.
+Launchers start bare. Pass a flag to install that item inside the sandbox. All flags compose. `--full` turns every extra on.
 
 | Flag                   | Installs                                                                     | Works with                                                     |
 | ---------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
@@ -361,6 +361,7 @@ Launchers start bare. Pass a flag to install that item inside the sandbox. All f
 | `--gh`                 | The `gh` binary plus the `gh auth login` reminder and `gh-workbench-check`   | Every launcher                                                 |
 | `--gh-axi`             | [gh-axi](https://github.com/kunchenguid/gh-axi) CLI and skill (also installs `gh`) | Every launcher |
 | `--npm-axi`            | [npm-axi](https://github.com/SSBrouhard/npm-axi) CLI and skill               | Every launcher                                                 |
+| `--full`               | Every extra in this table                                                    | Every launcher                                                 |
 
 Each flag opens its own SBX network hosts only when passed, so a bare sandbox does not expose the skills marketplace, GitHub, or Exa hosts. Two items are always on and are not flags:
 
