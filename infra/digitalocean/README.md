@@ -86,6 +86,22 @@ WORKBENCH_LLM_PROVIDER=digitalocean workbench llm down
 TOR1 only — and takes the first with stock. Override the order or the list
 with `WORKBENCH_LLM_DIGITALOCEAN_SIZES`.
 
+## Tear down
+
+Stops the Spaces $5/month charge. Destroys any GPU droplet and the whole
+Terraform stack (bucket, Spaces key, firewall, tag, SSH key). Uses the
+token from `doctl auth init`. You do not export keys by hand.
+
+```bash
+./infra/digitalocean/destroy-stack.sh
+```
+
+Or:
+
+```bash
+workbench llm teardown-do
+```
+
 ## Setting up another machine
 
 Install the tools, run `doctl auth init`, and copy

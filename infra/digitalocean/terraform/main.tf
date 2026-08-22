@@ -15,9 +15,10 @@ provider "digitalocean" {}
 
 # Survives `workbench llm down`. Only the droplet is disposable.
 resource "digitalocean_spaces_bucket" "llm_cache" {
-  name   = var.cache_bucket_name
-  region = var.spaces_region
-  acl    = "private"
+  name          = var.cache_bucket_name
+  region        = var.spaces_region
+  acl           = "private"
+  force_destroy = true
 
   # A failed 17 GB multipart upload would bill silently forever.
   lifecycle_rule {
@@ -69,4 +70,3 @@ resource "digitalocean_firewall" "llm" {
     destination_addresses = ["0.0.0.0/0", "::/0"]
   }
 }
-
