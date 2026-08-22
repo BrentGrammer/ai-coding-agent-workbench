@@ -28,9 +28,12 @@ Run:
 ### Requirements
 
 - macOS
-- Docker Desktop
-- Docker Sandboxes (`sbx`)
-- Login access or an API key for the selected harness
+- [Docker Desktop](https://docs.docker.com/desktop/)
+- [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode
+- Login credentials or an API key for the coding agent you plan to use
+- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty
+
+Node.js and the coding-agent CLIs are installed inside the sandbox by the launchers, so the host does not need them. An IDE is optional.
 
 ### Start a harness
 
@@ -90,7 +93,17 @@ sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
 
 ## Cloud: AWS EC2 dev box
 
-The AWS setup creates one persistent EC2 instance. It installs Herdr and four harnesses: Claude Code, Codex, Cursor, and OpenCode.
+The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr and four harnesses: Claude Code, Codex, Cursor, and OpenCode.
+
+### Requirements
+
+- An AWS account, with credentials configured locally and permission to deploy CDK stacks
+- A [Tailscale](https://tailscale.com/) account. The free personal plan is enough
+- A GitHub account that can create a GitHub App. The app supplies the short-lived repository tokens, and you create it in [Cloud one-time setup](docs/cloud-onetime-setup.md#2-github-app)
+- Node.js on the machine you deploy from
+- Local tools: `brew install mosh awscli`, and the Tailscale macOS app from [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`
+- Login credentials or an API key for each coding agent you plan to use
+- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty
 
 ### Deploy
 
