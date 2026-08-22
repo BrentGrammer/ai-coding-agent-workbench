@@ -2,11 +2,10 @@
 set -euo pipefail
 
 POSITIONAL=()
-CLONE_ARGS=()
+LAUNCHER_FLAGS=()
 for argument in "$@"; do
   case "$argument" in
-    --clone) CLONE_ARGS+=(--clone) ;;
-    --*) echo "Unknown option: $argument" >&2; exit 1 ;;
+    --*) LAUNCHER_FLAGS+=("$argument") ;;
     *) POSITIONAL+=("$argument") ;;
   esac
 done
@@ -25,7 +24,7 @@ case "$WORKBENCH_AGENT" in
   *) echo "ERROR: Unknown harness: $WORKBENCH_AGENT" >&2; exit 1 ;;
 esac
 
-configureLocalWorkspace ${CLONE_ARGS[@]+"${CLONE_ARGS[@]}"} "${POSITIONAL[0]:-$PWD}"
+configureLocalWorkspace ${LAUNCHER_FLAGS[@]+"${LAUNCHER_FLAGS[@]}"} "${POSITIONAL[0]:-$PWD}"
 SANDBOX_NAME="herdr-$SANDBOX_WORKSPACE_NAME"
 
 allow_herdr_network() {
@@ -150,8 +149,10 @@ allow_herdr_network
 install_runtime_files
 install_herdr_and_harness
 install_harness_security
-if [ -f "$SCRIPT_DIR/optional_extras.sh" ]; then
-  source "$SCRIPT_DIR/optional_extras.sh"
+# Function is missing on this tree, so this call is skipped.
+# It is defined in optional_skills_and_tools.sh, which this tree does not ship.
+if type install_selected_skills_and_tools >/dev/null 2>&1; then
+  install_selected_skills_and_tools
 fi
 
 sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
