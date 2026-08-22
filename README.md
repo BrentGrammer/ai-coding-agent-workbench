@@ -2,7 +2,7 @@
 
 **This branch installs ALL optional skills and tools by default.** Pass a flag such as `--exa` to install only that tool and not others.
 
-For the same project with extras stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
+For the same project with tooling and skills stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
 
 This project starts AI coding harnesses in Docker sandboxes or on one AWS EC2 workbench.
 
