@@ -6,7 +6,7 @@ This branch is the minimalist barebones project and has optional skills and tool
 
 ## Install the commands
 
-Every guide below starts here. Add the launcher commands to `PATH`:
+(Optional) This installs convenience launcher commands into your PATH and profile. It checks for collisions, makes a backup of your profile and adds the commands to your `PATH`:
 
 ```shell
 ./bin/install-commands
