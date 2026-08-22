@@ -80,6 +80,7 @@ llm commands:
   up         Start the GPU box and wait for the model
   down       Destroy the GPU box. The cache bucket stays.
   status     Show whether the GPU box is running
+  teardown-do Destroy DigitalOcean droplets, the Spaces bucket, and Terraform
   trust-host Read the SSH host key over SSM and refresh known_hosts (aws only)
 
 Environment:
@@ -522,6 +523,9 @@ case "${1:-}" in
     esac
     ;;
   llm)
+    if [ "${2:-}" = "teardown-do" ]; then
+      exec "$SCRIPT_DIR/../infra/digitalocean/destroy-stack.sh" "${@:3}"
+    fi
     if [ "$LLM_PROVIDER" != "aws" ] && [ "$LLM_PROVIDER" != "digitalocean" ]; then
       echo "ERROR: WORKBENCH_LLM_PROVIDER must be aws or digitalocean, not $LLM_PROVIDER." >&2
       exit 1
