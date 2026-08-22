@@ -7,6 +7,7 @@ configureLocalWorkspace() {
   local workspace_input="$PWD"
   local workspace_path_was_given=false
   SANDBOX_CLONE=false
+  # Shared with the optional-skills-tools branch so this launcher stays one file to change.
   if [ -f "$SCRIPT_DIR/optional_skills_and_tools.sh" ]; then
     source "$SCRIPT_DIR/optional_skills_and_tools.sh"
   fi
@@ -17,6 +18,7 @@ configureLocalWorkspace() {
         SANDBOX_CLONE=true
         ;;
       --*)
+        # Shared with the optional-skills-tools branch so this launcher stays one file to change.
         if type turn_on_optional_skill_or_tool >/dev/null 2>&1 && turn_on_optional_skill_or_tool "$1"; then
           :
         else
@@ -27,6 +29,7 @@ configureLocalWorkspace() {
       *)
         if [ "$workspace_path_was_given" = true ]; then
           local optional_skill_and_tool_flags=""
+          # Shared with the optional-skills-tools branch so this launcher stays one file to change.
           if type optional_skill_and_tool_flags_for_usage >/dev/null 2>&1; then
             optional_skill_and_tool_flags="$(optional_skill_and_tool_flags_for_usage)"
           fi
@@ -63,6 +66,7 @@ configureLocalWorkspace() {
   if [ "$SANDBOX_CLONE" = true ]; then
     SANDBOX_WORKSPACE_NAME="$SANDBOX_WORKSPACE_NAME-clone"
   fi
+  # Shared with the optional-skills-tools branch so this launcher stays one file to change.
   if type remember_if_any_skill_or_gh_tool_is_on >/dev/null 2>&1; then
     remember_if_any_skill_or_gh_tool_is_on
   fi
@@ -106,6 +110,7 @@ runSandboxHarness() {
 
   "$allow_network_function"
   "$install_harness_function"
+  # Shared with the optional-skills-tools branch so this launcher stays one file to change.
   if type install_selected_skills_and_tools >/dev/null 2>&1; then
     install_selected_skills_and_tools
   fi
