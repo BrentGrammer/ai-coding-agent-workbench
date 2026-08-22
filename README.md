@@ -2,9 +2,7 @@
 
 This branch has optional skills and tools stripped out. For the same project with flags to install those, use [`optional-skills-tools`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/optional-skills-tools).
 
-This project starts AI coding harnesses in Docker sandboxes or on one AWS EC2 workbench.
-
-The launchers install no skills, MCP servers, plugins, helper CLIs, or custom prompts. Each harness uses its normal sign-in flow and default model unless you explicitly select the retained local-LLM path. Security controls remain enabled.
+This project sets up and bootstraps an environment for running AI coding harnesses in Docker sandboxes or on an AWS EC2 dev box.
 
 ## Local use
 
