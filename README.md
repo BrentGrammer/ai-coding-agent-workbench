@@ -97,6 +97,22 @@ start-herdr claude --exa
 
 `--gh`, `--gh-axi`, and `--npm-axi` need `gh auth login` once in each new sandbox. Choose HTTPS.
 
+## Project instruction files
+
+When you start a launcher on a project that is missing AGENTS/CLAUDE.md, it asks if it should copy the missing files into that project.
+
+1. Copy the missing files once.
+2. Copy the missing files and remember this choice for this project.
+3. Do not copy this time.
+4. Do not copy and remember this choice for this project.
+
+Show the choice again after you remembered it:
+
+```shell
+start-codex --prompt-instruction-copy
+start-codex --prompt-instruction-copy /path/to/project
+```
+
 ## Herdr
 
 Herdr can start Claude Code, Codex, Cursor, or OpenCode:

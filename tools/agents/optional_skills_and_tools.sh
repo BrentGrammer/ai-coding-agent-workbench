@@ -9,9 +9,10 @@ INSTALL_GH="${INSTALL_GH:-false}"
 INSTALL_GH_AXI="${INSTALL_GH_AXI:-false}"
 INSTALL_NPM_AXI="${INSTALL_NPM_AXI:-false}"
 OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=false
+PROMPT_INSTRUCTION_COPY=false
 
 optional_skill_and_tool_flags_for_usage() {
-  printf '%s' " [--matt-pocock-skills] [--skill-creator] [--no-mistakes] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full]"
+  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--skill-creator] [--no-mistakes] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full]"
 }
 
 turn_on_all_optional_skills_and_tools() {
@@ -25,6 +26,12 @@ turn_on_all_optional_skills_and_tools() {
 }
 
 turn_on_optional_skill_or_tool() {
+  case "$1" in
+    --prompt-instruction-copy)
+      PROMPT_INSTRUCTION_COPY=true
+      return 0
+      ;;
+  esac
   OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=true
   case "$1" in
     --matt-pocock-skills) INSTALL_MATT_POCOCK_SKILLS=true ;;
@@ -56,6 +63,104 @@ remember_if_any_skill_or_gh_tool_is_on() {
   else
     INSTALL_ANY_GH_TOOL=false
   fi
+}
+
+copyMissingProjectInstructions() {
+  local ask_again="${1:-false}"
+  local instruction_files=(AGENTS.md CLAUDE.md)
+  local missing_instruction_files=()
+  local instruction_file
+
+  for instruction_file in "${instruction_files[@]}"; do
+    if [ ! -e "$WORKSPACE_ROOT_DIR/$instruction_file" ] && [ ! -L "$WORKSPACE_ROOT_DIR/$instruction_file" ]; then
+      missing_instruction_files+=("$instruction_file")
+    fi
+  done
+
+  if [ "${#missing_instruction_files[@]}" -eq 0 ]; then
+    return
+  fi
+
+  local workspace_path_hash
+  workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
+  local instruction_copy_directory="$HOME/.local/state/agent-workbench/instruction-copy"
+  local instruction_copy_file="$instruction_copy_directory/$workspace_path_hash"
+  local instruction_choice=""
+
+  if [ "$ask_again" != true ] && [ -f "$instruction_copy_file" ]; then
+    local saved_workspace_path
+    local saved_instruction_choice
+    saved_workspace_path="$(sed -n '1p' "$instruction_copy_file")"
+    saved_instruction_choice="$(sed -n '2p' "$instruction_copy_file")"
+
+    if [ "$saved_workspace_path" = "$WORKSPACE_ROOT_DIR" ]; then
+      case "$saved_instruction_choice" in
+        copy|skip)
+          instruction_choice="$saved_instruction_choice"
+          ;;
+      esac
+    fi
+  fi
+
+  local remember_choice=false
+  if [ -z "$instruction_choice" ]; then
+    echo "Missing project instruction files: ${missing_instruction_files[*]}"
+    echo "Project root: $WORKSPACE_ROOT_DIR"
+    echo "Copying writes these files to this folder on your hard drive."
+    echo "A file that already exists is left unchanged."
+    echo "1. Copy the missing files to this project root once."
+    echo "2. Copy the missing files to this project root and remember this choice."
+    echo "3. Do not copy the files this time."
+    echo "4. Do not copy the files and remember this choice."
+
+    local selected_choice
+    while true; do
+      if ! read -r -p "Choose 1, 2, 3, or 4: " selected_choice; then
+        echo "No project instruction files were copied."
+        return
+      fi
+
+      case "$selected_choice" in
+        1)
+          instruction_choice="copy"
+          break
+          ;;
+        2)
+          instruction_choice="copy"
+          remember_choice=true
+          break
+          ;;
+        3)
+          instruction_choice="skip"
+          break
+          ;;
+        4)
+          instruction_choice="skip"
+          remember_choice=true
+          break
+          ;;
+        *)
+          echo "Enter 1, 2, 3, or 4."
+          ;;
+      esac
+    done
+  fi
+
+  if [ "$remember_choice" = true ]; then
+    mkdir -p "$instruction_copy_directory"
+    printf '%s\n%s\n' "$WORKSPACE_ROOT_DIR" "$instruction_choice" > "$instruction_copy_file"
+  fi
+
+  if [ "$instruction_choice" = "skip" ]; then
+    echo "Project instruction files were not copied."
+    return
+  fi
+
+  for instruction_file in "${missing_instruction_files[@]}"; do
+    cp "$WORKBENCH_ROOT/$instruction_file" "$WORKSPACE_ROOT_DIR/$instruction_file"
+  done
+
+  echo "Copied project instruction files to $WORKSPACE_ROOT_DIR: ${missing_instruction_files[*]}"
 }
 
 skill_agent_names_for_sandbox() {
