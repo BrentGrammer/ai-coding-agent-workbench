@@ -149,8 +149,7 @@ allow_herdr_network
 install_runtime_files
 install_herdr_and_harness
 install_harness_security
-# Function is missing on this tree, so this call is skipped.
-# It is defined in optional_skills_and_tools.sh, which this tree does not ship.
+# Shared with the optional-skills-tools branch so this launcher stays one file to change.
 if type install_selected_skills_and_tools >/dev/null 2>&1; then
   install_selected_skills_and_tools
 fi
