@@ -465,6 +465,50 @@ else
 fi
 '
       ;;
+    opencode-*)
+      echo "Registering the Exa MCP server with OpenCode..."
+      local opencode_exa_fragment
+      opencode_exa_fragment="$(mktemp)"
+      printf '%s\n' '{"mcp":{"exa":{"type":"remote","url":"https://mcp.exa.ai/mcp","enabled":true}}}' \
+        > "$opencode_exa_fragment"
+      merge_json_into_sandbox_file "$opencode_exa_fragment" /home/agent/.config/opencode/opencode.json
+      rm -f "$opencode_exa_fragment"
+      ;;
+    kilo-*)
+      echo "Registering the Exa MCP server with Kilo..."
+      local kilo_exa_fragment
+      kilo_exa_fragment="$(mktemp)"
+      printf '%s\n' '{"mcp":{"exa":{"type":"remote","url":"https://mcp.exa.ai/mcp","enabled":true}}}' \
+        > "$kilo_exa_fragment"
+      merge_json_into_sandbox_file "$kilo_exa_fragment" /home/agent/.config/kilo/kilo.jsonc
+      rm -f "$kilo_exa_fragment"
+      ;;
+    qwen-*)
+      echo "Registering the Exa MCP server with Qwen Code..."
+      sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+if qwen mcp list 2>/dev/null | grep -q exa; then
+  echo "Exa MCP server already registered."
+else
+  timeout 20 qwen mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
+fi
+'
+      ;;
+    # The Cursor CLI has no non-interactive mcp add, so write its mcp.json.
+    # An existing file is left alone because the CLI drops it on bad merges.
+    cursor-*)
+      echo "Registering the Exa MCP server with Cursor CLI..."
+      local cursor_mcp_fragment
+      cursor_mcp_fragment="$(mktemp)"
+      printf '%s\n' '{"mcpServers":{"exa":{"type":"http","url":"https://mcp.exa.ai/mcp"}}}' \
+        > "$cursor_mcp_fragment"
+      if sbx exec "$SANDBOX_NAME" test -f /home/agent/.cursor/mcp.json 2>/dev/null; then
+        echo "WARN: ~/.cursor/mcp.json exists in the sandbox. Add the exa server to it by hand." >&2
+      else
+        install_file_into_sandbox "$cursor_mcp_fragment" /home/agent/.cursor/mcp.json
+      fi
+      rm -f "$cursor_mcp_fragment"
+      ;;
     # Pi has no MCP support, so it gets the pinned pi-web-access extension,
     # which proxies the same Exa backend. fetch_content stays allowlist-bound.
     pi-*)

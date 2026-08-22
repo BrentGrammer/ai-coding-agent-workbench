@@ -91,7 +91,15 @@ assert_eq "copy leaves existing AGENTS.md" "$(cat "$WORKSPACE_ROOT_DIR/AGENTS.md
 assert_eq "copy adds missing CLAUDE.md" "$(cat "$WORKSPACE_ROOT_DIR/CLAUDE.md")" "workbench claude"
 
 SBX_LOG="$TEST_ROOT/sbx.log"
-sbx() { printf '%s\n' "$*" >> "$SBX_LOG"; }
+sbx() {
+  printf '%s\n' "$*" >> "$SBX_LOG"
+  case "$*" in
+    *"test -f"*) return 1 ;;
+  esac
+  return 0
+}
+merge_json_into_sandbox_file() { printf 'MERGE %s\n' "$2" >> "$SBX_LOG"; }
+install_file_into_sandbox() { printf 'INSTALL %s\n' "$2" >> "$SBX_LOG"; }
 
 source_fresh
 INSTALL_EXA=true
@@ -101,6 +109,38 @@ grep -q "pi install npm:pi-web-access@0.14.0" "$SBX_LOG" ||
   fail "pi exa: pi-web-access install did not run"
 grep -q "mcp.exa.ai:443" "$SBX_LOG" ||
   fail "pi exa: exa network hosts not opened"
+
+source_fresh
+INSTALL_EXA=true
+SANDBOX_NAME="opencode-test"
+: > "$SBX_LOG"
+install_exa_for_harness
+grep -q "MERGE /home/agent/.config/opencode/opencode.json" "$SBX_LOG" ||
+  fail "opencode exa: config merge did not run"
+
+source_fresh
+INSTALL_EXA=true
+SANDBOX_NAME="kilo-test"
+: > "$SBX_LOG"
+install_exa_for_harness
+grep -q "MERGE /home/agent/.config/kilo/kilo.jsonc" "$SBX_LOG" ||
+  fail "kilo exa: config merge did not run"
+
+source_fresh
+INSTALL_EXA=true
+SANDBOX_NAME="qwen-test"
+: > "$SBX_LOG"
+install_exa_for_harness
+grep -q "qwen mcp add --transport http" "$SBX_LOG" ||
+  fail "qwen exa: mcp add did not run"
+
+source_fresh
+INSTALL_EXA=true
+SANDBOX_NAME="cursor-test"
+: > "$SBX_LOG"
+install_exa_for_harness
+grep -q "INSTALL /home/agent/.cursor/mcp.json" "$SBX_LOG" ||
+  fail "cursor exa: mcp.json was not installed"
 
 source_fresh
 SANDBOX_NAME="pi-test"
