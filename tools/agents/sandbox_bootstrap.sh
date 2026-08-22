@@ -141,6 +141,35 @@ npx --yes skills@1.5.23 add anthropics/skills \
   fi
 }
 
+install_no_mistakes() {
+  [ "$INSTALL_NO_MISTAKES" = "true" ] || return 0
+
+  local workspace_dir="$1"
+  shift
+
+  local agent_flags=()
+  local agent_slug
+  for agent_slug in "$@"; do
+    agent_flags+=(--agent "$agent_slug")
+  done
+
+  echo "Installing no-mistakes for: $*"
+
+  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
+
+npx --yes skills@1.5.23 add kunchenguid/no-mistakes \
+  --skill no-mistakes \
+  ${agent_flags[*]} \
+  --global \
+  --yes \
+  --copy
+"; then
+    echo "WARN: Could not install no-mistakes for: $*" >&2
+  fi
+}
+
 # The sandbox has no GitHub App token relay, so gh needs `gh auth login` once.
 # The sandbox keeps that login until it is deleted.
 install_github_tools() {

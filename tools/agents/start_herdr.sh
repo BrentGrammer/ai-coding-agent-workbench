@@ -12,7 +12,7 @@ done
 
 if [ "${#POSITIONAL[@]}" -gt 2 ]; then
   echo "Usage: $0 [WORKSPACE_PATH] [claude|codex|opencode|cursor] [FLAGS]" >&2
-  echo "   Options: --prompt-instruction-copy --clone --matt-pocock-skills --skill-creator --exa --gh --gh-axi --npm-axi" >&2
+  echo "   Options: --prompt-instruction-copy --clone --matt-pocock-skills --skill-creator --no-mistakes --exa --gh --gh-axi --npm-axi" >&2
   exit 1
 fi
 
@@ -290,6 +290,7 @@ install_exa_tools
 install_matt_pocock_skills_plugin
 install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" codex opencode cursor
 install_skill_creator "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
+install_no_mistakes "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
 install_github_tools "$WORKSPACE_ROOT_DIR" claude-code codex opencode cursor
 link_codex_skills_for_discovery
 

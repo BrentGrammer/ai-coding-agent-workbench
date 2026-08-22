@@ -205,6 +205,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_exa_tools
   install_matt_pocock_skills_plugin
   install_skill_creator "$REPO_ROOT" claude-code
+  install_no_mistakes "$REPO_ROOT" claude-code
   install_github_tools "$REPO_ROOT" claude-code
   usage_instructions
 
@@ -225,6 +226,7 @@ else
   install_exa_tools
   install_matt_pocock_skills_plugin
   install_skill_creator "$REPO_ROOT" claude-code
+  install_no_mistakes "$REPO_ROOT" claude-code
   install_github_tools "$REPO_ROOT" claude-code
   usage_instructions
 

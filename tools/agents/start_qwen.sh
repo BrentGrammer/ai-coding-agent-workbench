@@ -129,6 +129,7 @@ if sandboxExists "$SANDBOX_NAME"; then
   copy_config
   install_matt_pocock_skills "$REPO_ROOT" qwen-code
   install_skill_creator "$REPO_ROOT" qwen-code
+  install_no_mistakes "$REPO_ROOT" qwen-code
   install_github_tools "$REPO_ROOT" qwen-code
 
   usage_instructions
@@ -146,6 +147,7 @@ else
   copy_config
   install_matt_pocock_skills "$REPO_ROOT" qwen-code
   install_skill_creator "$REPO_ROOT" qwen-code
+  install_no_mistakes "$REPO_ROOT" qwen-code
   install_github_tools "$REPO_ROOT" qwen-code
 
   configure_sandbox_env

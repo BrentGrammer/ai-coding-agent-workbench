@@ -356,6 +356,7 @@ Launchers start bare. Pass a flag to install that item inside the sandbox. All f
 | (none)                 | The harness, Node.js, and its provider network policies only.                | Every launcher                                                 |
 | `--matt-pocock-skills` | [Matt Pocock skills](https://github.com/mattpocock/skills)                   | Claude, Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr |
 | `--skill-creator`      | [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Same set as Matt Pocock skills |
+| `--no-mistakes`        | [no-mistakes](https://github.com/kunchenguid/no-mistakes) validate/ship gate | Same set as Matt Pocock skills |
 | `--exa`                | [Exa](https://exa.ai/) web search, registered per harness                    | Claude, Codex, Cursor, Cline, Junie, Grok, Antigravity, OpenCode, Herdr |
 | `--gh`                 | The `gh` binary plus the `gh auth login` reminder and `gh-workbench-check`   | Every launcher                                                 |
 | `--gh-axi`             | [gh-axi](https://github.com/kunchenguid/gh-axi) CLI and skill (also installs `gh`) | Every launcher |

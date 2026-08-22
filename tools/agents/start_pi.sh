@@ -132,6 +132,7 @@ if sandboxExists "$SANDBOX_NAME"; then
     install_pi_local_model_config
     install_matt_pocock_skills "$REPO_ROOT" pi
     install_skill_creator "$REPO_ROOT" pi
+    install_no_mistakes "$REPO_ROOT" pi
     install_github_tools "$REPO_ROOT" pi
 
     usage_instructions
@@ -149,6 +150,7 @@ else
     install_pi_local_model_config
     install_matt_pocock_skills "$REPO_ROOT" pi
     install_skill_creator "$REPO_ROOT" pi
+    install_no_mistakes "$REPO_ROOT" pi
     install_github_tools "$REPO_ROOT" pi
 
     configure_sandbox_env

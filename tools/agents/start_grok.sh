@@ -182,6 +182,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 	install_exa_mcp_server
 	install_matt_pocock_skills "$REPO_ROOT" grok
 	install_skill_creator "$REPO_ROOT" grok
+	install_no_mistakes "$REPO_ROOT" grok
 	install_github_tools "$REPO_ROOT" grok
 	strip_legacy_grok_autostart
 	usage_instructions
@@ -203,6 +204,7 @@ else
 	install_exa_mcp_server
 	install_matt_pocock_skills "$REPO_ROOT" grok
 	install_skill_creator "$REPO_ROOT" grok
+	install_no_mistakes "$REPO_ROOT" grok
 	install_github_tools "$REPO_ROOT" grok
 	usage_instructions
 fi

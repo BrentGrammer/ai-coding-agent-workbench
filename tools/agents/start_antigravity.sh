@@ -144,6 +144,7 @@ if sandboxExists "$SANDBOX_NAME"; then
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	install_skill_creator "$REPO_ROOT" antigravity-cli
+	install_no_mistakes "$REPO_ROOT" antigravity-cli
 	install_github_tools "$REPO_ROOT" antigravity-cli
 	usage_instructions
 else
@@ -169,6 +170,7 @@ else
 	sync_files_to_sandbox
 	install_matt_pocock_skills "$REPO_ROOT" antigravity-cli
 	install_skill_creator "$REPO_ROOT" antigravity-cli
+	install_no_mistakes "$REPO_ROOT" antigravity-cli
 	install_github_tools "$REPO_ROOT" antigravity-cli
 	usage_instructions
 fi

@@ -139,6 +139,7 @@ configureLocalWorkspace() {
   # that item inside the sandbox. All flags compose.
   INSTALL_MATT_POCOCK_SKILLS="false"
   INSTALL_SKILL_CREATOR="false"
+  INSTALL_NO_MISTAKES="false"
   INSTALL_EXA="false"
   INSTALL_GH="false"
   INSTALL_GH_AXI="false"
@@ -157,6 +158,9 @@ configureLocalWorkspace() {
         ;;
       --skill-creator)
         INSTALL_SKILL_CREATOR="true"
+        ;;
+      --no-mistakes)
+        INSTALL_NO_MISTAKES="true"
         ;;
       --exa)
         INSTALL_EXA="true"
@@ -177,7 +181,7 @@ configureLocalWorkspace() {
         ;;
       *)
         if [ "$workspace_path_was_given" = "true" ]; then
-          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [--matt-pocock-skills] [--skill-creator] [--exa] [--gh] [--gh-axi] [--npm-axi] [WORKSPACE_PATH]" >&2
+          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [--matt-pocock-skills] [--skill-creator] [--no-mistakes] [--exa] [--gh] [--gh-axi] [--npm-axi] [WORKSPACE_PATH]" >&2
           return 1
         fi
         workspace_input="$1"
@@ -194,6 +198,7 @@ configureLocalWorkspace() {
 
   # Derived flags so launchers and shared installers can test with one line.
   if [ "$INSTALL_MATT_POCOCK_SKILLS" = true ] || [ "$INSTALL_SKILL_CREATOR" = true ] ||
+    [ "$INSTALL_NO_MISTAKES" = true ] ||
     [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then
     INSTALL_ANY_SKILL=true
   else

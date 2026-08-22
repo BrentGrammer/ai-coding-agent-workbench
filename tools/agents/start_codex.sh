@@ -103,6 +103,7 @@ fi
 install_skills() {
   install_matt_pocock_skills "$REPO_ROOT" codex
   install_skill_creator "$REPO_ROOT" codex
+  install_no_mistakes "$REPO_ROOT" codex
   install_github_tools "$REPO_ROOT" codex
 }
 
