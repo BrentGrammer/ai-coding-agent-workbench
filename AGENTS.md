@@ -10,7 +10,7 @@
 
 ## Code
 
-- Keep code easy to read, change, debug, and test.
+- Code you write should be easy to understand, easy to read, easy to change, maintain and test.
 - Prefer deleting code over adding code.
 - Use clear names that express the intent and purpose of the function or variable.
 - Do not use `resolve` in a function name unless no clearer name exists.
