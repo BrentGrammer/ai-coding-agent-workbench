@@ -345,10 +345,12 @@ npx --yes skills@1.5.23 add SSBrouhard/npm-axi \
 " || echo "WARN: Could not install the npm-axi skill for: $*" >&2
   fi
   if [ "$INSTALL_GH_AXI" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc 'gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2'
+    sbx exec "$SANDBOX_NAME" bash -lc \
+      'gh-axi setup hooks </dev/null >/dev/null 2>&1 || echo "WARN: Could not set up gh-axi session hooks." >&2'
   fi
   if [ "$INSTALL_NPM_AXI" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2'
+    sbx exec "$SANDBOX_NAME" bash -lc \
+      'npm-axi setup hooks </dev/null >/dev/null 2>&1 || echo "WARN: Could not set up npm-axi session hooks." >&2'
   fi
   if [ "$INSTALL_GH" = true ]; then
     sbx exec "$SANDBOX_NAME" bash -lc '
@@ -356,7 +358,7 @@ set -euo pipefail
 source /etc/sandbox-persistent.sh 2>/dev/null || true
 cat > "$HOME/.gh-login-reminder.sh" <<'"'"'REMINDER'"'"'
 if ! gh auth status >/dev/null 2>&1 || ! gh api user --jq .login >/dev/null 2>&1; then
-  printf "\nGitHub access is not ready. gh and gh-axi need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS, not SSH. HTTPS shares one token with git and adds no key to your account.\nThen run: gh-workbench-check\n\n"
+  printf "\nGitHub access is not ready. gh and gh-axi need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS.\n\n"
 fi
 REMINDER
 mkdir -p "$HOME/.local/bin"
@@ -371,15 +373,20 @@ fi
 printf "GitHub access is ready for %s. gh and gh-axi can use this repository.\n" "$login"
 CHECK
 chmod 755 "$HOME/.local/bin/gh-workbench-check"
-if ! grep ".gh-login-reminder.sh" "$HOME/.bashrc" 2>/dev/null; then
-  cat >> "$HOME/.bashrc" <<'"'"'HOOK'"'"'
+if [ -f "$HOME/.bashrc" ]; then
+  awk "
+    /gh-login-reminder.sh/ { skip=1; next }
+    skip && /^fi\$/ { skip=0; next }
+    skip { next }
+    { print }
+  " "$HOME/.bashrc" > "$HOME/.bashrc.tmp" && mv "$HOME/.bashrc.tmp" "$HOME/.bashrc"
+fi
+cat >> "$HOME/.bashrc" <<'"'"'HOOK'"'"'
 
-if [ -t 1 ] && [ -f "$HOME/.gh-login-reminder.sh" ]; then
+if [[ $- == *i* ]] && [ -t 1 ] && [ -f "$HOME/.gh-login-reminder.sh" ]; then
   bash "$HOME/.gh-login-reminder.sh"
 fi
 HOOK
-fi
-bash "$HOME/.gh-login-reminder.sh"
 '
   fi
 }

@@ -57,7 +57,7 @@ The local scan found none of these indicators:
 - `gh-token-monitor` files or text
 - `.vscode/tasks.json` or `.claude/settings.json`
 
-The tracked `tools/agents/claude-settings.json` file is an expected project file. Its only hook runs the tracked secret-file deny tool.
+The tracked `tools/agents/config/claude/settings.json` file is an expected project file. Its only hook runs the tracked secret-file deny tool.
 
 No GitHub Actions workflow or Dockerfile is present. The ignored `cdk.out` and `dist` artifacts have no known indicator and predate the incident.
 

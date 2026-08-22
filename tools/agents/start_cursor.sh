@@ -23,7 +23,7 @@ curl -fsS https://cursor.com/install | bash
 grep -q "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null ||
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
 '
-  install_file_into_sandbox "$SCRIPT_DIR/cursor-cli-config.json" /home/agent/.cursor/cli-config.json
+  install_file_into_sandbox "$SCRIPT_DIR/config/cursor/cli-config.json" /home/agent/.cursor/cli-config.json
 }
 
 runSandboxHarness allow_cursor_network install_cursor false agent

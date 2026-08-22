@@ -118,6 +118,9 @@ runSandboxHarness() {
   if type install_selected_skills_and_tools >/dev/null 2>&1; then
     install_selected_skills_and_tools
   fi
+  if type after_sandbox_install >/dev/null 2>&1; then
+    after_sandbox_install
+  fi
   sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
     bash -lc "export PATH=\"\$HOME/.local/bin:\$HOME/.local/npm/bin:\$HOME/.grok/bin:\$HOME/.antigravity/bin:\$PATH\"; exec $harness_command"
 }

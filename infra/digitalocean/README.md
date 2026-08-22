@@ -90,7 +90,7 @@ with `WORKBENCH_LLM_DIGITALOCEAN_SIZES`.
 
 Stops the Spaces $5/month charge. Destroys any GPU droplet and the whole
 Terraform stack (bucket, Spaces key, firewall, tag, SSH key). Uses the
-token from `doctl auth init`. You do not export keys by hand.
+token from `doctl auth init`.
 
 ```bash
 ./infra/digitalocean/destroy-stack.sh

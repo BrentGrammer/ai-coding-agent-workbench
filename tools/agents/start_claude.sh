@@ -38,7 +38,7 @@ claude --version
 '
 
   install_bash_sandbox_runtime
-  sbx cp "$SCRIPT_DIR/claude-settings.json" "$SANDBOX_NAME":/tmp/claude-settings.json
+  sbx cp "$SCRIPT_DIR/config/claude/settings.json" "$SANDBOX_NAME":/tmp/claude-settings.json
   sbx cp "$WORKBENCH_ROOT/runtime/deny-protected-file-reads" \
     "$SANDBOX_NAME":/tmp/deny-protected-file-reads
   sbx cp "$WORKBENCH_ROOT/runtime/install-claude-settings" \

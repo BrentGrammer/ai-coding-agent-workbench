@@ -23,7 +23,7 @@ Destroys any GPU droplet, the Spaces cache bucket, and the rest of the
 Terraform stack (Spaces key, firewall, tag, SSH key).
 
 Uses the token from `doctl auth init`. Creates a temporary Spaces key
-and deletes it when finished. You do not export keys by hand.
+and deletes it when finished.
 EOF
   exit 1
 }

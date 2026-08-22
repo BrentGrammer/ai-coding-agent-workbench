@@ -32,7 +32,7 @@ configureLocalLlmWorkspace() {
     shift
   done
 
-  configureLocalWorkspace "${workspace_args[@]}"
+  configureLocalWorkspace ${workspace_args[@]+"${workspace_args[@]}"}
 }
 
 port_is_open() {
@@ -232,14 +232,14 @@ merge_json_into_sandbox_file() {
   merged="$(mktemp)"
 
   sbx exec "$SANDBOX_NAME" bash -c "cat '$dest' 2>/dev/null" > "$existing" || true
-  if ! jq -e . "$existing" >/dev/null 2>&1; then
+  if [ ! -s "$existing" ] || ! jq -e 'type == "object"' "$existing" >/dev/null 2>&1; then
     if [ -s "$existing" ]; then
-      echo "WARN: $dest is not plain JSON in the sandbox, replacing it." >&2
+      echo "WARN: $dest is not a JSON object in the sandbox, replacing it." >&2
     fi
     echo '{}' > "$existing"
   fi
 
-  jq -s '.[0] * .[1]' "$existing" "$fragment" > "$merged"
+  jq -s 'reduce .[] as $item ({}; . * $item)' "$existing" "$fragment" > "$merged"
   install_file_into_sandbox "$merged" "$dest"
   rm -f "$existing" "$merged"
 }

@@ -29,6 +29,8 @@ set -euo pipefail
 sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.84.2
 '
 
+  merge_json_into_sandbox_file "$SCRIPT_DIR/config/pi/settings.json" /home/agent/.pi/agent/settings.json
+
   if [ "$USE_LOCAL_MODEL" = true ]; then
     local models_config settings_config
     models_config="$(mktemp)"
@@ -41,6 +43,34 @@ sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.84.2
     merge_json_into_sandbox_file "$settings_config" /home/agent/.pi/agent/settings.json
     rm -f "$models_config" "$settings_config"
   fi
+
+  install_file_into_sandbox \
+    "$SCRIPT_DIR/config/pi/terminal-status-title.js" \
+    /home/agent/.pi/agent/extensions/terminal-status-title.js
+
+  install_file_into_sandbox \
+    "$SCRIPT_DIR/config/pi/welcome.sh" \
+    /home/agent/.pi-welcome.sh
 }
 
-runSandboxHarness allow_pi_network install_pi true pi
+after_sandbox_install() {
+  sbx exec "$SANDBOX_NAME" bash -c '
+set -euo pipefail
+if [ -f "$HOME/.bashrc" ]; then
+  awk "
+    /pi-welcome.sh/ { skip=1; next }
+    skip && /^fi\$/ { skip=0; next }
+    skip { next }
+    { print }
+  " "$HOME/.bashrc" > "$HOME/.bashrc.tmp" && mv "$HOME/.bashrc.tmp" "$HOME/.bashrc"
+fi
+cat >> "$HOME/.bashrc" <<'"'"'EOF'"'"'
+
+if [[ $- == *i* ]] && [ -t 1 ] && [ -f "$HOME/.pi-welcome.sh" ]; then
+  bash "$HOME/.pi-welcome.sh"
+fi
+EOF
+'
+}
+
+runSandboxHarness allow_pi_network install_pi true bash
