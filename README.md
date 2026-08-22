@@ -1,8 +1,10 @@
 # AI Coding Agent Workbench
 
+This branch can install optional skills and tools with launcher flags. For the same project with those stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
+
 This project starts AI coding harnesses in Docker sandboxes or on one AWS EC2 workbench.
 
-The launchers install no skills, MCP servers, plugins, helper CLIs, or custom prompts. Each harness uses its normal sign-in flow and default model unless you explicitly select the retained local-LLM path. Security controls remain enabled.
+The launchers install no skills, MCP servers, plugins, helper CLIs, or custom prompts unless you pass a flag. Each harness uses its normal sign-in flow and default model unless you explicitly select the retained local-LLM path. Security controls remain enabled.
 
 ## Local use
 
@@ -61,6 +63,29 @@ The clone contains committed files only. Commit the work that the harness must s
 
 Use `--clone` for Cline, Cursor, Antigravity, Grok, Junie, Kilo, Pi, Qwen, and Command Code. Their own ignore rules are defense-in-depth, not a complete read barrier.
 
+## Optional skills and tools
+
+Off by default. Pass a flag to install that item in the sandbox. Flags compose. `--full` turns every item on.
+
+```shell
+start-claude --full
+start-codex --exa --gh
+start-herdr claude --full
+```
+
+| Flag | Installs |
+| --- | --- |
+| `--matt-pocock-skills` | Matt Pocock skills |
+| `--skill-creator` | skill-creator |
+| `--no-mistakes` | no-mistakes |
+| `--exa` | Exa web search (where the harness supports it) |
+| `--gh` | `gh` plus the login reminder |
+| `--gh-axi` | gh-axi CLI and skill (also installs `gh`) |
+| `--npm-axi` | npm-axi CLI and skill |
+| `--full` | every item in this table |
+
+`--gh`, `--gh-axi`, and `--npm-axi` need `gh auth login` once in each new sandbox. Choose HTTPS.
+
 ## Herdr
 
 Herdr can start Claude Code, Codex, Cursor, or OpenCode:
@@ -72,7 +97,7 @@ start-herdr cursor
 start-herdr opencode
 ```
 
-Herdr installs only the selected harness. It does not install Hunk or review skills.
+Herdr installs only the selected harness unless you pass an optional-skills flag. It does not install Hunk or review skills.
 
 ## Local LLM
 
