@@ -8,12 +8,24 @@ INSTALL_EXA="${INSTALL_EXA:-false}"
 INSTALL_GH="${INSTALL_GH:-false}"
 INSTALL_GH_AXI="${INSTALL_GH_AXI:-false}"
 INSTALL_NPM_AXI="${INSTALL_NPM_AXI:-false}"
+OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=false
 
 optional_skill_and_tool_flags_for_usage() {
   printf '%s' " [--matt-pocock-skills] [--skill-creator] [--no-mistakes] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full]"
 }
 
+turn_on_all_optional_skills_and_tools() {
+  INSTALL_MATT_POCOCK_SKILLS=true
+  INSTALL_SKILL_CREATOR=true
+  INSTALL_NO_MISTAKES=true
+  INSTALL_EXA=true
+  INSTALL_GH=true
+  INSTALL_GH_AXI=true
+  INSTALL_NPM_AXI=true
+}
+
 turn_on_optional_skill_or_tool() {
+  OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=true
   case "$1" in
     --matt-pocock-skills) INSTALL_MATT_POCOCK_SKILLS=true ;;
     --skill-creator) INSTALL_SKILL_CREATOR=true ;;
@@ -22,21 +34,16 @@ turn_on_optional_skill_or_tool() {
     --gh) INSTALL_GH=true ;;
     --gh-axi) INSTALL_GH=true; INSTALL_GH_AXI=true ;;
     --npm-axi) INSTALL_NPM_AXI=true ;;
-    --full)
-      INSTALL_MATT_POCOCK_SKILLS=true
-      INSTALL_SKILL_CREATOR=true
-      INSTALL_NO_MISTAKES=true
-      INSTALL_EXA=true
-      INSTALL_GH=true
-      INSTALL_GH_AXI=true
-      INSTALL_NPM_AXI=true
-      ;;
+    --full) turn_on_all_optional_skills_and_tools ;;
     *) return 1 ;;
   esac
   return 0
 }
 
 remember_if_any_skill_or_gh_tool_is_on() {
+  if [ "$OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED" != true ]; then
+    turn_on_all_optional_skills_and_tools
+  fi
   if [ "$INSTALL_MATT_POCOCK_SKILLS" = true ] || [ "$INSTALL_SKILL_CREATOR" = true ] ||
     [ "$INSTALL_NO_MISTAKES" = true ] ||
     [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then

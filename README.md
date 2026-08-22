@@ -1,10 +1,12 @@
 # AI Coding Agent Workbench
 
-This branch can install optional skills and tools with launcher flags. For the same project with those stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
+**This branch installs ALL optional skills and tools by default.** Pass a flag such as `--exa` to install only that tool and not others.
+
+For the same project with extras stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
 
 This project starts AI coding harnesses in Docker sandboxes or on one AWS EC2 workbench.
 
-The launchers install no skills, MCP servers, plugins, helper CLIs, or custom prompts unless you pass a flag. Each harness uses its normal sign-in flow and default model unless you explicitly select the retained local-LLM path. Security controls remain enabled.
+Each harness uses its normal sign-in flow and default model unless you explicitly select the retained local-LLM path. Security controls remain enabled.
 
 ## Local use
 
@@ -65,12 +67,21 @@ Use `--clone` for Cline, Cursor, Antigravity, Grok, Junie, Kilo, Pi, Qwen, and C
 
 ## Optional skills and tools
 
-Off by default. Pass a flag to install that item in the sandbox. Flags compose. `--full` turns every item on.
+**No skill or tool flags means every item in the table is installed.**
+
+Pass one or more of the flags below to install only those items.
+
+NOTE: `--clone`, `--local-model`, and `--gpu-box` are not skill or tool flags, so will still install all tools unless a skill/tool flag is provided.
 
 ```shell
-start-claude --full
+# every optional skill and tool
+start-claude
+
+# Exa and gh only
 start-codex --exa --gh
-start-herdr claude --full
+
+# Exa only (Herdr uses the same rule)
+start-herdr claude --exa
 ```
 
 | Flag | Installs |
@@ -96,8 +107,6 @@ start-herdr codex /path/to/project
 start-herdr cursor
 start-herdr opencode
 ```
-
-Herdr installs only the selected harness unless you pass an optional-skills flag. It does not install Hunk or review skills.
 
 ## Local LLM
 
