@@ -4,26 +4,16 @@ This project sets up and bootstraps an environment for running AI coding harness
 
 This branch is the minimalist barebones project and has optional skills and tools stripped out. For the same project with flags to install some useful tools and skills, use [`optional-skills-tools`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/optional-skills-tools).
 
-- [Requirements](#requirements)
-- [Install the commands](#install-the-commands)
-- [Start a harness](#start-a-harness)
-- [Keep secrets out with `--clone`](#keep-secrets-out-with---clone)
-- [Herdr](#herdr)
-- [Remove old sandboxes](#remove-old-sandboxes)
+Two ways to run:
 
-Two setups have their own guide:
+- [Local: Docker sandbox on your Mac](#local-docker-sandbox-on-your-mac) — one sandbox per project, on your own machine, with no cloud account.
+- [Cloud: AWS EC2 dev box](#cloud-aws-ec2-dev-box) — one persistent instance you connect to over Tailscale.
 
-- [Local LLM](docs/local-llm.md) — serve a local open model with Ollama instead, on your Mac or on a GPU box.
-- [Cloud workbench](docs/cloud-workbench.md) — run a harness on a persistent AWS EC2 dev box.
-
-## Requirements
-
-- macOS
-- Docker Desktop
-- Docker Sandboxes (`sbx`)
-- Login access or an API key for the selected harness
+Either way, [Herdr](#herdr) can start the harness for you, and you can [use a local model instead](#use-a-local-model-instead) of a hosted API.
 
 ## Install the commands
+
+Both ways start here.
 
 (Recommended) This installs convenience launcher commands into your PATH and profile. It checks for collisions, makes a backup of your profile and adds the commands to your `PATH`:
 
@@ -33,7 +23,16 @@ Run:
 ./bin/install-commands
 ```
 
-## Start a harness
+## Local: Docker sandbox on your Mac
+
+### Requirements
+
+- macOS
+- Docker Desktop
+- Docker Sandboxes (`sbx`)
+- Login access or an API key for the selected harness
+
+### Start a harness
 
 Run a launcher from the project that the harness must edit:
 
@@ -67,7 +66,7 @@ Each command creates or reuses one sandbox, installs the harness, and starts it.
 
 The project directory is mounted into the sandbox by default. Claude Code, Codex, Cursor, and OpenCode receive the repository's secret-read protections.
 
-## Keep secrets out with `--clone`
+### Keep secrets out with `--clone`
 
 Research: [Protecting secrets from coding agents](docs/research/secret-file-protection.md) — the layers that stop a harness reading `.env`, and how to verify them.
 
@@ -81,9 +80,46 @@ The clone contains committed files only. Commit the work that the harness must s
 
 Use `--clone` for Cline, Cursor, Antigravity, Grok, Junie, Kilo, Pi, Qwen, and Command Code. Their own ignore rules are defense-in-depth, not a complete read barrier.
 
+### Remove old sandboxes
+
+Launchers leave sandboxes on disk after you exit. Remove every stopped sandbox and keep the ones that are still running:
+
+```shell
+sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
+```
+
+## Cloud: AWS EC2 dev box
+
+The AWS setup creates one persistent EC2 instance. It installs Herdr and four harnesses: Claude Code, Codex, Cursor, and OpenCode.
+
+### Deploy
+
+Do the [cloud one-time setup](docs/cloud-onetime-setup.md) first: Tailscale access, the GitHub App, and the SSM parameters. Then see [infra/aws/README.md](infra/aws/README.md) for deployment instructions.
+
+### Connect and run
+
+Connect to the instance:
+
+```shell
+start-workbench
+```
+
+Then run a harness in a repository:
+
+```shell
+cd ~/workspace/project
+start-herdr codex
+```
+
+The harnesses use their normal authentication and model defaults unless `--gpu-box` is selected for OpenCode. See [Local LLM](docs/local-llm.md#from-the-ec2-workbench-box) for that path.
+
+### Security
+
+The cloud security design remains in place: no inbound security-group rules, Tailscale and SSM access, verified SSH host keys, short-lived repository-scoped GitHub tokens, IMDSv2 isolation, secret-read controls, and automatic idle shutdown.
+
 ## Herdr
 
-Herdr can start Claude Code, Codex, Cursor, or OpenCode:
+Herdr can start Claude Code, Codex, Cursor, or OpenCode, in a sandbox on your Mac or on the EC2 box:
 
 ```shell
 start-herdr claude
@@ -92,15 +128,21 @@ start-herdr cursor
 start-herdr opencode
 ```
 
-Herdr installs only the selected harness. It does not install Hunk or review skills. With OpenCode it can also read from a [GPU box](docs/local-llm.md#run-on-an-aws-gpu-box).
+Herdr installs only the selected harness. It does not install Hunk or review skills.
 
-## Remove old sandboxes
+## Use a local model instead
 
-Launchers leave sandboxes on disk after you exit. Remove every stopped sandbox and keep the ones that are still running:
+Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
+
+- **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
+- **GPU box** — `--gpu-box`. Runs on AWS or DigitalOcean through Tailscale.
 
 ```shell
-sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
+start-opencode --local-model
+start-opencode --gpu-box
 ```
+
+Full guide: [Local LLM](docs/local-llm.md) — prerequisites, the GPU box lifecycle and its cost controls, thinking level, and context length.
 
 ## Reference
 
