@@ -7,6 +7,9 @@ configureLocalWorkspace() {
   local workspace_input="$PWD"
   local workspace_path_was_given=false
   SANDBOX_CLONE=false
+  if [ -f "$SCRIPT_DIR/optional_skills_and_tools.sh" ]; then
+    source "$SCRIPT_DIR/optional_skills_and_tools.sh"
+  fi
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -14,12 +17,20 @@ configureLocalWorkspace() {
         SANDBOX_CLONE=true
         ;;
       --*)
-        echo "Unknown option: $1" >&2
-        return 1
+        if type turn_on_optional_skill_or_tool >/dev/null 2>&1 && turn_on_optional_skill_or_tool "$1"; then
+          :
+        else
+          echo "Unknown option: $1" >&2
+          return 1
+        fi
         ;;
       *)
         if [ "$workspace_path_was_given" = true ]; then
-          echo "Usage: $0 [--clone] [WORKSPACE_PATH]" >&2
+          local optional_skill_and_tool_flags=""
+          if type optional_skill_and_tool_flags_for_usage >/dev/null 2>&1; then
+            optional_skill_and_tool_flags="$(optional_skill_and_tool_flags_for_usage)"
+          fi
+          echo "Usage: $0 [--clone]${optional_skill_and_tool_flags} [WORKSPACE_PATH]" >&2
           return 1
         fi
         workspace_input="$1"
@@ -51,6 +62,9 @@ configureLocalWorkspace() {
   SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
   if [ "$SANDBOX_CLONE" = true ]; then
     SANDBOX_WORKSPACE_NAME="$SANDBOX_WORKSPACE_NAME-clone"
+  fi
+  if type remember_if_any_skill_or_gh_tool_is_on >/dev/null 2>&1; then
+    remember_if_any_skill_or_gh_tool_is_on
   fi
 }
 
@@ -92,8 +106,8 @@ runSandboxHarness() {
 
   "$allow_network_function"
   "$install_harness_function"
-  if [ -f "$SCRIPT_DIR/optional_extras.sh" ]; then
-    source "$SCRIPT_DIR/optional_extras.sh"
+  if type install_selected_skills_and_tools >/dev/null 2>&1; then
+    install_selected_skills_and_tools
   fi
   sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
     bash -lc "export PATH=\"\$HOME/.local/bin:\$HOME/.local/npm/bin:\$HOME/.grok/bin:\$HOME/.antigravity/bin:\$PATH\"; exec $harness_command"
