@@ -465,6 +465,20 @@ else
 fi
 '
       ;;
+    # Pi has no MCP support, so it gets the pinned pi-web-access extension,
+    # which proxies the same Exa backend. fetch_content stays allowlist-bound.
+    pi-*)
+      echo "Installing pi-web-access for Pi web search..."
+      sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+if grep -q pi-web-access "$HOME/.pi/agent/settings.json" 2>/dev/null; then
+  echo "pi-web-access already installed."
+else
+  pi install npm:pi-web-access@0.14.0 </dev/null || echo "WARN: Could not install pi-web-access for Pi." >&2
+fi
+'
+      ;;
   esac
 }
 

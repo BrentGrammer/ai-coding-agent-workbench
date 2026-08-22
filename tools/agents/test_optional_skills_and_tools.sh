@@ -90,4 +90,22 @@ copyMissingProjectInstructions false
 assert_eq "copy leaves existing AGENTS.md" "$(cat "$WORKSPACE_ROOT_DIR/AGENTS.md")" "project already has agents"
 assert_eq "copy adds missing CLAUDE.md" "$(cat "$WORKSPACE_ROOT_DIR/CLAUDE.md")" "workbench claude"
 
+SBX_LOG="$TEST_ROOT/sbx.log"
+sbx() { printf '%s\n' "$*" >> "$SBX_LOG"; }
+
+source_fresh
+INSTALL_EXA=true
+SANDBOX_NAME="pi-test"
+install_exa_for_harness
+grep -q "pi install npm:pi-web-access@0.14.0" "$SBX_LOG" ||
+  fail "pi exa: pi-web-access install did not run"
+grep -q "mcp.exa.ai:443" "$SBX_LOG" ||
+  fail "pi exa: exa network hosts not opened"
+
+source_fresh
+SANDBOX_NAME="pi-test"
+: > "$SBX_LOG"
+install_exa_for_harness
+[ ! -s "$SBX_LOG" ] || fail "exa off: pi install ran with INSTALL_EXA unset"
+
 echo "ok"
