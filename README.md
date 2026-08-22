@@ -65,6 +65,12 @@ The clone contains committed files only. Commit the work that the harness must s
 
 Use `--clone` for Cline, Cursor, Antigravity, Grok, Junie, Kilo, Pi, Qwen, and Command Code. Their own ignore rules are defense-in-depth, not a complete read barrier.
 
+Launchers leave sandboxes on disk after you exit. Remove every stopped sandbox and keep the ones that are still running:
+
+```shell
+sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
+```
+
 ## Optional skills and tools
 
 **No skill or tool flags means every item in the table is installed.**
