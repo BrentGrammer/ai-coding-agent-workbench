@@ -92,6 +92,9 @@ runSandboxHarness() {
 
   "$allow_network_function"
   "$install_harness_function"
+  if [ -f "$SCRIPT_DIR/optional_extras.sh" ]; then
+    source "$SCRIPT_DIR/optional_extras.sh"
+  fi
   sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
     bash -lc "export PATH=\"\$HOME/.local/bin:\$HOME/.local/npm/bin:\$HOME/.grok/bin:\$HOME/.antigravity/bin:\$PATH\"; exec $harness_command"
 }

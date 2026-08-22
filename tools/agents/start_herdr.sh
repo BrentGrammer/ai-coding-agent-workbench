@@ -150,6 +150,9 @@ allow_herdr_network
 install_runtime_files
 install_herdr_and_harness
 install_harness_security
+if [ -f "$SCRIPT_DIR/optional_extras.sh" ]; then
+  source "$SCRIPT_DIR/optional_extras.sh"
+fi
 
 sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
   env \
