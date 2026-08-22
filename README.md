@@ -4,9 +4,7 @@
 
 For the same project with tooling and skills stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
 
-This project starts AI coding harnesses in Docker sandboxes or on one AWS EC2 workbench.
-
-Each harness uses its normal sign-in flow and default model unless you explicitly select the retained local-LLM path. Security controls remain enabled.
+This project sets up and bootstraps an environment for running AI coding harnesses in Docker sandboxes or on an AWS EC2 dev box.
 
 ## Local use
 
