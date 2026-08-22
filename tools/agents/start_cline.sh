@@ -23,7 +23,6 @@ allow_cline_network() {
   allow_vendor_docs_network
   allow_exa_mcp_network
   allow_skills_marketplace_network
-  allow_serena_mcp_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" api.workos.com:443
@@ -53,6 +52,8 @@ sync_cline_settings() {
     install_file_into_sandbox "$global_settings" /home/agent/.cline/data/settings/global-settings.json
   fi
 
+  [ "$INSTALL_EXA" = "true" ] || return 0
+
   if [ -f "$mcp_settings" ]; then
     install_file_into_sandbox "$mcp_settings" /home/agent/.cline/data/settings/cline_mcp_settings.json
   fi
@@ -69,7 +70,6 @@ if sandboxExists "$SANDBOX_NAME"; then
   sync_cline_settings
   install_matt_pocock_skills "$REPO_ROOT" cline
   install_skill_creator "$REPO_ROOT" cline
-  install_no_mistakes "$REPO_ROOT" cline
   install_github_tools "$REPO_ROOT" cline
   
   sbx run "$SANDBOX_NAME"
@@ -88,7 +88,6 @@ else
   sync_cline_settings
   install_matt_pocock_skills "$REPO_ROOT" cline
   install_skill_creator "$REPO_ROOT" cline
-  install_no_mistakes "$REPO_ROOT" cline
   install_github_tools "$REPO_ROOT" cline
   
   echo "✅ Setup complete! Dropping you into the sandbox."

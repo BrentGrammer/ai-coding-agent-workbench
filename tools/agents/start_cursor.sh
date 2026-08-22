@@ -23,7 +23,6 @@ allow_cursor_network() {
   allow_vendor_docs_network
   allow_exa_mcp_network
   allow_skills_marketplace_network
-  allow_serena_mcp_network
 
   # Cursor CLI installer + runtime/auth endpoints.
   sbx policy allow network --sandbox "$SANDBOX_NAME" cursor.com:443
@@ -75,6 +74,8 @@ fi
 }
 
 copy_cursor_mcp_config() {
+  [ "$INSTALL_EXA" = "true" ] || return 0
+
   local cursor_mcp_config="$SCRIPT_DIR/cursor-mcp.json"
 
   if [ -f "$cursor_mcp_config" ]; then
@@ -129,7 +130,6 @@ if sandboxExists "$SANDBOX_NAME"; then
   usage_instructions
   install_matt_pocock_skills "$REPO_ROOT" cursor
   install_skill_creator "$REPO_ROOT" cursor
-  install_no_mistakes "$REPO_ROOT" cursor
   install_github_tools "$REPO_ROOT" cursor
 
   sbx run "$SANDBOX_NAME"
@@ -152,7 +152,6 @@ else
   usage_instructions
   install_matt_pocock_skills "$REPO_ROOT" cursor
   install_skill_creator "$REPO_ROOT" cursor
-  install_no_mistakes "$REPO_ROOT" cursor
   install_github_tools "$REPO_ROOT" cursor
 
   sbx run "$SANDBOX_NAME"

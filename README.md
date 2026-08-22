@@ -7,7 +7,7 @@ This project runs coding agents two ways:
 
 Docker Sandboxes include sbx policies for opening connections for Ubuntu/system updates and each model provider's API routes. Review and adjust these in the scripts as needed (find `sbx policy allow network...` entries).
 
-Launchers also auto-install skills, MCP tools, and hooks for some harnesses. See [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks) for the full list and how to remove them.
+Launchers start bare: no skills, no MCP servers. Optional items install only when you pass their flag to the launcher. See [Optional tools, skills, and MCP servers](#optional-tools-skills-and-mcp-servers) for the full list.
 
 Note: CLAUDE.md and AGENTS.md are fine-tuned to a personal workflow (the owner of this repo, of course). Adjust and edit these files to your needs and preferences. Also review the dot files (`.gemini/, .cline/`, and files in the `/tools/agents/` folder: `codex-config.toml`, `claude-settings.json`, `cursor-mcp.json`, `opencode.json`, `cline-global-settings.json`, etc.) which contain some baked in settings for convenience (statusline content, accept all edits mode, etc.) and change any of them to your liking.
 
@@ -43,13 +43,13 @@ It checks for command collisions, confirms the profile change, and creates a bac
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty.
 - Login credentials or an API key for the coding agent you plan to use.
 
-The launchers also install `gh`, `gh-axi`, and `npm-axi` in the sandbox. Locally, run `gh auth login` once in each new sandbox. The login stays until you delete the sandbox.
+GitHub tools are off by default. Start a launcher with `--gh`, `--gh-axi`, or `--npm-axi` to install them in the sandbox. Then run `gh auth login` once in each new sandbox. The login stays until you delete the sandbox.
 
 Choose **HTTPS** at the protocol prompt, and answer yes to authenticating Git. One token then serves `gh`, `gh-axi`, and `git push`. SSH instead uploads a new key to your GitHub account for every sandbox, and sandboxes are per repository and per agent. If `git remote -v` shows a `git@github.com:` URL, change it to the `https://github.com/` form or the token cannot push.
 
 After login, run `gh-workbench-check` in the sandbox. It verifies the saved login, a GitHub API call, and a read-only `gh-axi` issue call.
 
-Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. For skills, MCP tools, and hooks installed on top of those CLIs, see [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
+Node.js, Herdr, Hunk, and the coding-agent CLIs are installed inside the sandbox by the launchers. An IDE is optional. Skills and MCP servers are optional: pass their flag, see [Optional tools, skills, and MCP servers](#optional-tools-skills-and-mcp-servers).
 
 ### Start locally
 
@@ -131,7 +131,7 @@ The agent then works on a git clone inside the sandbox. The tradeoff: using this
 
 ### Security findings
 
-The workbench layers several controls to stop agents from reading secrets: instructions, a PreToolUse hook, permission deny rules, and an OS sandbox. The deny hook is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks). Read more: [docs/research/secret-file-protection.md](docs/research/secret-file-protection.md).
+The workbench layers several controls to stop agents from reading secrets: instructions, a PreToolUse hook, permission deny rules, and an OS sandbox. The deny rules ship with the `claude`, `codex`, `cursor`, and `opencode` configs and with `claude-settings.json`. Read more: [docs/research/secret-file-protection.md](docs/research/secret-file-protection.md).
 
 ### Terminal and IDE options
 
@@ -331,7 +331,7 @@ If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the
 2. Put the cursor on a line and press `c` to leave a comment.
 3. Tell the agent: `read my hunk comments and fix them`.
 
-Hunk runs without `--watch` by default. Press `r` to reload the current changes. The `hunk-review` skill install is listed under [Auto-installed tools, skills, and hooks](#auto-installed-tools-skills-and-hooks).
+Hunk runs without `--watch` by default. Press `r` to reload the current changes. The `hunk-review` skill ships with the Herdr launcher.
 
 ### Exit cleanly
 
@@ -347,24 +347,32 @@ If you see `error: nested herdr is disabled by default`:
 3. Run `cd ~/workspace/<repo>`.
 4. Run `start-herdr`.
 
-## Auto-installed tools, skills, and hooks
+## Optional tools, skills, and MCP servers
 
-Launchers install the items below unless you remove the install steps from the scripts.
+Launchers start bare. Pass a flag to install that item inside the sandbox. All flags compose.
 
-| Item                                                                                 | What it does                                            | Where                                                                                             | Remove / change                                                                |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Exa](https://exa.ai/) MCP / plugin                                                  | Web search and fetch                                    | Claude, Codex, Cursor, Cline, Herdr                                                               | `install_exa_tools` / agent MCP configs                                        |
-| [Matt Pocock skills](https://github.com/mattpocock/skills)                           | Workflow skills (e.g. Wayfinder)                        | Claude (plugin), Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr | `install_matt_pocock_skills(_plugin)` in `sandbox_bootstrap.sh` / `start_*.sh` |
-| [gh](https://cli.github.com/) + [gh-axi](https://github.com/kunchenguid/gh-axi)      | GitHub CLI and its agent-friendly wrapper (TOON output) | EC2 + local agents above (not Gemini)                                                             | `install_github_tools` / `setup-workbench.sh`                                  |
-| [npm-axi](https://github.com/SSBrouhard/npm-axi)                                     | Agent-friendly npm registry CLI                         | EC2 + local agents above (not Gemini)                                                             | `install_github_tools` / `setup-workbench.sh`                                  |
-| [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Create and refine agent skills                          | EC2 + local agents above (not Gemini)                                                             | `install_skill_creator` / `setup-workbench.sh`                                 |
-| [no-mistakes](https://github.com/kunchenguid/no-mistakes)                            | Validate/ship gate before push/PR/CI                    | EC2 + local agents above (not Gemini)                                                             | `install_no_mistakes` / `setup-workbench.sh`                                   |
-| Secret-file deny hook                                                                | Blocks reads of `.env` and related files                | Claude, Herdr                                                                                     | `runtime/deny-protected-file-reads`, `claude-settings.json`                    |
-| [Hunk](https://www.hunk.dev/) review skill                                           | Act on Hunk diff review comments                        | Herdr (local + EC2)                                                                               | `hunk skill path` symlink in setup / `start_herdr.sh`                          |
+| Flag                   | Installs                                                                     | Works with                                                     |
+| ---------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| (none)                 | The harness, Node.js, and its provider network policies only.                | Every launcher                                                 |
+| `--matt-pocock-skills` | [Matt Pocock skills](https://github.com/mattpocock/skills)                   | Claude, Codex, OpenCode, Cursor, Cline, Antigravity, Pi, Grok, Kilo, Command Code, Herdr |
+| `--skill-creator`      | [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Same set as Matt Pocock skills |
+| `--exa`                | [Exa](https://exa.ai/) web search, registered per harness                    | Claude, Codex, Cursor, Cline, Junie, Grok, Antigravity, OpenCode, Herdr |
+| `--gh`                 | The `gh` binary plus the `gh auth login` reminder and `gh-workbench-check`   | Every launcher                                                 |
+| `--gh-axi`             | [gh-axi](https://github.com/kunchenguid/gh-axi) CLI and skill (also installs `gh`) | Every launcher |
+| `--npm-axi`            | [npm-axi](https://github.com/SSBrouhard/npm-axi) CLI and skill               | Every launcher                                                 |
+
+Each flag opens its own SBX network hosts only when passed, so a bare sandbox does not expose the skills marketplace, GitHub, or Exa hosts. Two items are always on and are not flags:
+
+| Item                     | What it does                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Secret-file deny rules   | Block reads of `.env` and related files. See [docs/research/secret-file-protection.md](docs/research/secret-file-protection.md). |
+| Hunk review CLI + skill  | Installs the Hunk binary and its review skill. Present only in the Herdr launcher.                    |
+
+The Cloud box still auto-installs its own set; that is a separate code path in `infra/aws`.
 
 ## Updates and maintenance
 
 - The agent CLIs update themselves on the box.
 - `workbench ec2 update` updates everything else: it pulls this repo on the box and re-runs the idempotent setup script (Herdr and Hunk pins, configs, skills, plugins). Run it when this repo changed in a way that affects the box — a config edit, a version pin bump, a new skill — or as a repair step when something on the box looks broken, since the script rewrites its files to a known-good state. If the repo has not changed, there is nothing for it to do.
 - OS security patches: the box runs Ubuntu's `unattended-upgrades` service (enabled by the setup script), which checks daily on a systemd timer and installs security updates automatically. No action needed.
-- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running
+- Docker disk cleanup: monthly, run `docker system prune -f` on the box. Rebuilding images leaves orphaned layers and build cache behind and prune clears them without touching named volumes or running containers.

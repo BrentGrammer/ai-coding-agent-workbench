@@ -119,6 +119,8 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
 }
 
 install_exa_tools() {
+  [ "$INSTALL_EXA" = "true" ] || return 0
+
   echo "Installing Exa web search for Claude Code..."
 
   sbx exec "$SANDBOX_NAME" bash -lc '
@@ -147,6 +149,10 @@ fi
 }
 
 usage_instructions() {
+  local skills_line=""
+  if [ "$INSTALL_MATT_POCOCK_SKILLS" = "true" ]; then
+    skills_line=$'\nRun /setup-matt-pocock-skills once per repo, if you have not already.\n'
+  fi
   sbx exec "$SANDBOX_NAME" bash -c '
 cat > "$HOME/.claude-code-welcome.sh" <<EOF
 cat <<MSG
@@ -171,9 +177,7 @@ Allow switching to bypass mode with Shift+Tab:
   claude --allow-dangerously-skip-permissions
 
 Note: Make sure ANTHROPIC_API_KEY is unset, or it overrides subscription auth.
-
-Run /setup-matt-pocock-skills once per repo, if you have not already.
-
+'"$skills_line"'
 MSG
 EOF
 
@@ -201,7 +205,6 @@ if sandboxExists "$SANDBOX_NAME"; then
   install_exa_tools
   install_matt_pocock_skills_plugin
   install_skill_creator "$REPO_ROOT" claude-code
-  install_no_mistakes "$REPO_ROOT" claude-code
   install_github_tools "$REPO_ROOT" claude-code
   usage_instructions
 
@@ -222,7 +225,6 @@ else
   install_exa_tools
   install_matt_pocock_skills_plugin
   install_skill_creator "$REPO_ROOT" claude-code
-  install_no_mistakes "$REPO_ROOT" claude-code
   install_github_tools "$REPO_ROOT" claude-code
   usage_instructions
 

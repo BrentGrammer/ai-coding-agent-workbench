@@ -135,6 +135,15 @@ configureLocalWorkspace() {
   # is the way to ask it for a clone.
   SANDBOX_CLONE="${SANDBOX_CLONE:-false}"
 
+  # Optional extras are off by default. Pass the flag to a launcher to install
+  # that item inside the sandbox. All flags compose.
+  INSTALL_MATT_POCOCK_SKILLS="false"
+  INSTALL_SKILL_CREATOR="false"
+  INSTALL_EXA="false"
+  INSTALL_GH="false"
+  INSTALL_GH_AXI="false"
+  INSTALL_NPM_AXI="false"
+
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --prompt-instruction-copy)
@@ -143,13 +152,32 @@ configureLocalWorkspace() {
       --clone)
         SANDBOX_CLONE="true"
         ;;
+      --matt-pocock-skills)
+        INSTALL_MATT_POCOCK_SKILLS="true"
+        ;;
+      --skill-creator)
+        INSTALL_SKILL_CREATOR="true"
+        ;;
+      --exa)
+        INSTALL_EXA="true"
+        ;;
+      --gh)
+        INSTALL_GH="true"
+        ;;
+      --gh-axi)
+        INSTALL_GH="true"
+        INSTALL_GH_AXI="true"
+        ;;
+      --npm-axi)
+        INSTALL_NPM_AXI="true"
+        ;;
       --*)
         echo "Unknown option: $1" >&2
         return 1
         ;;
       *)
         if [ "$workspace_path_was_given" = "true" ]; then
-          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [WORKSPACE_PATH]" >&2
+          echo "Usage: $0 [--prompt-instruction-copy] [--clone] [--matt-pocock-skills] [--skill-creator] [--exa] [--gh] [--gh-axi] [--npm-axi] [WORKSPACE_PATH]" >&2
           return 1
         fi
         workspace_input="$1"
@@ -162,6 +190,20 @@ configureLocalWorkspace() {
   if [ ! -d "$workspace_input" ]; then
     echo "ERROR: Workspace directory does not exist: $workspace_input" >&2
     return 1
+  fi
+
+  # Derived flags so launchers and shared installers can test with one line.
+  if [ "$INSTALL_MATT_POCOCK_SKILLS" = true ] || [ "$INSTALL_SKILL_CREATOR" = true ] ||
+    [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then
+    INSTALL_ANY_SKILL=true
+  else
+    INSTALL_ANY_SKILL=false
+  fi
+
+  if [ "$INSTALL_GH" = true ] || [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then
+    INSTALL_ANY_GH_TOOL=true
+  else
+    INSTALL_ANY_GH_TOOL=false
   fi
 
   WORKBENCH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"

@@ -115,6 +115,8 @@ PY
 }
 
 install_exa_mcp_server() {
+	[ "$INSTALL_EXA" = "true" ] || return 0
+
 	echo "Registering the Exa MCP server with Junie..."
 
 	install_file_into_sandbox "$SCRIPT_DIR/junie-mcp.json" /home/agent/.junie/mcp/mcp.json
@@ -181,7 +183,6 @@ if sandboxExists "$SANDBOX_NAME"; then
 	install_exa_mcp_server
 	install_matt_pocock_skills "$REPO_ROOT" junie
 	install_skill_creator "$REPO_ROOT" junie
-	install_no_mistakes "$REPO_ROOT" junie
 	install_github_tools "$REPO_ROOT" junie
 	usage_instructions
 else
@@ -204,7 +205,6 @@ else
 	install_exa_mcp_server
 	install_matt_pocock_skills "$REPO_ROOT" junie
 	install_skill_creator "$REPO_ROOT" junie
-	install_no_mistakes "$REPO_ROOT" junie
 	install_github_tools "$REPO_ROOT" junie
 	usage_instructions
 fi

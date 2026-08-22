@@ -68,7 +68,3 @@ sbx policy allow network -g add-skill.vercel.sh:443
 # # For Exa mcp (per-agent instead: allow_exa_mcp_network in sandbox_bootstrap.sh)
 # sbx policy allow network -g mcp.exa.ai:443
 
-# # Needed for Serena mcp
-# sbx policy allow network -g github.com:443
-# sbx policy allow network -g api.github.com:443
-# sbx policy allow network -g oraios-software.de:443

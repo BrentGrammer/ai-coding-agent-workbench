@@ -30,7 +30,6 @@ allow_pi_network() {
     allow_vendor_docs_network
     allow_exa_mcp_network
     allow_skills_marketplace_network
-    allow_serena_mcp_network
     sbx policy allow network --sandbox "$SANDBOX_NAME" nodejs.org:443
     sbx policy allow network --sandbox "$SANDBOX_NAME" registry.npmjs.org:443
     sbx policy allow network --sandbox "$SANDBOX_NAME" pi.dev:443
@@ -133,7 +132,6 @@ if sandboxExists "$SANDBOX_NAME"; then
     install_pi_local_model_config
     install_matt_pocock_skills "$REPO_ROOT" pi
     install_skill_creator "$REPO_ROOT" pi
-    install_no_mistakes "$REPO_ROOT" pi
     install_github_tools "$REPO_ROOT" pi
 
     usage_instructions
@@ -146,16 +144,11 @@ else
     allow_pi_network
     upgrade_system_packages
 
-    # echo "Installing serena..."
-    # sbx exec "$SANDBOX_NAME" bash -c "uv tool install -p 3.13 serena-agent@latest --prerelease=allow"
-    # echo "SUCCESS: Serena installed. Settings copied to mcp_config.json"
-
     install_node_lts
     install_pi_cli
     install_pi_local_model_config
     install_matt_pocock_skills "$REPO_ROOT" pi
     install_skill_creator "$REPO_ROOT" pi
-    install_no_mistakes "$REPO_ROOT" pi
     install_github_tools "$REPO_ROOT" pi
 
     configure_sandbox_env
