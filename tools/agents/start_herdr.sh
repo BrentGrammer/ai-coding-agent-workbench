@@ -95,7 +95,7 @@ case '"$WORKBENCH_AGENT"' in
     npm install -g @openai/codex@0.148.0 --ignore-scripts
     ;;
   opencode)
-    npm install -g opencode-ai@1.18.18 --ignore-scripts
+    npm install -g opencode-ai@1.18.21 --ignore-scripts
     (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
     ;;
   cursor)
