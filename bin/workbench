@@ -504,12 +504,12 @@ case "${1:-}" in
         exec aws ssm start-session --target "$(find_instance_id)"
         ;;
       update)
-        # /opt/agent-workbench is root-owned machine config, not a working copy.
-        # Hard reset to origin/main so the box cannot run a stale or local branch.
+        branch="${3:-$(git -C "$SCRIPT_DIR/.." branch --show-current 2>/dev/null || echo main)}"
+        branch="${branch:-main}"
         exec ssh "$CONNECT_USER@$(find_connect_host)" \
-          'sudo git -C /opt/agent-workbench fetch --prune origin main \
-            && sudo git -C /opt/agent-workbench reset --hard origin/main \
-            && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'
+          "sudo git -C /opt/agent-workbench fetch --prune origin '$branch' \
+            && sudo git -C /opt/agent-workbench reset --hard 'origin/$branch' \
+            && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh"
         ;;
       sync-host)
         sync_host
