@@ -74,6 +74,20 @@ configureLocalWorkspace() {
   if type copyMissingProjectInstructions >/dev/null 2>&1; then
     copyMissingProjectInstructions "${PROMPT_INSTRUCTION_COPY:-false}"
   fi
+  openLocalWorkspace
+}
+
+openLocalWorkspace() {
+  if [ "${OPEN_WORKSPACE_IN_IDE:-${OPEN_WORKSPACE_IN_VSCODE:-1}}" = "0" ]; then
+    return
+  fi
+
+  local ide_command="${WORKSPACE_IDE_COMMAND:-code}"
+  if ! command -v "$ide_command" >/dev/null 2>&1; then
+    return
+  fi
+
+  "$ide_command" "$WORKSPACE_ROOT_DIR" || true
 }
 
 sandboxExists() {
