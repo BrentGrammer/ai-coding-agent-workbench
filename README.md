@@ -95,7 +95,7 @@ sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
 
 ## Cloud: AWS EC2 dev box
 
-The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr and four harnesses: Claude Code, Codex, Cursor, and OpenCode.
+The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr, four harnesses (Claude Code, Codex, Cursor, and OpenCode), and all skills and tools by default.
 
 ### Requirements
 
@@ -149,7 +149,7 @@ Herdr installs only the selected harness. It takes the same skill and tool flags
 
 **No skill or tool flags means every item in the table is installed.**
 
-Pass one or more of the flags below to install only those items.
+On local launchers, pass one or more of the flags below to install only those items. On the EC2 cloud workbench, **all items in the table are installed** globally during machine setup.
 
 NOTE: `--clone`, `--local-model`, and `--gpu-box` are not skill or tool flags, so will still install all tools unless a skill/tool flag is provided.
 
