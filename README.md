@@ -168,6 +168,7 @@ start-herdr claude --exa
 | ---------------------- | ---------------------------------------------- |
 | `--matt-pocock-skills` | Matt Pocock skills                             |
 | `--skill-creator`      | skill-creator                                  |
+| `--pstack-skills`      | PStack skills (unslop)                         |
 | `--exa`                | Exa web search (where the harness supports it) |
 | `--gh`                 | `gh` plus the login reminder                   |
 | `--gh-axi`             | gh-axi CLI and skill (also installs `gh`)      |

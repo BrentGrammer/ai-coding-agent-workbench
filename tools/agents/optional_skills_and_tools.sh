@@ -3,6 +3,7 @@
 
 INSTALL_MATT_POCOCK_SKILLS="${INSTALL_MATT_POCOCK_SKILLS:-false}"
 INSTALL_SKILL_CREATOR="${INSTALL_SKILL_CREATOR:-false}"
+INSTALL_PSTACK_SKILLS="${INSTALL_PSTACK_SKILLS:-false}"
 INSTALL_EXA="${INSTALL_EXA:-false}"
 INSTALL_GH="${INSTALL_GH:-false}"
 INSTALL_GH_AXI="${INSTALL_GH_AXI:-false}"
@@ -11,12 +12,13 @@ OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=false
 PROMPT_INSTRUCTION_COPY=false
 
 optional_skill_and_tool_flags_for_usage() {
-  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--skill-creator] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full]"
+  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--skill-creator] [--pstack-skills] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full]"
 }
 
 turn_on_all_optional_skills_and_tools() {
   INSTALL_MATT_POCOCK_SKILLS=true
   INSTALL_SKILL_CREATOR=true
+  INSTALL_PSTACK_SKILLS=true
   INSTALL_EXA=true
   INSTALL_GH=true
   INSTALL_GH_AXI=true
@@ -34,6 +36,7 @@ turn_on_optional_skill_or_tool() {
   case "$1" in
     --matt-pocock-skills) INSTALL_MATT_POCOCK_SKILLS=true ;;
     --skill-creator) INSTALL_SKILL_CREATOR=true ;;
+    --pstack-skills) INSTALL_PSTACK_SKILLS=true ;;
     --exa) INSTALL_EXA=true ;;
     --gh) INSTALL_GH=true ;;
     --gh-axi) INSTALL_GH=true; INSTALL_GH_AXI=true ;;
@@ -49,6 +52,7 @@ remember_if_any_skill_or_gh_tool_is_on() {
     turn_on_all_optional_skills_and_tools
   fi
   if [ "$INSTALL_MATT_POCOCK_SKILLS" = true ] || [ "$INSTALL_SKILL_CREATOR" = true ] ||
+    [ "$INSTALL_PSTACK_SKILLS" = true ] ||
     [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then
     INSTALL_ANY_SKILL=true
   else
@@ -243,6 +247,38 @@ npx --yes skills@1.5.23 add anthropics/skills \
   --copy
 "; then
     echo "WARN: Could not install skill-creator for: $*" >&2
+  fi
+}
+
+install_pstack_skills() {
+  [ "$INSTALL_PSTACK_SKILLS" = true ] || return 0
+  local workspace_dir="$1"
+  shift
+  local agent_flags=()
+  local agent_slug
+  for agent_slug in "$@"; do
+    agent_flags+=(--agent "$agent_slug")
+  done
+  local pstack_skills=(
+    unslop
+  )
+  local skill_flags=()
+  local skill_name
+  for skill_name in "${pstack_skills[@]}"; do
+    skill_flags+=(--skill "$skill_name")
+  done
+  echo "Installing PStack skills for: $*"
+  if ! sbx exec "$SANDBOX_NAME" bash -lc "
+set -euo pipefail
+cd '$workspace_dir'
+npx --yes skills@1.5.23 add cursor/plugins/pstack \
+  ${skill_flags[*]} \
+  ${agent_flags[*]} \
+  --global \
+  --yes \
+  --copy
+"; then
+    echo "WARN: Could not install PStack skills for: $*" >&2
   fi
 }
 
@@ -525,6 +561,7 @@ install_selected_skills_and_tools() {
   esac
   install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
   install_skill_creator "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
+  install_pstack_skills "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
   install_github_tools "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
   case "$SANDBOX_NAME" in
     codex-*|herdr-*)
