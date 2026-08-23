@@ -18,7 +18,8 @@ allow_antigravity_network() {
     oauth2.googleapis.com:443 \
     generativelanguage.googleapis.com:443 \
     cloudcode-pa.googleapis.com:443 \
-    storage.googleapis.com:443
+    storage.googleapis.com:443 \
+    daily-cloudcode-pa.googleapis.com:443
   do
     sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
