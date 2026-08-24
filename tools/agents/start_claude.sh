@@ -16,8 +16,10 @@ allow_claude_network() {
     api.anthropic.com:443 \
     console.anthropic.com:443 \
     claude.ai:443 \
+    claude.com:443 \
     storage.googleapis.com:443 \
-    challenges.cloudflare.com:443
+    challenges.cloudflare.com:443 \
+    platform.claude.com:443
   do
     sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
