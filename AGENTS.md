@@ -6,7 +6,8 @@
 
 ## Communication
 
-- Be short and concise in responses preferring plain English and terms over jargon.
+- Be short and concise in responses preferring plain English over jargon.
+- Write the short version. If they need more, they'll ask.
 - Follow the unslop skill at `~/.agents/skills/unslop/SKILL.md` for all writing and responses.
 
 ## Code
