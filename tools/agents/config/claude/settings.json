@@ -1,6 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "allowManagedPermissionRulesOnly": true,
+  "disableClaudeAiConnectors": true,
   "permissions": {
     "deny": [
       "Read(.env)",
@@ -25,7 +26,11 @@
       "Read(~/.gemini/oauth_creds.json)",
       "Read(~/.local/share/opencode/auth.json)",
       "Read(~/.claude/.credentials.json)",
-      "Read(~/.claude/history.jsonl)"
+      "Read(~/.claude/history.jsonl)",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "ScheduleWakeup",
+      "AskUserQuestion"
     ]
   },
   "sandbox": {
