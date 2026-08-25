@@ -2,6 +2,10 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "allowManagedPermissionRulesOnly": true,
   "disableClaudeAiConnectors": true,
+  "statusLine": {
+    "type": "command",
+    "command": "jq -r '(.context_window.total_input_tokens // 0 | tostring) + \" tokens\"'"
+  },
   "permissions": {
     "deny": [
       "Read(.env)",
