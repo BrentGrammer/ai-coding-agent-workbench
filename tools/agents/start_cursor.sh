@@ -10,7 +10,12 @@ SANDBOX_NAME="cursor-$SANDBOX_WORKSPACE_NAME"
 allow_cursor_network() {
   allow_system_update_network
   local host
-  for host in cursor.com:443 api.cursor.com:443 "*.cursor.sh:443" "*.cursor.com:443" downloads.cursor.com:443; do
+
+  for host in \
+    cursor.com:443 \
+    "*.cursor.com:443" \
+    "**.cursor.sh:443"
+  do
     sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
 }
