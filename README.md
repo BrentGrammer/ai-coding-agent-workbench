@@ -52,6 +52,7 @@ Other launchers are available:
 start-antigravity
 start-cline
 start-commandcode
+start-devin
 start-grok
 start-junie
 start-kilo
