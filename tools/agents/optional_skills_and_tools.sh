@@ -177,9 +177,22 @@ skill_agent_names_for_sandbox() {
     junie-*) printf '%s\n' junie ;;
     grok-*) printf '%s\n' grok ;;
     antigravity-*) printf '%s\n' antigravity-cli ;;
+    devin-*) printf '%s\n' devin ;;
     herdr-*) printf '%s\n' claude-code codex opencode cursor ;;
     *) return 1 ;;
   esac
+}
+
+create_npm_global_prefix() {
+  # npx fails until the npm global prefix exists, and only "npm install -g" creates it.
+  # Harnesses installed by a shell script never run that, so make the directory first.
+  sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+npm_prefix="$(npm config get prefix)"
+if [ ! -d "$npm_prefix/lib" ]; then
+  sudo install -d -o "$(id -un)" -g "$(id -gn)" "$npm_prefix/lib"
+fi
+'
 }
 
 allow_skills_marketplace_network() {
@@ -498,6 +511,18 @@ fi
       merge_json_into_sandbox_file "$kilo_exa_fragment" /home/agent/.config/kilo/kilo.jsonc
       rm -f "$kilo_exa_fragment"
       ;;
+    devin-*)
+      echo "Registering the Exa MCP server with Devin CLI..."
+      sbx exec "$SANDBOX_NAME" bash -lc '
+set -euo pipefail
+export PATH="$HOME/.local/bin:$PATH"
+if devin mcp list 2>/dev/null | grep -q exa; then
+  echo "Exa MCP server already registered."
+else
+  timeout 20 devin mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
+fi
+'
+      ;;
     qwen-*)
       echo "Registering the Exa MCP server with Qwen Code..."
       sbx exec "$SANDBOX_NAME" bash -lc '
@@ -553,6 +578,7 @@ install_selected_skills_and_tools() {
     return 0
   fi
 
+  create_npm_global_prefix
   allow_skills_marketplace_network
   allow_exa_mcp_network
   install_exa_for_harness
