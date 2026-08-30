@@ -94,7 +94,7 @@ configureLocalWorkspace() {
 
 sandboxExists() {
   local sandbox_name="$1"
-  sbx ls 2>/dev/null | awk '{print $1}' | grep -Fxq -- "$sandbox_name"
+  sbx ls --quiet 2>/dev/null | grep -Fxq -- "$sandbox_name"
 }
 
 createWorkbenchSandbox() {
