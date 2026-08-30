@@ -6,7 +6,7 @@ This branch is the minimalist barebones project and has optional skills and tool
 
 Two ways to run:
 
-- [Local: Docker sandbox on your Mac](#local-docker-sandbox-on-your-mac) — one sandbox per project, on your own machine, with no cloud account.
+- [Local: Docker sandbox on macOS or Omarchy](#local-docker-sandbox-on-macos-or-omarchy) — one sandbox per project, on your own machine, with no cloud account.
 - [Cloud: AWS EC2 dev box](#cloud-aws-ec2-dev-box) — one persistent instance you connect to over Tailscale.
 
 Either way, [Herdr](#herdr) can start the harness for you, and you can [use a local model instead](#use-a-local-model-instead) of a hosted API.
@@ -23,17 +23,16 @@ Run:
 ./bin/install-commands
 ```
 
-## Local: Docker sandbox on your Mac
+## Local: Docker sandbox on macOS or Omarchy
 
 ### Requirements
 
-- macOS
-- [Docker Desktop](https://docs.docker.com/desktop/)
+- macOS with [Docker Desktop](https://docs.docker.com/desktop/), or an Omarchy host following the [Omarchy setup guide](docs/omarchy.md)
 - [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/) installed, signed in, and configured for locked-down mode
 - Login credentials or an API key for the coding agent you plan to use
-- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty
+- (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty or Alacritty
 
-Node.js and the coding-agent CLIs are installed inside the sandbox by the launchers, so the host does not need them. An IDE is optional.
+Node.js and the coding-agent CLIs are installed inside the sandbox by the launchers, so the host does not need them. An IDE is optional. Host Docker and the isolated Docker Engine inside each sandbox are separate.
 
 ### Start a harness
 
@@ -102,7 +101,9 @@ The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Ta
 - A [Tailscale](https://tailscale.com/) account. The free personal plan is enough
 - A GitHub account that can create a GitHub App. The app supplies the short-lived repository tokens, and you create it in [Cloud one-time setup](docs/cloud-onetime-setup.md#2-github-app)
 - Node.js on the machine you deploy from
-- Local tools: `brew install mosh awscli`, and the Tailscale macOS app from [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`
+- Local connection tools:
+  - macOS: `brew install mosh awscli`, plus the Tailscale app from [tailscale.com/download](https://tailscale.com/download) or `brew install --cask tailscale`
+  - Omarchy: follow the [AWS connection setup](docs/omarchy.md#aws-workbench-connection)
 - Login credentials or an API key for each coding agent you plan to use
 - (Recommended) A terminal with OSC 52 clipboard support, such as Ghostty
 
@@ -133,7 +134,7 @@ The cloud security design remains in place: no inbound security-group rules, Tai
 
 ## Herdr
 
-Herdr can start Claude Code, Codex, Cursor, or OpenCode, in a sandbox on your Mac or on the EC2 box:
+Herdr can start Claude Code, Codex, Cursor, or OpenCode in a local sandbox or on the EC2 box:
 
 ```shell
 start-herdr claude
@@ -148,7 +149,7 @@ Herdr installs only the selected harness. It does not install Hunk or review ski
 
 Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
 
-- **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
+- **macOS or Linux** — `--local-model`. Local Ollama with `qwen3.8:27b-mlx` on macOS or `qwen3.8:27b` on Linux.
 - **GPU box** — `--gpu-box`. Runs on AWS or DigitalOcean through Tailscale.
 
 ```shell
