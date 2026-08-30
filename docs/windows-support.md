@@ -2,7 +2,7 @@
 
 ## Current state
 
-The Linux sandbox runtime is portable, but the host launchers use Bash, Unix paths, macOS application paths, and `open -a Docker`. macOS is currently the supported and tested host. Linux and WSL2 are unverified. Native Windows is not supported.
+The host launchers support macOS and project-tested Omarchy. macOS uses Docker Desktop; Omarchy uses Docker Engine and standalone Docker Sandboxes. Docker does not officially test or support Arch Linux. WSL2 remains unverified, and native Windows is not supported.
 
 ## Goal
 
@@ -21,7 +21,7 @@ Run the Herdr and Hunk workbench with Claude, Codex, and OpenCode from native Wi
 
 1. Support the main Herdr workflow with Claude, Codex, and OpenCode.
 2. Add the remaining local agent launchers.
-3. Evaluate WSL2 and Linux separately and document verified behavior.
+3. Evaluate WSL2 separately and document verified behavior.
 
 ## Estimated effort
 

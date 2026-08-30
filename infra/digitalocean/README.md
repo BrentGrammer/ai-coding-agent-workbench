@@ -30,12 +30,18 @@ destroys it **12 hours** after boot no matter what.
 
 ## One-time setup
 
-1. Install the tools:
+1. Install the tools on macOS:
 
 ```shell
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
 brew install doctl
+```
+
+   Or on Omarchy:
+
+```shell
+omarchy pkg add terraform doctl
 ```
 
 2. Create an API token (control panel: API → Tokens, full access).
@@ -120,7 +126,7 @@ is ever lost, `terraform import` recovers it — there are only four resources.
 
 ## Setup for Future Reference (new machine)
 
-1. Install the tools: brew install doctl and terraform (see readme links for install)
+1. Install `doctl` and Terraform using the platform instructions above.
 2. Main API token: create at cloud.digitalocean.com → API → Tokens (full access). Then doctl auth init (paste it) and export DIGITALOCEAN_TOKEN=<thetoken>
 3. Admin Spaces Access key: control panel → Spaces Keys → create. Then export SPACES_ACCESS_KEY_ID=<key> SPACES_SECRET_ACCESS_KEY=<secret>
 4. Apply Terraform:
