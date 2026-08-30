@@ -82,7 +82,7 @@ copyMissingProjectInstructions() {
   fi
 
   local workspace_path_hash
-  workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
+  workspace_path_hash="$(workspacePathHash "$WORKSPACE_ROOT_DIR")"
   local instruction_copy_directory="$HOME/.local/state/agent-workbench/instruction-copy"
   local instruction_copy_file="$instruction_copy_directory/$workspace_path_hash"
   local instruction_choice=""
