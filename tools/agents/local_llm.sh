@@ -107,9 +107,25 @@ use_tailnet_address() {
   echo "Resolved $host to $ip on the tailnet."
 }
 
-# Sets LOCAL_LLM_BASE_URL / LOCAL_LLM_MODEL, and starts Ollama and the proxy
-# on a Mac. On the EC2 workbench box, workbench.env already points at the GPU
-# box, so nothing local needs to start.
+defaultLocalLlmModelForHost() {
+  local host_kernel_name
+  local macos_kernel_name="Darwin"
+  local linux_kernel_name="Linux"
+  host_kernel_name="$(uname -s)"
+
+  case "$host_kernel_name" in
+    "$macos_kernel_name") printf '%s\n' "qwen3.8:27b-mlx" ;;
+    "$linux_kernel_name") printf '%s\n' "qwen3.8:27b" ;;
+    *)
+      echo "ERROR: No default local LLM model is configured for $host_kernel_name." >&2
+      echo "Set LOCAL_LLM_MODEL explicitly." >&2
+      return 1
+      ;;
+  esac
+}
+
+# Sets the local LLM configuration and starts host Ollama and its proxy.
+# On EC2, workbench.env points at the GPU box, so nothing local starts.
 resolve_local_llm() {
   if [ -f /etc/agent-workbench/workbench.env ]; then
     set -a
@@ -122,7 +138,7 @@ resolve_local_llm() {
     LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-$GPU_BOX_MODEL}"
   fi
   LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
-  LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-qwen3.8:27b-mlx}"
+  LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-$(defaultLocalLlmModelForHost)}"
   LOCAL_LLM_CONTEXT_LENGTH="${LOCAL_LLM_CONTEXT_LENGTH:-${OLLAMA_CONTEXT_LENGTH:-131072}}"
   # none | low | medium | high
   LOCAL_LLM_REASONING_EFFORT="${LOCAL_LLM_REASONING_EFFORT:-medium}"
@@ -260,9 +276,8 @@ allow_local_llm_network() {
   fi
   sbx policy allow network --sandbox "$SANDBOX_NAME" "$hostport"
 
-  # Docker Desktop routes host.docker.internal to the host's loopback
-  # interface, and sbx's network policy checks the resolved destination, so
-  # it reports the connection as "localhost", not "host.docker.internal".
+  # sbx maps host.docker.internal to host loopback, which network policy
+  # identifies as localhost.
   if [[ "$hostport" == host.docker.internal:* ]]; then
     sbx policy allow network --sandbox "$SANDBOX_NAME" "localhost:${hostport#*:}"
   fi
