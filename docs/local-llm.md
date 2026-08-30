@@ -2,13 +2,13 @@
 
 Runs an open model instead of a hosted API. Works with `start-opencode`, `start-pi`, `start-kilo` and `start-qwen`. Two targets, one flag each:
 
-- **Mac** — `--local-model`. Local Ollama. No AWS, no cost, nothing to start first.
+- **Local host** — `--local-model`. Runs Ollama on macOS or Linux without cloud resources.
 - **GPU box** — `--gpu-box`. Runs on AWS or DigitalOcean through Tailscale.
 
-`--local-model` runs the model on your Mac. `--gpu-box` runs it on the GPU box, which keeps the heat and the fans off your MacBook. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.
+`--local-model` runs the model on the host. `--gpu-box` runs it on a remote GPU box. The hostname, port, and model are built in, so there is nothing to type. Set `LOCAL_LLM_BASE_URL` or `LOCAL_LLM_MODEL` only if you want to override them.
 
 - [Prerequisites](#prerequisites)
-- [Run on your Mac](#run-on-your-mac)
+- [Run locally](#run-locally)
 - [Run on an AWS GPU box](#run-on-an-aws-gpu-box)
 - [Run on a DigitalOcean GPU box](#run-on-a-digitalocean-gpu-box)
 - [Model settings](#model-settings)
@@ -17,19 +17,19 @@ Runs an open model instead of a hosted API. Works with `start-opencode`, `start-
 
 ## Prerequisites
 
-- **Local:** Ollama, `python3`, `jq`, and `ollama pull qwen3.8:27b-mlx`.
+- **macOS local:** Ollama, `python3`, `jq`, and `ollama pull qwen3.8:27b-mlx`.
+- **Linux local:** Ollama, `python3`, `jq`, and `ollama pull qwen3.8:27b`. Install the appropriate CUDA or ROCm support for the host GPU, or use Ollama's CPU support.
 - **AWS GPU:** CDK bootstrapped, [4 Spot and On-Demand G-family vCPUs](cloud-onetime-setup.md#5-gpu-quotas-local-llm-only), and an [ephemeral Tailscale key](cloud-onetime-setup.md#7-gpu-auth-key).
 - **DigitalOcean GPU:** Terraform, `doctl`, and the [one-time secrets setup](../infra/digitalocean/README.md#one-time-setup).
 
-## Run on your Mac
+## Run locally
 
 ```shell
-# run the model locally on your machine:
 start-opencode --local-model
 start-pi --local-model
 ```
 
-`--local-model` starts Ollama on loopback and serves `qwen3.8:27b-mlx`. No `workbench llm` command, and no env vars.
+`--local-model` starts Ollama on loopback. It serves `qwen3.8:27b-mlx` on macOS and `qwen3.8:27b` on Linux. No `workbench llm` command or environment variables are needed.
 
 Ollama and the proxy run on the host. A second run reuses them instead of starting more. To stop them:
 
@@ -50,7 +50,7 @@ start-qwen --gpu-box
 
 `workbench llm up` / `status` / `down` deploy, check, and destroy the GPU box.
 
-### From a Mac
+### From a local host
 
 1. `workbench llm up` # 3-5 min
 2. `workbench llm status` # confirm it is running
@@ -59,11 +59,11 @@ start-qwen --gpu-box
 
 ### From the EC2 workbench box
 
-1. `workbench llm up` # on your Mac — it is a CDK deploy
+1. `workbench llm up` # on your local host — it is a CDK deploy
 2. `workbench llm status` # confirm it is running
 3. `start-workbench` # connect to the t4g box
 4. `start-herdr opencode ~/some-repo --gpu-box` # on the t4g box
-5. `workbench llm down` # back on your Mac, when done
+5. `workbench llm down` # back on your local host, when done
 
 - OpenCode only. start-herdr rejects --gpu-box for claude, codex, and cursor.
 - One-time check on the t4g box: cat /etc/agent-workbench/workbench.env should show port 11435. If it shows 11434 or the line is missing, that box predates the proxy change and needs an EC2 stack redeploy.
@@ -129,6 +129,6 @@ Both flags add a `local-llm` provider and make it the default model. Nothing els
 
 ## Why port 11435
 
-11435 is an inference-only proxy ([ollama_inference_proxy.py](../tools/llm/ollama_inference_proxy.py)). Ollama stays on loopback: its port pulls models from any host a caller names, escaping the sandbox network policy.
+11435 is an inference-only proxy ([ollama_inference_proxy.py](../tools/llm/ollama_inference_proxy.py)). Ollama stays on loopback: its port 11434 can pull, create, and delete models. Never allowlist port 11434 for a sandbox. The launcher allowlists only `localhost:11435` and reaches it through `host.docker.internal`.
 
-If the Mac sandbox cannot reach the proxy, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
+The proxy remains bound to `127.0.0.1` by default on macOS and Linux. If a host firewall prevents the sandbox from reaching it, set `WORKBENCH_LLM_PROXY_BIND` to the Docker gateway address, not `0.0.0.0`.
