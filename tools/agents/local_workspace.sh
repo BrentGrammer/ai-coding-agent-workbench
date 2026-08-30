@@ -3,6 +3,18 @@ set -euo pipefail
 
 export SBX_NO_TELEMETRY=1
 
+workspacePathHash() {
+  local workspace_path="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s' "$workspace_path" | sha256sum | cut -c1-8
+  elif command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$workspace_path" | shasum -a 256 | cut -c1-8
+  else
+    echo "ERROR: sha256sum or shasum is required to identify the workspace." >&2
+    return 1
+  fi
+}
+
 configureLocalWorkspace() {
   local workspace_input="$PWD"
   local workspace_path_was_given=false
@@ -61,7 +73,7 @@ configureLocalWorkspace() {
   readable_workspace_name="${readable_workspace_name:-workspace}"
 
   local workspace_path_hash
-  workspace_path_hash="$(printf '%s' "$WORKSPACE_ROOT_DIR" | shasum -a 256 | cut -c1-8)"
+  workspace_path_hash="$(workspacePathHash "$WORKSPACE_ROOT_DIR")"
   SANDBOX_WORKSPACE_NAME="$readable_workspace_name-$workspace_path_hash"
   if [ "$SANDBOX_CLONE" = true ]; then
     SANDBOX_WORKSPACE_NAME="$SANDBOX_WORKSPACE_NAME-clone"
