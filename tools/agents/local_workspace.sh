@@ -15,6 +15,14 @@ workspacePathHash() {
   fi
 }
 
+requireSbx() {
+  if ! command -v sbx >/dev/null 2>&1; then
+    echo "ERROR: Docker Sandboxes CLI (sbx) is required." >&2
+    echo "Install it from https://docs.docker.com/ai/sandboxes/install/." >&2
+    return 1
+  fi
+}
+
 configureLocalWorkspace() {
   local workspace_input="$PWD"
   local workspace_path_was_given=false
@@ -111,6 +119,7 @@ runSandboxHarness() {
   local needs_node="${3:-false}"
   local harness_command="$4"
 
+  requireSbx
   bash "$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
   if ! sandboxExists "$SANDBOX_NAME"; then
     createWorkbenchSandbox "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME"
