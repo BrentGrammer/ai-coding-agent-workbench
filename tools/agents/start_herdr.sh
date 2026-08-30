@@ -137,6 +137,7 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
   esac
 }
 
+requireSbx
 bash "$WORKBENCH_ROOT/tools/scripts/start_docker.sh"
 if ! sandboxExists "$SANDBOX_NAME"; then
   createWorkbenchSandbox "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME"
