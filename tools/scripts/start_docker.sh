@@ -2,13 +2,14 @@
 set -e
 
 echo "Checking Docker daemon..."
-if docker info > /dev/null 2>&1; then
-  echo "✅ Docker is already running."
-  exit 0
-fi
 
 case "$(uname -s)" in
   Darwin)
+    if docker info > /dev/null 2>&1; then
+      echo "✅ Docker is already running."
+      exit 0
+    fi
+
     echo "Docker is not running. Attempting to start Docker Desktop..."
     echo 'If on Windows, quit this script and run: "C:\Program Files\Docker\Docker\Docker Desktop.exe"'
     open -a Docker
@@ -31,6 +32,11 @@ case "$(uname -s)" in
       exit 1
     fi
 
+    if systemctl is-active --quiet docker.service || systemctl is-active --quiet docker.socket; then
+      echo "✅ Docker is already running."
+      exit 0
+    fi
+
     echo "Docker is not running. Attempting to start Docker Engine..."
     if ! sudo systemctl start docker; then
       echo "ERROR: Failed to start Docker Engine with systemctl." >&2
@@ -39,12 +45,12 @@ case "$(uname -s)" in
 
     echo -n "Waiting for Docker to initialize"
     attempts=0
-    until docker info > /dev/null 2>&1; do
+    until systemctl is-active --quiet docker.service || systemctl is-active --quiet docker.socket; do
       attempts=$((attempts + 1))
       if [ "$attempts" -ge 30 ]; then
         echo >&2
         echo "ERROR: Docker Engine did not become ready within 60 seconds." >&2
-        echo "Run 'docker info' and 'systemctl status docker' for details." >&2
+        echo "Run 'systemctl status docker' for details." >&2
         exit 1
       fi
       echo -n "."
