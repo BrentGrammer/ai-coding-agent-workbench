@@ -8,6 +8,7 @@ HERDR_VERSION=0.8.0
 CLAUDE_CODE_VERSION=2.1.233
 CODEX_VERSION=0.148.0
 OPENCODE_VERSION=1.18.21
+PI_VERSION=0.84.4
 
 WORKBENCH_USER=ubuntu
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -159,6 +160,7 @@ sudo -u "$WORKBENCH_USER" -H \
   CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
   CODEX_VERSION="$CODEX_VERSION" \
   OPENCODE_VERSION="$OPENCODE_VERSION" \
+  PI_VERSION="$PI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
@@ -169,7 +171,8 @@ mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 # The npm prefix is user-owned so the agents can update themselves later.
 npm install -g --ignore-scripts \
   "@openai/codex@${CODEX_VERSION}" \
-  "opencode-ai@${OPENCODE_VERSION}"
+  "opencode-ai@${OPENCODE_VERSION}" \
+  "@earendil-works/pi-coding-agent@${PI_VERSION}"
 
 # Claude Code needs its install scripts to run so that `claude update` works.
 # Override the .npmrc ignore-scripts policy for this package only.
@@ -178,8 +181,19 @@ npm install -g --ignore-scripts=false "@anthropic-ai/claude-code@${CLAUDE_CODE_V
 claude --version
 codex --version
 opencode --version
+pi --version
 
 command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
+
+# The Devin installer ends with an interactive login, which needs a TTY. Skip it
+# here; sign-in happens the first time the harness runs.
+if ! command -v devin >/dev/null 2>&1; then
+  devin_installer="$(mktemp)"
+  curl -fsSL https://cli.devin.ai/install.sh -o "$devin_installer"
+  bash "$devin_installer" </dev/null || true
+  rm -f "$devin_installer"
+fi
+command -v devin >/dev/null 2>&1 || { echo "ERROR: The Devin CLI did not install." >&2; exit 1; }
 
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
@@ -195,7 +209,7 @@ if [ ! -f "$HOME/.config/opencode/opencode.json" ]; then
   install -m 600 "$REPO_DIR/tools/agents/opencode.json" "$HOME/.config/opencode/opencode.json"
 fi
 
-for agent_name in claude codex opencode cursor; do
+for agent_name in claude codex opencode cursor devin pi; do
   herdr integration install "$agent_name"
 done
 

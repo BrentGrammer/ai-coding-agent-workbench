@@ -93,7 +93,7 @@ sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
 
 ## Cloud: AWS EC2 dev box
 
-The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr and four harnesses: Claude Code, Codex, Cursor, and OpenCode.
+The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr and six harnesses: Claude Code, Codex, Cursor, OpenCode, Devin, and Pi.
 
 ### Requirements
 
@@ -134,13 +134,15 @@ The cloud security design remains in place: no inbound security-group rules, Tai
 
 ## Herdr
 
-Herdr can start Claude Code, Codex, Cursor, or OpenCode in a local sandbox or on the EC2 box:
+Herdr can start a harness in a local sandbox or on the EC2 box:
 
 ```shell
 start-herdr claude
 start-herdr codex /path/to/project
 start-herdr cursor
 start-herdr opencode
+start-herdr devin
+start-herdr pi
 ```
 
 Herdr installs only the selected harness. It does not install Hunk or review skills.
