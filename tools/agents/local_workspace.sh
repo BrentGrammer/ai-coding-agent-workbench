@@ -90,7 +90,6 @@ configureLocalWorkspace() {
   if type remember_if_any_skill_or_gh_tool_is_on >/dev/null 2>&1; then
     remember_if_any_skill_or_gh_tool_is_on
   fi
-  # Shared with the optional-skills-tools branch so this launcher stays one file to change.
   if type copyMissingProjectInstructions >/dev/null 2>&1; then
     copyMissingProjectInstructions "${PROMPT_INSTRUCTION_COPY:-false}"
   fi

@@ -4,13 +4,10 @@
 set -euo pipefail
 
 NODE_MAJOR=24
-HERDR_VERSION=0.8.0
-CLAUDE_CODE_VERSION=2.1.233
-CODEX_VERSION=0.148.0
-OPENCODE_VERSION=1.18.21
-GH_AXI_VERSION=0.1.30
-NPM_AXI_VERSION=0.1.1
-SKILLS_CLI_VERSION=1.5.23
+HERDR_VERSION=0.8.2
+CLAUDE_CODE_VERSION=2.1.259
+CODEX_VERSION=0.153.0
+OPENCODE_VERSION=1.18.27
 PI_VERSION=0.84.4
 
 WORKBENCH_USER=ubuntu
@@ -157,15 +154,12 @@ systemctl enable github-token-relay.service workbench-idle-stop.timer
 systemctl restart github-token-relay.service
 systemctl start workbench-idle-stop.timer
 
-echo "== Agent CLIs and skills for $WORKBENCH_USER"
+echo "== Agent CLIs for $WORKBENCH_USER"
 sudo -u "$WORKBENCH_USER" -H \
   env REPO_DIR="$REPO_DIR" \
   CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
   CODEX_VERSION="$CODEX_VERSION" \
   OPENCODE_VERSION="$OPENCODE_VERSION" \
-  GH_AXI_VERSION="$GH_AXI_VERSION" \
-  NPM_AXI_VERSION="$NPM_AXI_VERSION" \
-  SKILLS_CLI_VERSION="$SKILLS_CLI_VERSION" \
   PI_VERSION="$PI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
@@ -178,8 +172,6 @@ mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 npm install -g --ignore-scripts \
   "@openai/codex@${CODEX_VERSION}" \
   "opencode-ai@${OPENCODE_VERSION}" \
-  "gh-axi@${GH_AXI_VERSION}" \
-  "npm-axi@${NPM_AXI_VERSION}" \
   "@earendil-works/pi-coding-agent@${PI_VERSION}"
 
 # Claude Code needs its install scripts to run so that `claude update` works.
@@ -189,8 +181,6 @@ npm install -g --ignore-scripts=false "@anthropic-ai/claude-code@${CLAUDE_CODE_V
 claude --version
 codex --version
 opencode --version
-gh-axi --version
-npm-axi --version
 pi --version
 
 command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
@@ -208,146 +198,20 @@ command -v devin >/dev/null 2>&1 || { echo "ERROR: The Devin CLI did not install
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
 
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor" "$HOME/.agents/skills"
+mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor" "$HOME/.pi/agent/extensions"
 
 install -m 600 /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
 install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
-
-if [ ! -f "$HOME/.cursor/mcp.json" ]; then
-  cat > "$HOME/.cursor/mcp.json" <<'EOF'
-{
-  "mcpServers": {
-    "exa": {
-      "type": "http",
-      "url": "https://mcp.exa.ai/mcp"
-    }
-  }
-}
-EOF
-  chmod 600 "$HOME/.cursor/mcp.json"
-fi
 
 # Global scope on purpose, not managed scope, so the user can change the
 # model (audit finding #5). Seed once and never overwrite.
 if [ ! -f "$HOME/.config/opencode/opencode.json" ]; then
   install -m 600 "$REPO_DIR/tools/agents/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
 fi
-if [ -f "$HOME/.config/opencode/opencode.json" ]; then
-  if ! jq -e '.mcp.exa' "$HOME/.config/opencode/opencode.json" >/dev/null 2>&1; then
-    tmp_json="$(mktemp)"
-    jq '.mcp.exa = {"type": "remote", "url": "https://mcp.exa.ai/mcp", "enabled": true}' \
-      "$HOME/.config/opencode/opencode.json" > "$tmp_json" && mv "$tmp_json" "$HOME/.config/opencode/opencode.json"
-    chmod 600 "$HOME/.config/opencode/opencode.json"
-  fi
-fi
 
 for agent_name in claude codex opencode cursor devin pi; do
   herdr integration install "$agent_name"
 done
-
-echo "Installing the Matt Pocock skills plugin for Claude Code..."
-if claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
-  claude plugin update mattpocock-skills </dev/null >/dev/null 2>&1 || true
-else
-  claude plugin marketplace add mattpocock/skills </dev/null >/dev/null 2>&1 || true
-  claude plugin install mattpocock-skills@mattpocock </dev/null >/dev/null 2>&1 || true
-fi
-if ! claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
-  echo "WARN: The Matt Pocock skills plugin did not install for Claude Code." >&2
-fi
-
-echo "Installing Matt Pocock skills for Codex, OpenCode, and Cursor..."
-if ! (
-  cd "$HOME"
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add mattpocock/skills \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --skill '*' \
-    --global \
-    --yes \
-    --copy
-) </dev/null; then
-  echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
-fi
-
-echo "Installing gh-axi, npm-axi, skill-creator, and PStack skills..."
-if ! (
-  cd "$HOME"
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add kunchenguid/gh-axi \
-    --skill gh-axi \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add SSBrouhard/npm-axi \
-    --skill npm-axi \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add anthropics/skills \
-    --skill skill-creator \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add cursor/plugins/pstack \
-    --skill unslop \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
-) </dev/null; then
-  echo "WARN: Could not install gh-axi, npm-axi, skill-creator, or PStack skills." >&2
-fi
-
-echo "Setting up gh-axi and npm-axi session hooks..."
-gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2
-npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2
-
-# Link Codex skills into ~/.agents/skills for cross-agent discovery.
-for skill_dir in "$HOME/.codex/skills"/*; do
-  [ -d "$skill_dir" ] || continue
-  skill_name="$(basename "$skill_dir")"
-  case "$skill_name" in
-    .system) continue ;;
-  esac
-  ln -sfn "$skill_dir" "$HOME/.agents/skills/$skill_name"
-done
-
-echo "Installing Exa for Claude Code..."
-if ! claude plugin list 2>/dev/null | grep -q exa; then
-  claude plugin marketplace add anthropics/claude-plugins-official </dev/null >/dev/null 2>&1 || true
-  if ! claude plugin install exa@claude-plugins-official </dev/null >/dev/null 2>&1 &&
-    ! claude mcp get exa >/dev/null 2>&1; then
-    claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-  fi
-fi
-if ! claude plugin list 2>/dev/null | grep -q exa &&
-  ! claude mcp list 2>/dev/null | grep -q exa; then
-  echo "WARN: Claude Code has neither the Exa plugin nor the Exa MCP server." >&2
-fi
-
-echo "Registering the Exa MCP server with Codex..."
-if ! codex mcp get exa >/dev/null 2>&1; then
-  timeout 20 codex mcp add exa --url https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-fi
-if ! codex mcp get exa >/dev/null 2>&1; then
-  echo "WARN: Codex does not list the Exa MCP server." >&2
-fi
 
 if ! git config --global user.name >/dev/null 2>&1 ||
    ! git config --global user.email >/dev/null 2>&1; then
@@ -356,6 +220,14 @@ if ! git config --global user.name >/dev/null 2>&1 ||
   echo "  git config --global user.email 'you@example.com'"
 fi
 USER_SETUP
+
+optional_setup="$REPO_DIR/tools/agents/setup_ec2_optional.sh"
+if [ -f "$optional_setup" ]; then
+  echo "== Optional tools and skills for $WORKBENCH_USER"
+  sudo -u "$WORKBENCH_USER" -H \
+    env REPO_DIR="$REPO_DIR" \
+    bash "$optional_setup"
+fi
 
 echo "== Done"
 if ! tailscale status >/dev/null 2>&1; then
