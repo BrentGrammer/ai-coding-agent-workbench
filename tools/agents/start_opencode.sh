@@ -41,7 +41,7 @@ npm install -g opencode-ai@1.18.21 --ignore-scripts
 (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
 opencode --version
 '
-  local source_config="$SCRIPT_DIR/opencode.json"
+  local source_config="$SCRIPT_DIR/config/opencode/opencode.json"
   local generated_config=""
   if [ "$USE_LOCAL_MODEL" = true ]; then
     generated_config="$(mktemp)"

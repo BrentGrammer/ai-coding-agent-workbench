@@ -111,7 +111,7 @@ install_harness_security() {
   case "$WORKBENCH_AGENT" in
     claude)
       install_bash_sandbox_runtime
-      sbx cp "$SCRIPT_DIR/claude-settings.json" "$SANDBOX_NAME":/tmp/claude-settings.json
+      sbx cp "$SCRIPT_DIR/config/claude/settings.json" "$SANDBOX_NAME":/tmp/claude-settings.json
       sbx cp "$WORKBENCH_ROOT/runtime/deny-protected-file-reads" \
         "$SANDBOX_NAME":/tmp/deny-protected-file-reads
       sbx cp "$WORKBENCH_ROOT/runtime/install-claude-settings" \
@@ -126,13 +126,13 @@ sudo rm -f /tmp/install-claude-settings /tmp/claude-settings.json \
 '
       ;;
     codex)
-      install_file_into_sandbox "$SCRIPT_DIR/codex-config.toml" /home/agent/.codex/config.toml
+      install_file_into_sandbox "$SCRIPT_DIR/config/codex/config.toml" /home/agent/.codex/config.toml
       ;;
     opencode)
-      install_file_into_sandbox "$SCRIPT_DIR/opencode.json" /etc/opencode/opencode.json 644 755 root:root
+      install_file_into_sandbox "$SCRIPT_DIR/config/opencode/opencode.json" /etc/opencode/opencode.json 644 755 root:root
       ;;
     cursor)
-      install_file_into_sandbox "$SCRIPT_DIR/cursor-cli-config.json" /home/agent/.cursor/cli-config.json
+      install_file_into_sandbox "$SCRIPT_DIR/config/cursor/cli-config.json" /home/agent/.cursor/cli-config.json
       ;;
   esac
 }

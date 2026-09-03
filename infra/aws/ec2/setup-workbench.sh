@@ -129,9 +129,9 @@ install -m 755 "$REPO_DIR/infra/aws/ec2/start-herdr" /usr/local/bin/start-herdr
 rm -f /usr/local/bin/workbench-open
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop
 
-install -m 644 "$REPO_DIR/tools/agents/claude-settings.json" /etc/claude-code/managed-settings.json
-install -m 644 "$REPO_DIR/tools/agents/codex-config.toml" /etc/agent-workbench/codex-config.toml
-install -m 644 "$REPO_DIR/tools/agents/cursor-cli-config.json" /etc/agent-workbench/cursor-cli-config.json
+install -m 644 "$REPO_DIR/tools/agents/config/claude/settings.json" /etc/claude-code/managed-settings.json
+install -m 644 "$REPO_DIR/tools/agents/config/codex/config.toml" /etc/agent-workbench/codex-config.toml
+install -m 644 "$REPO_DIR/tools/agents/config/cursor/cli-config.json" /etc/agent-workbench/cursor-cli-config.json
 
 install -m 644 "$REPO_DIR/infra/aws/ec2/agent-workbench-profile.sh" /etc/profile.d/agent-workbench.sh
 install -m 644 "$REPO_DIR/infra/aws/ec2/login-welcome" /etc/agent-workbench/login-welcome
@@ -206,7 +206,7 @@ install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-co
 # Global scope on purpose, not managed scope, so the user can change the
 # model (audit finding #5). Seed once and never overwrite.
 if [ ! -f "$HOME/.config/opencode/opencode.json" ]; then
-  install -m 600 "$REPO_DIR/tools/agents/opencode.json" "$HOME/.config/opencode/opencode.json"
+  install -m 600 "$REPO_DIR/tools/agents/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
 fi
 
 for agent_name in claude codex opencode cursor devin pi; do
