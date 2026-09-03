@@ -221,6 +221,14 @@ if ! git config --global user.name >/dev/null 2>&1 ||
 fi
 USER_SETUP
 
+optional_setup="$REPO_DIR/tools/agents/setup_ec2_optional.sh"
+if [ -f "$optional_setup" ]; then
+  echo "== Optional tools and skills for $WORKBENCH_USER"
+  sudo -u "$WORKBENCH_USER" -H \
+    env REPO_DIR="$REPO_DIR" \
+    bash "$optional_setup"
+fi
+
 echo "== Done"
 if ! tailscale status >/dev/null 2>&1; then
   echo "NOTE: Tailscale is not connected yet. Run once: sudo tailscale up --ssh"

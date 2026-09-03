@@ -90,6 +90,23 @@ configureLocalWorkspace() {
   if type remember_if_any_skill_or_gh_tool_is_on >/dev/null 2>&1; then
     remember_if_any_skill_or_gh_tool_is_on
   fi
+  if type copyMissingProjectInstructions >/dev/null 2>&1; then
+    copyMissingProjectInstructions "${PROMPT_INSTRUCTION_COPY:-false}"
+  fi
+  openLocalWorkspace
+}
+
+openLocalWorkspace() {
+  if [ "${OPEN_WORKSPACE_IN_IDE:-${OPEN_WORKSPACE_IN_VSCODE:-1}}" = "0" ]; then
+    return
+  fi
+
+  local ide_command="${WORKSPACE_IDE_COMMAND:-code}"
+  if ! command -v "$ide_command" >/dev/null 2>&1; then
+    return
+  fi
+
+  "$ide_command" "$WORKSPACE_ROOT_DIR" || true
 }
 
 sandboxExists() {
@@ -134,6 +151,9 @@ runSandboxHarness() {
   # Shared with the optional-skills-tools branch so this launcher stays one file to change.
   if type install_selected_skills_and_tools >/dev/null 2>&1; then
     install_selected_skills_and_tools
+  fi
+  if type after_sandbox_install >/dev/null 2>&1; then
+    after_sandbox_install
   fi
   sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
     bash -lc "export PATH=\"\$HOME/.local/bin:\$HOME/.local/npm/bin:\$HOME/.grok/bin:\$HOME/.antigravity/bin:\$PATH\"; exec $harness_command"
