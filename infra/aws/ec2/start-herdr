@@ -7,7 +7,7 @@ for arg in "$@"; do
   case "$arg" in
     -h|--help)
       echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box]"
-      echo "Agents: claude codex opencode cursor. Default: cursor in the current directory."
+      echo "Agents: claude codex opencode cursor devin pi. Default: cursor in the current directory."
       echo "--gpu-box: use the GPU box from workbench.env. opencode only."
       echo "--local-model: the same thing, kept for compatibility."
       exit 0

@@ -3,6 +3,6 @@
 Clone repos under ~/workspace (https clone only), then start Herdr:
 
   cd ~/workspace/<your-repo>
-  start-herdr [claude|codex|opencode|cursor]
+  start-herdr [claude|codex|opencode|cursor|devin|pi]
 
 

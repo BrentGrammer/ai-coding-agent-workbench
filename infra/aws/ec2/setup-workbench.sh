@@ -11,6 +11,7 @@ OPENCODE_VERSION=1.18.21
 GH_AXI_VERSION=0.1.30
 NPM_AXI_VERSION=0.1.1
 SKILLS_CLI_VERSION=1.5.23
+PI_VERSION=0.84.4
 
 WORKBENCH_USER=ubuntu
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -165,6 +166,7 @@ sudo -u "$WORKBENCH_USER" -H \
   GH_AXI_VERSION="$GH_AXI_VERSION" \
   NPM_AXI_VERSION="$NPM_AXI_VERSION" \
   SKILLS_CLI_VERSION="$SKILLS_CLI_VERSION" \
+  PI_VERSION="$PI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
@@ -177,7 +179,8 @@ npm install -g --ignore-scripts \
   "@openai/codex@${CODEX_VERSION}" \
   "opencode-ai@${OPENCODE_VERSION}" \
   "gh-axi@${GH_AXI_VERSION}" \
-  "npm-axi@${NPM_AXI_VERSION}"
+  "npm-axi@${NPM_AXI_VERSION}" \
+  "@earendil-works/pi-coding-agent@${PI_VERSION}"
 
 # Claude Code needs its install scripts to run so that `claude update` works.
 # Override the .npmrc ignore-scripts policy for this package only.
@@ -188,8 +191,19 @@ codex --version
 opencode --version
 gh-axi --version
 npm-axi --version
+pi --version
 
 command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
+
+# The Devin installer ends with an interactive login, which needs a TTY. Skip it
+# here; sign-in happens the first time the harness runs.
+if ! command -v devin >/dev/null 2>&1; then
+  devin_installer="$(mktemp)"
+  curl -fsSL https://cli.devin.ai/install.sh -o "$devin_installer"
+  bash "$devin_installer" </dev/null || true
+  rm -f "$devin_installer"
+fi
+command -v devin >/dev/null 2>&1 || { echo "ERROR: The Devin CLI did not install." >&2; exit 1; }
 
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
@@ -227,7 +241,7 @@ if [ -f "$HOME/.config/opencode/opencode.json" ]; then
   fi
 fi
 
-for agent_name in claude codex opencode cursor; do
+for agent_name in claude codex opencode cursor devin pi; do
   herdr integration install "$agent_name"
 done
 
