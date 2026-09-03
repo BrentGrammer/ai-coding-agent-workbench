@@ -198,7 +198,7 @@ command -v devin >/dev/null 2>&1 || { echo "ERROR: The Devin CLI did not install
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
 
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor"
+mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor" "$HOME/.pi/agent/extensions"
 
 install -m 600 /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
 install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
