@@ -24,6 +24,16 @@ Optional SSH opens port 22 only to the `sshCidr` supplied during deployment. It 
 
 There is no bastion host, overlay network, or UDP-based shell.
 
+## Bitbucket repositories
+
+Use a Bitbucket repository access token over HTTPS for a private repository. Scope the token to that repository with Repository Read permission and add Repository Write only when the dev box must push branches.
+
+Store the token in AWS Secrets Manager or Parameter Store, not in the repository or an environment file. Supply it through a Git credential helper and clone with:
+
+```shell
+git clone https://x-token-auth@bitbucket.org/WORKSPACE/REPOSITORY.git
+```
+
 ## GPU box
 
 The GPU box has no public ingress. Its security group accepts port `11435` only from the dev box security group. The dev box discovers the running GPU instance by its `aws-native-agent-workbench-gpu-llm` tag and uses its private IP.
