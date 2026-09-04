@@ -1,8 +1,0 @@
-# State holds resource secrets in plain text, such as the Spaces keys.
-terraform.tfstate
-terraform.tfstate.*
-*.tfvars
-*.tfvars.json
-.terraform/
-crash.log
-crash.*.log
