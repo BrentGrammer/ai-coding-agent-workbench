@@ -50,6 +50,7 @@ function stackTemplate(app: cdk.App, stackId: string): Template {
 }
 
 interface PolicyStatement {
+  Effect?: string;
   Action: string | string[];
   Resource: unknown;
   Condition?: Record<string, Record<string, unknown>>;
@@ -201,7 +202,10 @@ const customerPolicies = Object.values(
 const instanceAttached = policyStatementsFrom(
   customerPolicies.filter((policy) => (policy.Properties.Roles ?? []).length > 0),
 );
-const instanceStatements = [...instanceInline, ...instanceAttached];
+const allInstanceStatements = [...instanceInline, ...instanceAttached];
+const instanceStatements = allInstanceStatements.filter(
+  (statement) => statement.Effect !== "Deny",
+);
 const instanceActions = new Set(instanceStatements.flatMap(actionsOf));
 assert.ok(instanceActions.has("ec2:DescribeInstances"));
 assert.ok([...instanceActions].some((action) => action.startsWith("s3:GetObject")));
@@ -214,14 +218,24 @@ for (const action of instanceActions) {
   );
 }
 
+// The box may read only its own zip, never the whole assets bucket.
 const s3Statements = instanceStatements.filter((statement) =>
   actionsOf(statement).some((action) => action.startsWith("s3:")),
 );
 assert.ok(s3Statements.length > 0);
 for (const statement of s3Statements) {
-  assert.notEqual(statement.Resource, "*");
-  assert.match(JSON.stringify(statement.Resource), /cdk-hnb659fds-assets/);
+  const resources = JSON.stringify(statement.Resource);
+  assert.match(resources, /cdk-hnb659fds-assets/);
+  assert.doesNotMatch(resources, /"\/\*"\]/, "instance role can read every asset");
+  assert.match(resources, /\.zip/, "instance role s3 grant is not limited to the box zip");
 }
+
+const parameterDeny = allInstanceStatements.find(
+  (statement) =>
+    statement.Effect === "Deny" && actionsOf(statement).includes("ssm:GetParameter"),
+);
+assert.ok(parameterDeny, "instance role must not be able to read Parameter Store");
+assert.ok(actionsOf(parameterDeny).includes("ssm:GetParametersByPath"));
 
 const developerPolicies = Object.values(
   alice.findResources("AWS::IAM::ManagedPolicy"),

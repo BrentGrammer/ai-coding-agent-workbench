@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as cdk from "aws-cdk-lib/core";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3assets from "aws-cdk-lib/aws-s3-assets";
 import { Construct } from "constructs";
 
@@ -55,6 +56,28 @@ export function boxFilesAsset(scope: Construct): s3assets.Asset {
     path: REPO_ROOT,
     exclude: boxFilesExclude(),
     ignoreMode: cdk.IgnoreMode.GLOB,
+  });
+}
+
+// Asset.grantRead would allow every asset in the bootstrap bucket. The box
+// only needs its own zip.
+export function grantBoxFilesRead(asset: s3assets.Asset, role: iam.IRole): void {
+  asset.bucket.grantRead(role, asset.s3ObjectKey);
+}
+
+// AmazonSSMManagedInstanceCore includes ssm:GetParameter* on every parameter,
+// which would expose the other workbench's secrets to anything on the box.
+export function denyParameterStoreReads(): iam.PolicyStatement {
+  return new iam.PolicyStatement({
+    effect: iam.Effect.DENY,
+    actions: [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:GetParametersByPath",
+      "ssm:GetParameterHistory",
+      "ssm:DescribeParameters",
+    ],
+    resources: ["*"],
   });
 }
 

@@ -4,7 +4,12 @@ import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
-import { addBoxFilesInstall, boxFilesAsset } from "./box-files";
+import {
+  addBoxFilesInstall,
+  boxFilesAsset,
+  denyParameterStoreReads,
+  grantBoxFilesRead,
+} from "./box-files";
 import { ec2InstanceName, normalizeDeveloperName } from "./developers";
 import { LLM_MODEL } from "./workbench-llm-stack";
 
@@ -70,9 +75,10 @@ export class WorkbenchEc2Stack extends cdk.Stack {
         resources: ["*"],
       }),
     );
+    role.addToPolicy(denyParameterStoreReads());
 
     const asset = boxFilesAsset(this);
-    asset.grantRead(role);
+    grantBoxFilesRead(asset, role);
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(

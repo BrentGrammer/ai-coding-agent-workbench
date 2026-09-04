@@ -3,7 +3,12 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
-import { addBoxFilesInstall, boxFilesAsset } from "./box-files";
+import {
+  addBoxFilesInstall,
+  boxFilesAsset,
+  denyParameterStoreReads,
+  grantBoxFilesRead,
+} from "./box-files";
 
 // L40S, 48 GB VRAM: fits the model plus a 131K q8_0 KV cache. Override with
 // -c llmInstanceType, or WORKBENCH_LLM_INSTANCE_TYPE through bin/workbench.
@@ -90,9 +95,10 @@ export class WorkbenchLlmStack extends cdk.Stack {
       iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
     );
     props.cacheBucket.grantReadWrite(role);
+    role.addToPolicy(denyParameterStoreReads());
 
     const asset = boxFilesAsset(this);
-    asset.grantRead(role);
+    grantBoxFilesRead(asset, role);
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(

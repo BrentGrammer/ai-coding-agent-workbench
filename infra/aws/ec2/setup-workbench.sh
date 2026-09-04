@@ -167,7 +167,19 @@ systemctl enable tinyproxy
 systemctl restart tinyproxy
 
 echo "== nftables firewall"
-install -m 644 "$REPO_DIR/infra/aws/ec2/nftables.conf" /etc/nftables.conf
+imds_token="$(curl -fsS -X PUT http://169.254.169.254/latest/api/token \
+  -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')"
+imds_get() {
+  curl -fsS -H "X-aws-ec2-metadata-token: $imds_token" "http://169.254.169.254/latest/meta-data/$1"
+}
+mac="$(imds_get network/interfaces/macs/ | head -n1 | tr -d '/')"
+vpc_cidr="$(imds_get "network/interfaces/macs/$mac/vpc-ipv4-cidr-block")"
+if [[ ! "$vpc_cidr" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]]; then
+  echo "ERROR: Could not read the VPC CIDR from instance metadata: $vpc_cidr" >&2
+  exit 1
+fi
+sed "s|@VPC_CIDR@|$vpc_cidr|" "$REPO_DIR/infra/aws/ec2/nftables.conf" > /etc/nftables.conf
+chmod 644 /etc/nftables.conf
 nft -f /etc/nftables.conf
 systemctl enable nftables
 

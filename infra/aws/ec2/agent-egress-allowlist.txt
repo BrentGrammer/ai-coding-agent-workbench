@@ -1,11 +1,12 @@
-# Domain allowlist for tinyproxy egress filter
-archive.ubuntu.com
-security.ubuntu.com
-ports.ubuntu.com
-bitbucket.org
-generativelanguage.googleapis.com
-storage.googleapis.com
-antigravity-cli-auto-updater-974169037036.us-central1.run.app
-registry.npmjs.org
-pypi.org
-files.pythonhosted.org
+# Domain allowlist for tinyproxy egress filter. Entries are regular
+# expressions, so anchor and escape them or "pypi.org" also matches "pypi.org.evil.net".
+^archive\.ubuntu\.com$
+^security\.ubuntu\.com$
+^ports\.ubuntu\.com$
+^bitbucket\.org$
+^generativelanguage\.googleapis\.com$
+^storage\.googleapis\.com$
+^antigravity-cli-auto-updater-974169037036\.us-central1\.run\.app$
+^registry\.npmjs\.org$
+^pypi\.org$
+^files\.pythonhosted\.org$

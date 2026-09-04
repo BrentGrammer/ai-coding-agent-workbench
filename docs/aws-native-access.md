@@ -116,7 +116,7 @@ If `AwsNativeWorkbenchTokenStack` was deployed from an earlier revision of this 
 The boxes hold proprietary code and run an AI agent that reads it. Phases 7 through 12 are in the repo.
 
 - No inbound ports from the internet. SSM by default. SSH is through an EC2 Instance Connect Endpoint; port 22 allows only that endpoint security group. GPU box accepts 11435 only from the dev box security groups.
-- Minimal instance role: `AmazonSSMManagedInstanceCore`, `ec2:DescribeInstances`, and `s3:GetObject` on that setup zip.
+- Minimal instance role: `AmazonSSMManagedInstanceCore`, `ec2:DescribeInstances`, and `s3:GetObject` on that setup zip's key only. An explicit deny on `ssm:GetParameter*` overrides the Parameter Store read that `AmazonSSMManagedInstanceCore` would otherwise grant, so the box cannot read the existing workbench's secrets.
 - IMDSv2 with hop limit 1. Encrypted EBS, deleted on termination.
 - Inference-only proxy on the GPU box. Telemetry disabled for agy and Pi. Unattended security upgrades. Idle stop, a 6-hour CloudWatch backstop, and a 12-hour fuse on the GPU box.
 - Pi with `--gpu-box` keeps prompts inside the VPC. Antigravity uses Gemini under a zero-data-retention enterprise agreement.
@@ -137,9 +137,9 @@ Two Linux users, all configured by `setup-workbench.sh` as root:
 Root-owned nftables rules:
 
 - `meta skuid agent ip daddr 169.254.169.254 reject`. The agent can never reach the instance role.
-- Drop all outbound from uid `agent` except to a local proxy on `127.0.0.1` and to the GPU box on 11435.
+- Drop all outbound from uid `agent` except to a local proxy on `127.0.0.1` and to port 11435 inside the VPC CIDR, which setup reads from instance metadata.
 
-A root-owned local proxy (tinyproxy) with a domain allowlist: `generativelanguage.googleapis.com`, `registry.npmjs.org`, `pypi.org`, `bitbucket.org`, the apt mirrors, and whatever the projects need. `HTTPS_PROXY` and `HTTP_PROXY` are set in the agent user's environment. The allowlist lives in `infra/aws/ec2/` and ships in the asset bundle so it is versioned with the repo.
+A root-owned local proxy (tinyproxy) with a domain allowlist: `generativelanguage.googleapis.com`, `registry.npmjs.org`, `pypi.org`, `bitbucket.org`, the apt mirrors, and whatever the projects need. Entries are anchored regular expressions (`^pypi\.org$`), because tinyproxy matches an unanchored pattern anywhere in the hostname. `HTTPS_PROXY` and `HTTP_PROXY` are set in the agent user's environment. The allowlist lives in `infra/aws/ec2/` and ships in the asset bundle so it is versioned with the repo.
 
 Root owns `/opt/agent-workbench`, the systemd units, the proxy config, and the nftables rules. The agent cannot change any of it.
 
@@ -181,7 +181,7 @@ Versions and hashes sit at the top of each setup script and are bumped deliberat
 
 ### Phase 11: security tests and docs
 
-- `test/workbench-ec2-stack.test.ts`: one stack per developer, distinct `Name` tags, no CIDR ingress, instance role limited to SSM core, `ec2:DescribeInstances`, and the asset read.
+- `test/workbench-ec2-stack.test.ts`: one stack per developer, distinct `Name` tags, no CIDR ingress, instance role limited to SSM core, `ec2:DescribeInstances`, a read of the box zip key only, and a deny on Parameter Store reads.
 - `test/workbench-llm-stack.test.ts`: port 11435 from each dev security group and no other ingress.
 - This document and `docs/cloud-onetime-setup.md` cover the per-developer deploy, the IAM policy, and the `agent` user workflow.
 
