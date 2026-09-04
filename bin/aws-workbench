@@ -14,11 +14,6 @@ GPU_INSTANCE_TYPE="${WORKBENCH_LLM_INSTANCE_TYPE:-g6e.xlarge}"
 GPU_CONTEXT_LENGTH="${WORKBENCH_LLM_CONTEXT_LENGTH:-131072}"
 GPU_KV_CACHE_TYPE="${WORKBENCH_LLM_KV_CACHE_TYPE:-q8_0}"
 
-if [[ ! "$WORKBENCH_DEV" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
-  echo "ERROR: WORKBENCH_DEV must be a lowercase letter followed by up to 31 letters, digits, or hyphens." >&2
-  exit 1
-fi
-
 usage() {
   cat <<'EOF'
 Usage: aws-workbench <ec2|llm> <command>
@@ -38,8 +33,18 @@ update --ssh does the on-box step over SSH instead of SSM.
 Set WORKBENCH_EC2_SSH_KEY when the private key is not loaded in ssh-agent or
 stored at a default OpenSSH path.
 EOF
-  exit 1
+  exit "${1:-1}"
 }
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage 0
+fi
+
+if [[ ! "$WORKBENCH_DEV" =~ ^[a-z][a-z0-9-]{0,31}$ ]] &&
+   ! [[ "${1:-}" == "ec2" && "${2:-}" == "deploy" && $# -gt 2 ]]; then
+  echo "ERROR: WORKBENCH_DEV must be a lowercase letter followed by up to 31 letters, digits, or hyphens." >&2
+  exit 1
+fi
 
 instance_ids_by_tag() {
   aws ec2 describe-instances \
