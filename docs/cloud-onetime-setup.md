@@ -43,7 +43,7 @@ start-workbench
 
 ## Optional SSH
 
-SSM needs no SSH configuration. Port 22 is reachable only from the Instance Connect Endpoint. To enable SSH on a box, include that developer's public key when you create the change set. The stack owns the key pair. `sshCidr` and `sshKeyName` are gone.
+SSM needs no SSH configuration. Port 22 is reachable only from the Instance Connect Endpoint. To enable SSH on a box, include that developer's public key when you create the change set. The stack owns the key pair.
 
 ```shell
 npm run changeset -- \
