@@ -12,19 +12,12 @@ allow_antigravity_network() {
   local host
   for host in \
     antigravity.google:443 \
-    "*.antigravity.google:443" \
     antigravity-cli-auto-updater-974169037036.us-central1.run.app:443 \
+    storage.googleapis.com:443 \
     accounts.google.com:443 \
     oauth2.googleapis.com:443 \
     generativelanguage.googleapis.com:443 \
-    cloudcode-pa.googleapis.com:443 \
-    storage.googleapis.com:443 \
-    daily-cloudcode-pa.googleapis.com:443 \
-    play.googleapis.com:443 \
-    www.googleapis.com:443 \
-    antigravity-unleash.goog:443 \
-    playwright-verizon.azureedge.net:443 \
-    *.googleusercontent.com:443
+    cloudcode-pa.googleapis.com:443
   do
     sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
