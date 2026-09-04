@@ -1,6 +1,6 @@
 # AI Coding Agent Workbench
 
-An AWS-only workbench for Antigravity CLI and Pi. Both agents can also run in local Docker sandboxes on macOS or Omarchy.
+An AWS-only workbench for Antigravity CLI and Pi.
 
 ## Install local commands
 
@@ -12,7 +12,7 @@ An AWS-only workbench for Antigravity CLI and Pi. Both agents can also run in lo
 
 Requirements:
 
-- Docker Desktop on macOS, or Docker Engine on [Omarchy](docs/omarchy.md)
+- Docker Desktop
 - [Docker Sandboxes (`sbx`)](https://docs.docker.com/ai/sandboxes/get-started/)
 - Credentials for the agent you use
 
