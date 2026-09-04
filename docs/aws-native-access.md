@@ -157,7 +157,7 @@ The boxes hold proprietary code and run an AI agent that reads it. The AWS plumb
 
 ### Already in place
 
-- No inbound ports. SSM by default, SSH only with `sshCidr` and a key. GPU box accepts 11435 only from the dev box security group.
+- No inbound ports from the internet. SSM by default. Today's optional SSH is CIDR-locked; Phase 12 replaces it with an EC2 Instance Connect Endpoint. GPU box accepts 11435 only from the dev box security group.
 - Minimal instance role: `AmazonSSMManagedInstanceCore`, `ec2:DescribeInstances`, and after the GitHub plan, `s3:GetObject` on one asset.
 - IMDSv2 with hop limit 1. Encrypted EBS, deleted on termination.
 - Inference-only proxy on the GPU box. Telemetry disabled for agy and Pi. Unattended security upgrades. Idle stop, a 6-hour CloudWatch backstop, and a 12-hour fuse on the GPU box.
@@ -222,9 +222,46 @@ Versions and hashes sit at the top of each setup script and are bumped deliberat
 
 ### Phase 11: security tests and docs
 
-- `test/workbench-ec2-stack.test.ts`: assert one stack per developer, distinct `Name` tags, no ingress rules without `sshCidr`, and the instance role has no actions beyond SSM core, `ec2:DescribeInstances`, and the asset read.
+- `test/workbench-ec2-stack.test.ts`: assert one stack per developer, distinct `Name` tags, no ingress rule with a CIDR source, and the instance role has no actions beyond SSM core, `ec2:DescribeInstances`, and the asset read.
 - `test/workbench-llm-stack.test.ts`: assert 11435 ingress from each dev security group and nothing else.
 - Update this document and `docs/cloud-onetime-setup.md` with the per-developer deploy, the IAM policy, and the `agent` user workflow.
+
+### Phase 12: SSH through an EC2 Instance Connect Endpoint
+
+Two connection paths, both with no inbound port from the internet. A developer picks one.
+
+- SSM Session Manager. Needs the Session Manager plugin on the laptop.
+- Plain `ssh` with their own keypair through an EC2 Instance Connect Endpoint. Needs only the AWS CLI, which `bin/workbench` already requires.
+
+The CIDR-locked public port 22 option is removed. `sshCidr` and `sshKeyName` go away.
+
+Infrastructure:
+
+- One `AWS::EC2::InstanceConnectEndpoint` in the default VPC with its own security group, created once in a shared stack and used by every dev box. There is no hourly charge for the endpoint.
+- Each dev box security group allows port 22 only from the endpoint security group.
+- A developer who wants SSH supplies `sshPublicKey` for their box. The stack owns the key pair and AWS holds only the public key. Destroying the stack removes it.
+
+Laptop `~/.ssh/config`:
+
+```text
+Host workbench
+  User ubuntu
+  IdentityFile ~/.ssh/workbench_ed25519
+  ProxyCommand aws ec2-instance-connect open-tunnel --instance-id %h
+```
+
+`bin/workbench ec2 ssh` resolves the instance ID by tag and runs `ssh` with that ProxyCommand.
+
+IAM, added to the per-developer policy from Phase 9: `ec2-instance-connect:OpenTunnel` on the endpoint, conditioned on their instance via `ec2-instance-connect:privateIpAddress` or the instance tag, and `ec2:DescribeInstanceConnectEndpoints`.
+
+Box changes in `setup-workbench.sh`:
+
+- `sshd` hardening: `PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers ubuntu`.
+- `workbench ec2 update` gains an SSH path so an SSH-only developer can update their own box: `ssh workbench sudo <download and re-run setup>`.
+- `workbench-idle-stop` already counts an established port 22 connection as in use, so no change.
+- The SSM agent stays installed on every box. The laptop-side `workbench llm up` readiness check uses it, and it never requires anything on the developer's laptop.
+
+Tests: assert the dev box security group has exactly one port 22 rule and its source is the endpoint security group, and that no rule has a CIDR source.
 
 ### Remaining risk
 
@@ -232,6 +269,6 @@ Egress control is host-enforced rather than network-enforced. It depends on `age
 
 ## Order and safety
 
-Do phases 1 and 3 together since they touch the same lines, then 2, 5, 6. Then 7 and 10 together since both live in `setup-workbench.sh`, then 8 and 9 together since the IAM policy depends on the per-developer tags, then 11. Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
+Do phases 1 and 3 together since they touch the same lines, then 2, 5, 6. Then 7 and 10 together since both live in `setup-workbench.sh`, then 8, 9, and 12 together since the IAM policy depends on the per-developer tags and the endpoint, then 11. Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
 
 After this, the remaining external installs are Node, AWS CLI, Ollama, Pi, and Antigravity CLI, all pinned and verified. None is github.com.
