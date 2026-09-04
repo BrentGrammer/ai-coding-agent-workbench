@@ -39,7 +39,7 @@ See [Local LLM](docs/local-llm.md).
 
 ## AWS workbench
 
-The AWS deployment creates a persistent EC2 dev box and an optional GPU box. SSM Session Manager is the default connection. CIDR-locked SSH is optional. No third-party network or cloud provider is used.
+The AWS deployment creates a persistent EC2 dev box per developer and an optional shared GPU box. SSM Session Manager is the default connection. SSH is optional through an Instance Connect Endpoint. No third-party network or cloud provider is used.
 
 Complete the [one-time setup](docs/cloud-onetime-setup.md), deploy the [AWS stacks](infra/aws/README.md), then connect:
 
@@ -47,11 +47,11 @@ Complete the [one-time setup](docs/cloud-onetime-setup.md), deploy the [AWS stac
 start-workbench
 ```
 
-On the dev box, clone repositories under `~/workspace` and run either installed CLI:
+On the dev box, clone repositories under `~/workspace`. You are `ubuntu`; `agy` and `start-pi` run as the `agent` user:
 
 ```shell
 agy
-pi
+start-pi --gpu-box
 ```
 
 The GPU box is reachable only from the dev box over the VPC on port `11435`. After `workbench llm up` on the laptop, run `start-pi --gpu-box` on the dev box.

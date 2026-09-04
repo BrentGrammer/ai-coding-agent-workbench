@@ -7,9 +7,10 @@
     "test": "ts-node test/workbench-ec2-stack.test.ts && ts-node test/workbench-llm-stack.test.ts",
     "test:ec2": "ts-node test/workbench-ec2-stack.test.ts",
     "test:llm": "ts-node test/workbench-llm-stack.test.ts",
-    "deploy": "cdk deploy AwsNativeWorkbenchEc2Stack",
-    "diff": "cdk diff AwsNativeWorkbenchEc2Stack AwsNativeWorkbenchLlmCacheStack AwsNativeWorkbenchLlmStack",
-    "synth": "cdk synth AwsNativeWorkbenchEc2Stack AwsNativeWorkbenchLlmCacheStack AwsNativeWorkbenchLlmStack"
+    "deploy": "cdk deploy \"/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/\"",
+    "changeset": "cdk deploy \"/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/\" --method=prepare-change-set",
+    "diff": "cdk diff \"/AwsNativeWorkbench.*/\"",
+    "synth": "cdk synth"
   },
   "dependencies": {
     "aws-cdk-lib": "2.263.0",

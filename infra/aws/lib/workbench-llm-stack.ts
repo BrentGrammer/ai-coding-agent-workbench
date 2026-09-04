@@ -28,7 +28,7 @@ const DEFAULT_GPU_AMI_PARAMETER =
 
 export interface WorkbenchLlmStackProps extends cdk.StackProps {
   cacheBucket: s3.IBucket;
-  workbenchSecurityGroup: ec2.ISecurityGroup;
+  workbenchSecurityGroups: ec2.ISecurityGroup[];
 }
 
 export class WorkbenchLlmStack extends cdk.Stack {
@@ -64,16 +64,22 @@ export class WorkbenchLlmStack extends cdk.Stack {
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
+    if (props.workbenchSecurityGroups.length === 0) {
+      throw new Error("workbenchSecurityGroups must not be empty");
+    }
+
     const securityGroup = new ec2.SecurityGroup(this, "LlmSecurityGroup", {
       vpc,
       description: "Agent LLM. Inference is reachable only from the workbench.",
       allowAllOutbound: true,
     });
-    securityGroup.addIngressRule(
-      props.workbenchSecurityGroup,
-      ec2.Port.tcp(11435),
-      "Inference from the workbench",
-    );
+    for (const workbenchSecurityGroup of props.workbenchSecurityGroups) {
+      securityGroup.addIngressRule(
+        workbenchSecurityGroup,
+        ec2.Port.tcp(11435),
+        "Inference from a workbench",
+      );
+    }
 
     const role = new iam.Role(this, "LlmInstanceRole", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),

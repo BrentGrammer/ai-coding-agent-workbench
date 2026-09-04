@@ -3,19 +3,16 @@ import * as cdk from "aws-cdk-lib/core";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { Template } from "aws-cdk-lib/assertions";
+import { addWorkbenchStacks } from "../lib/workbench-app";
 import { WorkbenchLlmStack } from "../lib/workbench-llm-stack";
+import { TEST_ACCOUNT, TEST_REGION, vpcLookupContext } from "./vpc-context";
 
-const account = "111111111111";
-const region = "us-west-2";
 const subnetIds = [
   "subnet-0000000a",
   "subnet-0000000b",
   "subnet-0000000c",
   "subnet-0000000d",
 ];
-const contextKey =
-  `vpc-provider:account=${account}:filter.isDefault=true:` +
-  `region=${region}:returnAsymmetricSubnets=true`;
 
 interface FleetProperties {
   Type: string;
@@ -31,44 +28,39 @@ interface FleetProperties {
   }>;
 }
 
-function synthesize(extraContext: Record<string, unknown> = {}): Template {
-  const context: Record<string, unknown> = {
-    [contextKey]: {
-      vpcId: "vpc-00000000",
-      vpcCidrBlock: "172.31.0.0/16",
-      ownerAccountId: account,
-      availabilityZones: [],
-      subnetGroups: [
-        {
-          name: "Public",
-          type: "Public",
-          subnets: subnetIds.map((subnetId, index) => ({
-            subnetId,
-            cidr: `172.31.${index}.0/24`,
-            availabilityZone: `${region}${String.fromCharCode(97 + index)}`,
-            routeTableId: `rtb-0000000${index}`,
-          })),
-        },
-      ],
-    },
-    ...extraContext,
-  };
+function allIngressRules(template: Template): Array<Record<string, unknown>> {
+  const standalone = Object.values(
+    template.findResources("AWS::EC2::SecurityGroupIngress"),
+  ).map((resource) => resource.Properties as Record<string, unknown>);
+  const inline = Object.values(
+    template.findResources("AWS::EC2::SecurityGroup"),
+  ).flatMap((resource) => {
+    return (resource.Properties.SecurityGroupIngress ?? []) as Array<
+      Record<string, unknown>
+    >;
+  });
+  return [...standalone, ...inline];
+}
 
-  const app = new cdk.App({ context });
+function synthesize(extraContext: Record<string, unknown> = {}): Template {
+  const app = new cdk.App({
+    context: {
+      ...vpcLookupContext({ subnetCount: 4 }),
+      ...extraContext,
+    },
+  });
   const cacheStack = new cdk.Stack(app, "Cache", {
-    env: { account, region },
+    env: { account: TEST_ACCOUNT, region: TEST_REGION },
   });
   const cacheBucket = new s3.Bucket(cacheStack, "CacheBucket");
   const vpc = ec2.Vpc.fromLookup(cacheStack, "Vpc", { isDefault: true });
-  const workbenchSecurityGroup = new ec2.SecurityGroup(
-    cacheStack,
-    "WorkbenchSecurityGroup",
-    { vpc },
+  const workbenchSecurityGroups = ["AliceSg", "BobSg"].map(
+    (id) => new ec2.SecurityGroup(cacheStack, id, { vpc }),
   );
   const stack = new WorkbenchLlmStack(app, "Llm", {
-    env: { account, region },
+    env: { account: TEST_ACCOUNT, region: TEST_REGION },
     cacheBucket,
-    workbenchSecurityGroup,
+    workbenchSecurityGroups,
   });
   return Template.fromStack(stack);
 }
@@ -90,8 +82,40 @@ function launchTemplateData(template: Template): {
 
 const defaultTemplate = synthesize();
 const spotFleet = fleetProperties(defaultTemplate);
-assert.match(JSON.stringify(defaultTemplate.toJSON()), /11435/);
-assert.match(JSON.stringify(defaultTemplate.toJSON()), /SourceSecurityGroupId/);
+const llmIngress = allIngressRules(defaultTemplate);
+assert.equal(llmIngress.length, 2);
+assert.ok(
+  llmIngress.every(
+    (rule) =>
+      rule.FromPort === 11435 &&
+      rule.CidrIp === undefined &&
+      rule.SourceSecurityGroupId !== undefined,
+  ),
+);
+
+const appWithTwoDevs = new cdk.App({
+  context: {
+    ...vpcLookupContext({ subnetCount: 4 }),
+    developers: "alice,bob",
+  },
+});
+addWorkbenchStacks(appWithTwoDevs, {
+  account: TEST_ACCOUNT,
+  region: TEST_REGION,
+});
+const wiredLlm = Template.fromStack(
+  appWithTwoDevs.node.findChild("AwsNativeWorkbenchLlmStack") as cdk.Stack,
+);
+const wiredIngress = allIngressRules(wiredLlm);
+assert.equal(wiredIngress.length, 2);
+assert.ok(
+  wiredIngress.every(
+    (rule) =>
+      rule.FromPort === 11435 &&
+      rule.CidrIp === undefined &&
+      rule.SourceSecurityGroupId !== undefined,
+  ),
+);
 
 assert.equal(spotFleet.Type, "instant");
 assert.equal(
@@ -176,6 +200,5 @@ assert.throws(
 );
 
 console.log(
-  "workbench LLM stack supports Spot and On-Demand capacity, and a " +
-    "configurable instance type, context length, and KV cache type",
+  "the GPU box accepts inference only from each developer's box, and nothing else",
 );

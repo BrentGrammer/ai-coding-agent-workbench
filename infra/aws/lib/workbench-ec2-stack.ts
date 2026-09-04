@@ -5,51 +5,56 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import { addBoxFilesInstall, boxFilesAsset } from "./box-files";
+import { ec2InstanceName, normalizeDeveloperName } from "./developers";
 import { LLM_MODEL } from "./workbench-llm-stack";
 
 // Resizing is this one line plus a stop/start.
 const INSTANCE_TYPE = "t4g.large";
 const DISK_GIB = 30;
-const INSTANCE_NAME = "aws-native-agent-workbench-ec2";
 const UBUNTU_2404_ARM64_AMI_PARAMETER =
   "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id";
+
+export interface WorkbenchEc2StackProps extends cdk.StackProps {
+  developer: string;
+  instanceConnectEndpointArn: string;
+  instanceConnectEndpointSecurityGroup: ec2.ISecurityGroup;
+  sshPublicKey?: string;
+}
 
 export class WorkbenchEc2Stack extends cdk.Stack {
   public readonly securityGroup: ec2.ISecurityGroup;
 
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: WorkbenchEc2StackProps) {
     super(scope, id, props);
 
-    const sshCidr = this.node.tryGetContext("sshCidr") as string | undefined;
-    const sshKeyName = this.node.tryGetContext("sshKeyName") as
-      | string
-      | undefined;
-    const sshPublicKey = this.node.tryGetContext("sshPublicKey") as
-      | string
-      | undefined;
+    if (this.node.tryGetContext("sshCidr")) {
+      throw new Error(
+        "sshCidr has been removed. SSH uses the Instance Connect Endpoint.",
+      );
+    }
+    if (this.node.tryGetContext("sshKeyName")) {
+      throw new Error(
+        "sshKeyName has been removed. Pass sshPublicKey for this developer.",
+      );
+    }
 
-    if (sshCidr && !sshKeyName && !sshPublicKey) {
-      throw new Error("sshCidr requires sshKeyName or sshPublicKey");
-    }
-    if (sshKeyName && sshPublicKey) {
-      throw new Error("Set only one of sshKeyName or sshPublicKey");
-    }
+    const developer = normalizeDeveloperName(props.developer);
+    const instanceName = ec2InstanceName(developer);
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
     const securityGroup = new ec2.SecurityGroup(this, "WorkbenchSecurityGroup", {
       vpc,
-      description: "Agent workbench. SSM by default; optional CIDR-locked SSH.",
+      description:
+        "Agent workbench. SSM by default; SSH only from the Instance Connect Endpoint.",
       allowAllOutbound: true,
     });
     this.securityGroup = securityGroup;
-    if (sshCidr) {
-      securityGroup.addIngressRule(
-        ec2.Peer.ipv4(sshCidr),
-        ec2.Port.tcp(22),
-        "SSH from the configured client CIDR",
-      );
-    }
+    securityGroup.addIngressRule(
+      props.instanceConnectEndpointSecurityGroup,
+      ec2.Port.tcp(22),
+      "SSH from the Instance Connect Endpoint",
+    );
 
     const role = new iam.Role(this, "WorkbenchInstanceRole", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
@@ -72,7 +77,7 @@ export class WorkbenchEc2Stack extends cdk.Stack {
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       "set -euo pipefail",
-      "hostnamectl set-hostname aws-native-workbench",
+      `hostnamectl set-hostname aws-native-workbench-${developer}`,
       "mkdir -p /etc/agent-workbench",
       // This truncates, so every key the box needs belongs here. The setup
       // script only tops up what is missing on an already-running box.
@@ -110,6 +115,7 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       role,
       securityGroup,
       userData,
+      instanceName,
       associatePublicIpAddress: true,
       // `shutdown` on the box stops the instance instead of terminating it.
       instanceInitiatedShutdownBehavior: ec2.InstanceInitiatedShutdownBehavior.STOP,
@@ -130,24 +136,31 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       launchTemplateId: imdsLaunchTemplate.ref,
       version: imdsLaunchTemplate.attrLatestVersionNumber,
     };
+    // Account-level Session Manager runAs would change the existing workbench.
+    // This tag is instance-scoped if that preference is enabled later.
+    cdk.Tags.of(instance).add("SSMSessionRunAs", "ubuntu");
 
-    let effectiveKeyName = sshKeyName;
-    let generatedKey: ec2.CfnKeyPair | undefined;
-    if (sshPublicKey) {
-      generatedKey = new ec2.CfnKeyPair(this, "WorkbenchSshKey", {
+    if (props.sshPublicKey) {
+      const generatedKey = new ec2.CfnKeyPair(this, "WorkbenchSshKey", {
         keyName: `${this.stackName}-ssh`,
-        publicKeyMaterial: sshPublicKey,
+        publicKeyMaterial: props.sshPublicKey,
       });
-      effectiveKeyName = generatedKey.keyName;
-    }
-    if (effectiveKeyName) {
       const cfnInstance = instance.node.defaultChild as ec2.CfnInstance;
-      cfnInstance.keyName = effectiveKeyName;
-      if (generatedKey) {
-        cfnInstance.addResourceDependency(generatedKey);
-      }
+      cfnInstance.keyName = generatedKey.keyName;
+      cfnInstance.addResourceDependency(generatedKey);
     }
-    cdk.Tags.of(instance).add("Name", INSTANCE_NAME);
+
+    const developerPolicy = new iam.ManagedPolicy(this, "DeveloperAccess", {
+      managedPolicyName: `aws-native-workbench-${developer}`,
+      description: `Scoped laptop access to the ${developer} workbench box.`,
+      statements: developerAccessStatements({
+        region: this.region,
+        account: this.account,
+        instanceName,
+        instancePrivateIp: instance.instancePrivateIp,
+        instanceConnectEndpointArn: props.instanceConnectEndpointArn,
+      }),
+    });
 
     // Backstop in case the on-box idle-stop timer ever breaks.
     const idleAlarm = new cloudwatch.Alarm(this, "IdleStopBackstopAlarm", {
@@ -174,5 +187,78 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       value: securityGroup.securityGroupId,
     });
     new cdk.CfnOutput(this, "BoxFilesS3Url", { value: asset.s3ObjectUrl });
+    new cdk.CfnOutput(this, "DeveloperAccessPolicyArn", {
+      value: developerPolicy.managedPolicyArn,
+    });
   }
+}
+
+function developerAccessStatements(args: {
+  region: string;
+  account: string;
+  instanceName: string;
+  instancePrivateIp: string;
+  instanceConnectEndpointArn: string;
+}): iam.PolicyStatement[] {
+  const instanceArn = `arn:aws:ec2:${args.region}:${args.account}:instance/*`;
+  const ownSessions = `arn:aws:ssm:${args.region}:${args.account}:session/\${aws:userid}-*`;
+  const instanceByName = {
+    StringEquals: { "ec2:ResourceTag/Name": args.instanceName },
+  };
+  const instanceBySsmName = {
+    StringEquals: { "ssm:resourceTag/Name": args.instanceName },
+  };
+
+  return [
+    new iam.PolicyStatement({
+      actions: ["ssm:StartSession"],
+      resources: [instanceArn],
+      conditions: instanceBySsmName,
+    }),
+    new iam.PolicyStatement({
+      actions: ["ssm:StartSession"],
+      resources: [
+        `arn:aws:ssm:${args.region}::document/AWS-StartInteractiveCommand`,
+        `arn:aws:ssm:${args.region}::document/AWS-StartSSHSession`,
+        `arn:aws:ssm:${args.region}:${args.account}:document/SSM-SessionManagerRunShell`,
+      ],
+    }),
+    new iam.PolicyStatement({
+      actions: [
+        "ssm:TerminateSession",
+        "ssm:ResumeSession",
+        "ssmmessages:OpenDataChannel",
+      ],
+      resources: [ownSessions],
+    }),
+    new iam.PolicyStatement({
+      actions: ["ec2:StartInstances", "ec2:StopInstances"],
+      resources: [instanceArn],
+      conditions: instanceByName,
+    }),
+    new iam.PolicyStatement({
+      actions: [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeInstanceConnectEndpoints",
+      ],
+      resources: ["*"],
+    }),
+    new iam.PolicyStatement({
+      actions: ["cloudformation:DescribeStacks"],
+      resources: [
+        `arn:aws:cloudformation:${args.region}:${args.account}:stack/AwsNativeWorkbench*/*`,
+      ],
+    }),
+    new iam.PolicyStatement({
+      actions: ["ec2-instance-connect:OpenTunnel"],
+      resources: [args.instanceConnectEndpointArn],
+      conditions: {
+        NumericEquals: { "ec2-instance-connect:remotePort": 22 },
+        IpAddress: {
+          "ec2-instance-connect:privateIpAddress": `${args.instancePrivateIp}/32`,
+        },
+      },
+    }),
+  ];
 }

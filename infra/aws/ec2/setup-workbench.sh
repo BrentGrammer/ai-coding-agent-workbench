@@ -50,6 +50,7 @@ apt-get install -y --no-install-recommends \
   less \
   ncurses-term \
   nftables \
+  openssh-server \
   tinyproxy \
   unattended-upgrades \
   unzip
@@ -169,6 +170,15 @@ echo "== nftables firewall"
 install -m 644 "$REPO_DIR/infra/aws/ec2/nftables.conf" /etc/nftables.conf
 nft -f /etc/nftables.conf
 systemctl enable nftables
+
+echo "== sshd"
+install -d -m 755 /etc/ssh/sshd_config.d
+cat > /etc/ssh/sshd_config.d/50-workbench.conf <<'EOF'
+PasswordAuthentication no
+PermitRootLogin no
+AllowUsers ubuntu
+EOF
+systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
 
 echo "== Workbench files"
 install -d -m 755 /etc/agent-workbench

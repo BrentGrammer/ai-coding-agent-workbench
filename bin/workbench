@@ -3,14 +3,21 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 AWS_DIR="$SCRIPT_DIR/../infra/aws"
-WORKBENCH_TAG="aws-native-agent-workbench-ec2"
-EC2_STACK="AwsNativeWorkbenchEc2Stack"
+WORKBENCH_DEV="$(printf '%s' "${WORKBENCH_DEV:-$(id -un)}" | tr '[:upper:]' '[:lower:]')"
+WORKBENCH_TAG="aws-native-agent-workbench-ec2-${WORKBENCH_DEV}"
+EC2_STACK="AwsNativeWorkbenchEc2Stack-${WORKBENCH_DEV}"
+SHARED_STACK="AwsNativeWorkbenchSharedStack"
 GPU_TAG="aws-native-agent-workbench-gpu-llm"
 GPU_CACHE_STACK="AwsNativeWorkbenchLlmCacheStack"
 GPU_STACK="AwsNativeWorkbenchLlmStack"
 GPU_INSTANCE_TYPE="${WORKBENCH_LLM_INSTANCE_TYPE:-g6e.xlarge}"
 GPU_CONTEXT_LENGTH="${WORKBENCH_LLM_CONTEXT_LENGTH:-131072}"
 GPU_KV_CACHE_TYPE="${WORKBENCH_LLM_KV_CACHE_TYPE:-q8_0}"
+
+if [[ ! "$WORKBENCH_DEV" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
+  echo "ERROR: WORKBENCH_DEV must be a lowercase letter followed by up to 31 letters, digits, or hyphens." >&2
+  exit 1
+fi
 
 usage() {
   cat <<'EOF'
@@ -19,8 +26,11 @@ Usage: workbench <ec2|llm> <command>
 ec2: up, down, status, ssm, ssh, update
 llm: up, down, status
 
-SSM is the default connection. SSH requires sshCidr and a key at deploy time.
+WORKBENCH_DEV selects the box. It defaults to the local username.
+
+SSM is the default connection. SSH uses the Instance Connect Endpoint.
 update deploys the current laptop checkout as a zip, then re-runs setup.
+update --ssh does the on-box step over SSH instead of SSM.
 
 Set WORKBENCH_EC2_SSH_KEY when the private key is not loaded in ssh-agent or
 stored at a default OpenSSH path.
@@ -41,7 +51,7 @@ workbench_instance_id() {
   local instance_id
   instance_id="$(instance_ids_by_tag "$WORKBENCH_TAG")"
   if [ -z "$instance_id" ] || [ "$instance_id" = None ]; then
-    echo "ERROR: No AWS workbench instance is deployed." >&2
+    echo "ERROR: No AWS workbench instance is deployed for ${WORKBENCH_DEV}." >&2
     exit 1
   fi
   echo "$instance_id"
@@ -56,9 +66,49 @@ instance_state() {
     --query 'Reservations[0].Instances[0].State.Name' --output text
 }
 
-instance_public_ip() {
-  aws ec2 describe-instances --instance-ids "$1" \
-    --query 'Reservations[0].Instances[0].PublicIpAddress' --output text
+instance_connect_endpoint_id() {
+  local endpoint_id
+  endpoint_id="$(aws cloudformation describe-stacks \
+    --stack-name "$SHARED_STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='InstanceConnectEndpointId'].OutputValue" \
+    --output text)"
+  if [[ ! "$endpoint_id" =~ ^eice-[a-z0-9]+$ ]]; then
+    echo "ERROR: InstanceConnectEndpointId is missing or unexpected: $endpoint_id" >&2
+    exit 1
+  fi
+  echo "$endpoint_id"
+}
+
+read_box_files_s3_url() {
+  local url
+  url="$(aws cloudformation describe-stacks \
+    --stack-name "$EC2_STACK" \
+    --query "Stacks[0].Outputs[?OutputKey=='BoxFilesS3Url'].OutputValue" \
+    --output text)"
+  if [[ ! "$url" =~ ^s3://[a-z0-9.-]+/[A-Za-z0-9._/-]+$ ]]; then
+    echo "ERROR: BoxFilesS3Url is missing or unexpected: $url" >&2
+    exit 1
+  fi
+  echo "$url"
+}
+
+setup_on_box_command() {
+  printf "sudo bash -c 'aws s3 cp %s /tmp/agent-workbench.zip && rm -rf /opt/agent-workbench && mkdir -p /opt/agent-workbench && unzip -o /tmp/agent-workbench.zip -d /opt/agent-workbench && chown -R root:root /opt/agent-workbench && bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'" "$1"
+}
+
+workbench_ssh() {
+  local instance_id="$1"
+  shift
+  local endpoint_id ssh_arguments=()
+  endpoint_id="$(instance_connect_endpoint_id)"
+  if [ -n "${WORKBENCH_EC2_SSH_KEY:-}" ]; then
+    ssh_arguments+=(-i "$WORKBENCH_EC2_SSH_KEY")
+  fi
+  ssh_arguments+=(
+    -o StrictHostKeyChecking=accept-new
+    -o "ProxyCommand=aws ec2-instance-connect open-tunnel --instance-id %h --remote-port 22 --instance-connect-endpoint-id ${endpoint_id}"
+  )
+  ssh "${ssh_arguments[@]}" "${WORKBENCH_EC2_USER:-ubuntu}@${instance_id}" "$@"
 }
 
 gpu_stack_exists() {
@@ -201,33 +251,21 @@ case "${1:-}" in
         ;;
       ssh)
         instance_id="$(workbench_instance_id)"
-        public_ip="$(instance_public_ip "$instance_id")"
-        if [ -z "$public_ip" ] || [ "$public_ip" = None ]; then
-          echo "ERROR: The workbench has no public IP." >&2
-          exit 1
-        fi
-        ssh_arguments=()
-        if [ -n "${WORKBENCH_EC2_SSH_KEY:-}" ]; then
-          ssh_arguments=(-i "$WORKBENCH_EC2_SSH_KEY")
-        fi
-        exec ssh "${ssh_arguments[@]}" "${WORKBENCH_EC2_USER:-ubuntu}@$public_ip"
+        exec workbench_ssh "$instance_id"
         ;;
       update)
         require_aws_project
         instance_id="$(workbench_instance_id)"
         (cd "$AWS_DIR" && npx cdk deploy "$EC2_STACK" --require-approval never)
-        box_files_s3_url="$(aws cloudformation describe-stacks \
-          --stack-name "$EC2_STACK" \
-          --query "Stacks[0].Outputs[?OutputKey=='BoxFilesS3Url'].OutputValue" \
-          --output text)"
-        if [[ ! "$box_files_s3_url" =~ ^s3://[a-z0-9.-]+/[A-Za-z0-9._/-]+$ ]]; then
-          echo "ERROR: BoxFilesS3Url is missing or unexpected: $box_files_s3_url" >&2
-          exit 1
+        box_files_s3_url="$(read_box_files_s3_url)"
+        setup_command="$(setup_on_box_command "$box_files_s3_url")"
+        if [ "${3:-}" = "--ssh" ]; then
+          exec workbench_ssh "$instance_id" "$setup_command"
         fi
         exec aws ssm start-session \
           --target "$instance_id" \
           --document-name AWS-StartInteractiveCommand \
-          --parameters "command=[\"sudo bash -c 'aws s3 cp $box_files_s3_url /tmp/agent-workbench.zip && rm -rf /opt/agent-workbench && mkdir -p /opt/agent-workbench && unzip -o /tmp/agent-workbench.zip -d /opt/agent-workbench && chown -R root:root /opt/agent-workbench && bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'\"]"
+          --parameters "command=[\"${setup_command}\"]"
         ;;
       *) usage ;;
     esac
