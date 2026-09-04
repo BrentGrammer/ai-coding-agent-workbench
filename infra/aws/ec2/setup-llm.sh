@@ -5,8 +5,7 @@
 set -euo pipefail
 
 # Pinned artifact versions and verification hashes.
-AWS_CLI_GPG_KEY_ID="A6310ACC4672475C"
-AWS_CLI_GPG_FINGERPRINT="FB5D B77F D5C1 18B8 0511  ADA8 A631 0ACC 4672 475C"
+AWS_CLI_GPG_FINGERPRINT="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
 
 OLLAMA_VERSION="0.33.3"
 OLLAMA_SHA256="c13cea8f3389db4145f8a6cb88d1747242a48639d7c13e3bda7c1ebdc6eebb2f"
@@ -96,7 +95,9 @@ E91G7bb0hOb/cA==
 -----END PGP PUBLIC KEY BLOCK-----
 GPGKEY
 
-  gpg --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip"
+  # A good signature from any key in the keyring is not enough. It must be this key.
+  gpg --status-fd 1 --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip" |
+    grep -q "^\[GNUPG:\] VALIDSIG $AWS_CLI_GPG_FINGERPRINT "
   unzip -q "$aws_tmp/awscli.zip" -d "$aws_tmp"
   "$aws_tmp/aws/install" --update
   rm -rf "$aws_tmp"

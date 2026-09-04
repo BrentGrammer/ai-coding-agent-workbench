@@ -8,8 +8,7 @@ NODE_VERSION="24.9.0"
 NODE_SHA256_ARM64="dab232a90169737a48149149dd6707e7fdcbaefbaa94b4871047a38e93db947f"
 NODE_SHA256_X64="d57d6c28a35785f58f33899a0aa0bfc83f7a8ef4448b6cf3f7d0961efc7b9189"
 
-AWS_CLI_GPG_KEY_ID="A6310ACC4672475C"
-AWS_CLI_GPG_FINGERPRINT="FB5D B77F D5C1 18B8 0511  ADA8 A631 0ACC 4672 475C"
+AWS_CLI_GPG_FINGERPRINT="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
 
 PI_VERSION="0.84.4"
 
@@ -137,7 +136,9 @@ E91G7bb0hOb/cA==
 -----END PGP PUBLIC KEY BLOCK-----
 GPGKEY
 
-  gpg --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip"
+  # A good signature from any key in the keyring is not enough. It must be this key.
+  gpg --status-fd 1 --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip" |
+    grep -q "^\[GNUPG:\] VALIDSIG $AWS_CLI_GPG_FINGERPRINT "
   unzip -q "$aws_tmp/awscli.zip" -d "$aws_tmp"
   "$aws_tmp/aws/install" --update
   rm -rf "$aws_tmp"
@@ -323,7 +324,7 @@ if [ "$(id -un)" != "agent" ]; then
   if [ "$target_dir" = "$HOME" ] || [ "$target_dir" = "/home/ubuntu" ]; then
     target_dir="/home/agent/workspace"
   fi
-  exec sudo -u agent -i bash -c "cd '$target_dir' && exec /home/agent/.local/bin/agy \"\$@\"" -- "$@"
+  exec sudo -u agent -i bash -c 'cd "$1" && shift && exec /home/agent/.local/bin/agy "$@"' -- "$target_dir" "$@"
 fi
 
 exec /home/agent/.local/bin/agy "$@"

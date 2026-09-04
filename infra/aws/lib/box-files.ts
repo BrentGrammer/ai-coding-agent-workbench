@@ -10,6 +10,7 @@ import { Construct } from "constructs";
  */
 
 const REPO_ROOT = path.join(__dirname, "..", "..", "..");
+const AWS_CLI_GPG_FINGERPRINT = "FB5DB77FD5C118B80511ADA8A6310ACC4672475C";
 
 // Only the files the boxes run. The zip must not include node_modules,
 // cdk.out, or laptop-only agent tooling.
@@ -130,7 +131,8 @@ export function addBoxFilesInstall(
     "=knv7",
     "-----END PGP PUBLIC KEY BLOCK-----",
     "GPGKEY",
-    '  gpg --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip"',
+    '  gpg --status-fd 1 --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip" |',
+    `    grep -q '^\\[GNUPG:\\] VALIDSIG ${AWS_CLI_GPG_FINGERPRINT} '`,
     '  unzip -q "$aws_tmp/awscli.zip" -d "$aws_tmp"',
     '  "$aws_tmp/aws/install"',
     '  rm -rf "$aws_tmp"',
