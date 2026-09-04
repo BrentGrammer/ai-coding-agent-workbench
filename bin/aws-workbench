@@ -21,7 +21,7 @@ fi
 
 usage() {
   cat <<'EOF'
-Usage: workbench <ec2|llm> <command>
+Usage: aws-workbench <ec2|llm> <command>
 
 ec2: up, down, status, ssm, ssh, update, deploy
 llm: up, down, status
@@ -232,7 +232,7 @@ case "${1:-}" in
         fi
         aws ec2 wait instance-running --instance-ids "$instance_id"
         aws ec2 wait instance-status-ok --instance-ids "$instance_id"
-        echo "Running. Connect with: workbench ec2 ssm"
+        echo "Running. Connect with: aws-workbench ec2 ssm"
         ;;
       down)
         instance_id="$(workbench_instance_id)"

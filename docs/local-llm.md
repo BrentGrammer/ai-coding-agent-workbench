@@ -24,9 +24,9 @@ stop-local-llm
 The optional AWS GPU box serves `qwen3.8:27b` through the same inference-only proxy:
 
 ```shell
-workbench llm up
-workbench llm status
-workbench llm down
+aws-workbench llm up
+aws-workbench llm status
+aws-workbench llm down
 ```
 
 The service is not exposed to the laptop or public internet. Only the AWS dev box security group can reach port `11435`. The dev box can find the running instance and private IP with:

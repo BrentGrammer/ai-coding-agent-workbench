@@ -11,7 +11,7 @@ import {
 } from "./box-files";
 
 // L40S, 48 GB VRAM: fits the model plus a 131K q8_0 KV cache. Override with
-// -c llmInstanceType, or WORKBENCH_LLM_INSTANCE_TYPE through bin/workbench.
+// -c llmInstanceType, or WORKBENCH_LLM_INSTANCE_TYPE through bin/aws-workbench.
 const DEFAULT_INSTANCE_TYPE = "g6e.xlarge";
 // The KV cache costs ~128 KB/token: ~48K fits a 24 GB card, ~200K a 48 GB one.
 // Override with -c llmContextLength, or WORKBENCH_LLM_CONTEXT_LENGTH.

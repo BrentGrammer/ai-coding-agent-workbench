@@ -96,7 +96,7 @@ resolve_local_llm() {
   fi
   if [ "${USE_GPU_BOX:-false}" = true ]; then
     if [ "${WORKBENCH_INSTANCE:-false}" != true ]; then
-      echo "ERROR: --gpu-box runs on the AWS workbench. Connect with start-workbench first." >&2
+      echo "ERROR: --gpu-box runs on the AWS workbench. Connect with start-aws-workbench first." >&2
       exit 1
     fi
     local gpu_ip
@@ -108,7 +108,7 @@ resolve_local_llm() {
       --query 'Reservations[0].Instances[0].PrivateIpAddress' \
       --output text)"
     if [ -z "$gpu_ip" ] || [ "$gpu_ip" = "None" ]; then
-      echo "ERROR: No AWS GPU box is running. Run workbench llm up from your laptop first." >&2
+      echo "ERROR: No AWS GPU box is running. Run aws-workbench llm up from your laptop first." >&2
       exit 1
     fi
     LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://$gpu_ip:$LOCAL_PROXY_PORT/v1}"

@@ -17,13 +17,13 @@ The AWS account's CDK bootstrap resources and default VPC are reused without mod
 SSM Session Manager is the default. It requires no inbound port and starts an Ubuntu login shell. `WORKBENCH_DEV` selects the box and defaults to the local username:
 
 ```shell
-start-workbench
+start-aws-workbench
 ```
 
 Optional SSH uses an EC2 Instance Connect Endpoint. Port 22 is open only from that endpoint's security group. A developer who wants SSH supplies `sshPublicKey` for their box. The stack owns the key pair and AWS holds only the public key.
 
 ```shell
-workbench ec2 ssh
+aws-workbench ec2 ssh
 ```
 
 There is no bastion host, overlay network, CIDR-locked port 22, or UDP-based shell.
@@ -73,10 +73,10 @@ The only installed agent CLIs are:
 - Removed the DigitalOcean Terraform, droplet lifecycle, cache, CLI provider, and documentation.
 - Removed Tailscale, MagicDNS, mosh, and their Parameter Store and IAM setup.
 - Made SSM the default dev-box connection and moved updates to SSM.
-- Phase 8: One `AwsNativeWorkbenchEc2Stack-<name>` per developer from `-c developers=alice,bob`. Each box has its own instance, security group, role, and `Name` tag `aws-native-agent-workbench-ec2-<name>`. The GPU box allows 11435 from every dev security group. `bin/workbench` selects a box with `WORKBENCH_DEV`, defaulting to the local username.
-- Phase 9: Each EC2 stack ships a managed policy for that developer: `ssm:StartSession` only on their instance `Name` tag and the interactive/SSH/default session documents, `ssm:TerminateSession`/`ssm:ResumeSession` on their own sessions, start/stop of their instance, and the `ec2:Describe*` / `cloudformation:DescribeStacks` reads `bin/workbench` needs. Attach the policy ARN from `DeveloperAccessPolicyArn` to the developer's IAM identity. Account-level Session Manager runAs is not set, so the existing workbench is unchanged. `workbench ec2 ssm` still starts as `ubuntu`.
+- Phase 8: One `AwsNativeWorkbenchEc2Stack-<name>` per developer from `-c developers=alice,bob`. Each box has its own instance, security group, role, and `Name` tag `aws-native-agent-workbench-ec2-<name>`. The GPU box allows 11435 from every dev security group. `bin/aws-workbench` selects a box with `WORKBENCH_DEV`, defaulting to the local username.
+- Phase 9: Each EC2 stack ships a managed policy for that developer: `ssm:StartSession` only on their instance `Name` tag and the interactive/SSH/default session documents, `ssm:TerminateSession`/`ssm:ResumeSession` on their own sessions, start/stop of their instance, and the `ec2:Describe*` / `cloudformation:DescribeStacks` reads `bin/aws-workbench` needs. Attach the policy ARN from `DeveloperAccessPolicyArn` to the developer's IAM identity. Account-level Session Manager runAs is not set, so the existing workbench is unchanged. `aws-workbench ec2 ssm` still starts as `ubuntu`.
 - Phase 11: Stack tests require one box per developer, distinct `Name` tags, no CIDR ingress, a minimal instance role, and GPU 11435 only from the dev security groups. Docs cover per-developer deploy, the developer IAM policy, and the `agent` user workflow.
-- Phase 12: One `AwsNativeWorkbenchSharedStack` Instance Connect Endpoint. Dev box port 22 allows only that endpoint security group. `workbench ec2 ssh` and `workbench ec2 update --ssh` tunnel through the endpoint. `sshd` allows only `ubuntu`, with passwords and root login off.
+- Phase 12: One `AwsNativeWorkbenchSharedStack` Instance Connect Endpoint. Dev box port 22 allows only that endpoint security group. `aws-workbench ec2 ssh` and `aws-workbench ec2 update --ssh` tunnel through the endpoint. `sshd` allows only `ubuntu`, with passwords and root login off.
 - Limited GPU ingress to port `11435` from the dev box security groups.
 - Changed GPU readiness checks to run over SSM on the GPU instance.
 - Added `start-pi --gpu-box` on the dev box, using tag-based private-IP discovery.
@@ -84,7 +84,7 @@ The only installed agent CLIs are:
 - Removed Herdr and its runtime files.
 - Added new `AwsNativeWorkbench*` stack names and `aws-native-agent-workbench-*` instance tags so this deployment cannot update, stop, or destroy the existing workbench resources.
 - All deployable resources, IAM roles, security groups, GPU cache, and instances are owned only by the new stacks.
-- The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. User data and `workbench ec2 update` download that zip. The instances never clone this repository.
+- The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. User data and `aws-workbench ec2 update` download that zip. The instances never clone this repository.
 - Removed the GitHub App token chain from this branch. Work repos use a per-developer Bitbucket HTTPS token.
 - Phase 7: Added `agent` user without sudo or remote login, sharing `/home/agent/workspace` via a setgid group. Blocked IMDS (`169.254.169.254`) and restricted egress via nftables and a root-owned tinyproxy egress filter with domain allowlist. `start-pi --gpu-box` resolves GPU IP as `ubuntu` and passes it to the `agent` process. Added an `agy` wrapper running inside the workspace as `agent`.
 - Phase 10: Pinned and verified all installs (Node via SHA-256, AWS CLI via GPG, Ollama via SHA-256, Pi with `ignore-scripts = true`, Antigravity CLI via SHA-512). Dropped `curl | bash` and nodesource.
@@ -104,10 +104,10 @@ GPU instance: `infra/aws/ec2/{setup-llm.sh, llm-idle-stop, llm-idle-stop.service
 First boot installs unzip and the AWS CLI, downloads the zip with `aws s3 cp`, unpacks it to `/opt/agent-workbench`, and runs the setup script. The instance never clones this repository.
 
 ```shell
-workbench ec2 update
+aws-workbench ec2 update
 ```
 
-That deploys `AwsNativeWorkbenchEc2Stack-<name>` (which uploads a new zip if the files changed), reads the zip's S3 URL from the stack outputs, and re-runs setup over SSM. `workbench ec2 update --ssh` does the on-box step through the Instance Connect Endpoint. The zip is whatever is checked out on the laptop. Redeploying with a new asset hash does not replace a running dev instance. The GPU instance is recreated on every `llm up`, so it always gets the current zip.
+That deploys `AwsNativeWorkbenchEc2Stack-<name>` (which uploads a new zip if the files changed), reads the zip's S3 URL from the stack outputs, and re-runs setup over SSM. `aws-workbench ec2 update --ssh` does the on-box step through the Instance Connect Endpoint. The zip is whatever is checked out on the laptop. Redeploying with a new asset hash does not replace a running dev instance. The GPU instance is recreated on every `llm up`, so it always gets the current zip.
 
 `start_pi.sh` allows `release-assets.githubusercontent.com` inside the laptop sandbox because Pi downloads from GitHub Releases. That is Pi tooling, not infra, and is not on the box code path.
 
@@ -147,7 +147,7 @@ Root owns `/opt/agent-workbench`, the systemd units, the proxy config, and the n
 
 The shared workspace is the one place both users write, and `ubuntu` has sudo. Anything the agent plants there that `ubuntu` later executes runs with full privileges. Three controls keep git from being that path:
 
-- `clone-repo` strips group write from `.git`, so the agent cannot plant hooks or set `core.pager`, `core.fsmonitor`, `diff.external`, or an alias in the repo config. Setup also applies this to existing clones on every `workbench ec2 update`.
+- `clone-repo` strips group write from `.git`, so the agent cannot plant hooks or set `core.pager`, `core.fsmonitor`, `diff.external`, or an alias in the repo config. Setup also applies this to existing clones on every `aws-workbench ec2 update`.
 - `ubuntu`'s global `core.hooksPath` points at a root-owned empty directory, so hooks never run for the developer.
 - `ubuntu` has `ignore-scripts = true`, so `npm install` in the workspace does not run lifecycle scripts.
 
@@ -159,7 +159,7 @@ Blast radius of a prompt-injected agent is its own workspace plus the allowliste
 
 - CDK reads a `developers` context list, for example `-c developers=alice,bob`, and creates `AwsNativeWorkbenchEc2Stack-<name>` for each. Every box gets its own instance, security group, role, and `Name` tag `aws-native-agent-workbench-ec2-<name>`.
 - The GPU box security group allows 11435 from every dev security group.
-- `bin/workbench` picks a box by `WORKBENCH_DEV=<name>`, defaulting to the local username. `local_llm.sh` and the idle scripts are unaffected.
+- `bin/aws-workbench` picks a box by `WORKBENCH_DEV=<name>`, defaulting to the local username. `local_llm.sh` and the idle scripts are unaffected.
 - Cost per extra box is the `t4g.large` hourly rate while running and about $2.40 a month for the 30 GB disk while stopped.
 
 ### Phase 9: scoped shell access
@@ -168,10 +168,10 @@ One IAM managed policy per developer, output as `DeveloperAccessPolicyArn`. Atta
 
 - `ssm:StartSession` only on their instance via `ssm:resourceTag/Name`, and only with the `AWS-StartInteractiveCommand`, `AWS-StartSSHSession`, and `SSM-SessionManagerRunShell` documents.
 - `ssm:TerminateSession` and `ssm:ResumeSession` on their own sessions only.
-- `ec2:StartInstances` and `ec2:StopInstances` on their instance tag, so `start-workbench` works.
-- The `ec2:DescribeInstances`, `ec2:DescribeInstanceStatus`, `ec2:DescribeInstanceConnectEndpoints`, and `cloudformation:DescribeStacks` reads that `bin/workbench` needs.
+- `ec2:StartInstances` and `ec2:StopInstances` on their instance tag, so `start-aws-workbench` works.
+- The `ec2:DescribeInstances`, `ec2:DescribeInstanceStatus`, `ec2:DescribeInstanceConnectEndpoints`, and `cloudformation:DescribeStacks` reads that `bin/aws-workbench` needs.
 
-Account-level Session Manager `runAsEnabled` is unset, because that preference is regional and would change the existing workbench. Instances are tagged `SSMSessionRunAs=ubuntu`. `workbench ec2 ssm` starts as `ubuntu` with `AWS-StartInteractiveCommand`.
+Account-level Session Manager `runAsEnabled` is unset, because that preference is regional and would change the existing workbench. Instances are tagged `SSMSessionRunAs=ubuntu`. `aws-workbench ec2 ssm` starts as `ubuntu` with `AWS-StartInteractiveCommand`.
 
 ### Phase 10: pinned and verified installs
 
@@ -185,7 +185,7 @@ Every binary uses a fixed version and a recorded checksum or signature, and fail
 | Pi | Pinned version with `--ignore-scripts`. The `agent` user also has `ignore-scripts = true` so project installs skip lifecycle scripts. |
 | Antigravity CLI | Versioned tarball with a recorded sha512. |
 
-Versions and hashes sit at the top of each setup script and are bumped deliberately, then rolled out with `workbench ec2 update`.
+Versions and hashes sit at the top of each setup script and are bumped deliberately, then rolled out with `aws-workbench ec2 update`.
 
 ### Phase 11: security tests and docs
 
@@ -198,7 +198,7 @@ Versions and hashes sit at the top of each setup script and are bumped deliberat
 Two connection paths, both with no inbound port from the internet. A developer picks one.
 
 - SSM Session Manager. Needs the Session Manager plugin on the laptop.
-- Plain `ssh` with their own keypair through an EC2 Instance Connect Endpoint. Needs only the AWS CLI, which `bin/workbench` already requires.
+- Plain `ssh` with their own keypair through an EC2 Instance Connect Endpoint. Needs only the AWS CLI, which `bin/aws-workbench` already requires.
 
 Infrastructure:
 
@@ -206,7 +206,7 @@ Infrastructure:
 - Each dev box security group allows port 22 only from the endpoint security group.
 - A developer who wants SSH supplies `sshPublicKey` for their box. The stack owns the key pair and AWS holds only the public key. Destroying the stack removes it.
 
-Laptop SSH. `workbench ec2 ssh` resolves the instance ID by tag and opens a tunnel to the shared endpoint. Optional `~/.ssh/config` for the same path:
+Laptop SSH. `aws-workbench ec2 ssh` resolves the instance ID by tag and opens a tunnel to the shared endpoint. Optional `~/.ssh/config` for the same path:
 
 ```text
 Host i-*
@@ -220,9 +220,9 @@ The per-developer policy includes `ec2-instance-connect:OpenTunnel` on the endpo
 Box setup:
 
 - `sshd`: `PasswordAuthentication no`, `PermitRootLogin no`, `AllowUsers ubuntu`.
-- `workbench ec2 update --ssh` re-runs setup through the endpoint.
+- `aws-workbench ec2 update --ssh` re-runs setup through the endpoint.
 - `workbench-idle-stop` counts an established port 22 connection as in use.
-- The SSM agent stays installed on every box. The laptop-side `workbench llm up` readiness check uses it.
+- The SSM agent stays installed on every box. The laptop-side `aws-workbench llm up` readiness check uses it.
 
 Tests require exactly one port 22 rule on the dev box, sourced from the endpoint security group, and no CIDR ingress.
 

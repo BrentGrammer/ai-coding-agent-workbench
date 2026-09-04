@@ -146,7 +146,7 @@ const onDemandInstance = Object.values(
 assert.ok(onDemandInstance.LaunchTemplate.LaunchTemplateId);
 assert.equal(onDemandInstance.SubnetId, undefined);
 assert.equal(onDemandInstance.AvailabilityZone, undefined);
-// workbench llm status finds the box by this tag, which the launch
+// aws-workbench llm status finds the box by this tag, which the launch
 // template must carry because the instance resource sets none.
 assert.match(
   JSON.stringify(launchTemplateData(onDemandTemplate)),

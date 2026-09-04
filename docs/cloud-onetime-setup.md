@@ -11,7 +11,7 @@ brew install --cask session-manager-plugin
 
 Configure AWS credentials and bootstrap CDK in the target account and region if that account has not been bootstrapped.
 
-Set the developer list in `infra/aws/cdk.json` context, or pass it on every deploy. Names become stack suffixes and instance tags. `bin/workbench` selects a box with `WORKBENCH_DEV`, which defaults to the local username.
+Set the developer list in `infra/aws/cdk.json` context, or pass it on every deploy. Names become stack suffixes and instance tags. `bin/aws-workbench` selects a box with `WORKBENCH_DEV`, which defaults to the local username.
 
 ```shell
 cd infra/aws
@@ -38,7 +38,7 @@ aws cloudformation describe-stacks \
 Then connect:
 
 ```shell
-start-workbench
+start-aws-workbench
 ```
 
 ## Optional SSH
@@ -62,13 +62,13 @@ npm run changeset -- \
 Then:
 
 ```shell
-workbench ec2 ssh
+aws-workbench ec2 ssh
 ```
 
 OpenSSH automatically tries standard keys and keys loaded into `ssh-agent`. For a key stored elsewhere:
 
 ```shell
-WORKBENCH_EC2_SSH_KEY=~/.ssh/workbench_ed25519 workbench ec2 ssh
+WORKBENCH_EC2_SSH_KEY=~/.ssh/workbench_ed25519 aws-workbench ec2 ssh
 ```
 
 A `.ppk` file is only needed by PuTTY. The macOS and Linux commands use OpenSSH keys.
@@ -89,8 +89,8 @@ agy
 start-pi --gpu-box
 ```
 
-Do not run agents as `ubuntu`. After `workbench llm up` on the laptop, `start-pi --gpu-box` looks up the GPU private IP as `ubuntu` and passes it into the `agent` process.
+Do not run agents as `ubuntu`. After `aws-workbench llm up` on the laptop, `start-pi --gpu-box` looks up the GPU private IP as `ubuntu` and passes it into the `agent` process.
 
 ## GPU quota
 
-Before the first `workbench llm up`, request four vCPUs for both **All G and VT Spot Instance Requests** and **Running On-Demand G and VT instances** in the deployment region.
+Before the first `aws-workbench llm up`, request four vCPUs for both **All G and VT Spot Instance Requests** and **Running On-Demand G and VT instances** in the deployment region.

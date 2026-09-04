@@ -11,7 +11,7 @@ These names, EC2 tags, S3 cache, IAM roles, and security groups are separate fro
 
 The stacks reuse only account-level CDK bootstrap resources and the default VPC. They do not import or modify the existing workbench instances, roles, security groups, Lambda, or cache.
 
-The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. First boot and `workbench ec2 update` download that zip. The instances never clone this repository.
+The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. First boot and `aws-workbench ec2 update` download that zip. The instances never clone this repository.
 
 ## Prerequisites
 
@@ -23,17 +23,17 @@ Complete [Cloud one-time setup](../../docs/cloud-onetime-setup.md).
 cd infra/aws
 npm ci --ignore-scripts
 npx cdk bootstrap
-workbench ec2 deploy
+aws-workbench ec2 deploy
 ```
 
-`workbench ec2 deploy` wraps the CDK call with your local username. Pass names to deploy for others: `workbench ec2 deploy alice,bob`. Set `WORKBENCH_EC2_SSH_PUBKEY` to a public key file to enable SSH for a single-developer deploy. The raw CDK equivalent is `npx cdk deploy "/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/" -c developers=...`.
+`aws-workbench ec2 deploy` wraps the CDK call with your local username. Pass names to deploy for others: `aws-workbench ec2 deploy alice,bob`. Set `WORKBENCH_EC2_SSH_PUBKEY` to a public key file to enable SSH for a single-developer deploy. The raw CDK equivalent is `npx cdk deploy "/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/" -c developers=...`.
 
 `npm run changeset` prepares CloudFormation change sets for those stacks without executing them. Review them in the console, then execute there if they look right.
 
 `WORKBENCH_DEV` selects the box and defaults to the local username. SSM is the default access path:
 
 ```shell
-start-workbench
+start-aws-workbench
 ```
 
 Each EC2 stack outputs `DeveloperAccessPolicyArn`. Attach that policy to the identity that opens shells on that box.
@@ -47,7 +47,7 @@ npx cdk deploy "/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/" \
 ```
 
 ```shell
-workbench ec2 ssh
+aws-workbench ec2 ssh
 ```
 
 The matching private key remains on the laptop. Set `WORKBENCH_EC2_SSH_KEY` when it is not available through `ssh-agent` or a default OpenSSH key path.
@@ -59,9 +59,9 @@ The dev box installs only Antigravity CLI and Pi. After connecting as `ubuntu`, 
 ## GPU box
 
 ```shell
-workbench llm up
-workbench llm status
-workbench llm down
+aws-workbench llm up
+aws-workbench llm status
+aws-workbench llm down
 ```
 
 The GPU security group accepts inference traffic on port `11435` only from the dev box security groups. Readiness checks use SSM and the GPU instance loopback interface.
@@ -71,7 +71,7 @@ The default is a `g6e.xlarge` with a 131,072-token context. Override it when dep
 ```shell
 WORKBENCH_LLM_INSTANCE_TYPE=g6.xlarge \
 WORKBENCH_LLM_CONTEXT_LENGTH=32768 \
-workbench llm up
+aws-workbench llm up
 ```
 
 The instance terminates after it is idle, while the S3 model cache remains.

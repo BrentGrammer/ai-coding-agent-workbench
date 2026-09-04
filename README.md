@@ -41,14 +41,14 @@ See [Local LLM](docs/local-llm.md).
 
 Each developer gets a persistent EC2 dev box. A shared GPU box is optional.
 
-Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md), then `workbench ec2 deploy`. That creates a per dev dedicated box and the shared SSH endpoint. An admin deploying for the team passes names: `workbench ec2 deploy alice bob`.
+Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md), then `aws-workbench ec2 deploy`. That creates a per dev dedicated box and the shared SSH endpoint. An admin deploying for the team passes names: `aws-workbench ec2 deploy alice bob`.
 
 ### Daily workflow
 
 1. On a laptop, start the box and open a terminal on it. This boots the instance if it is stopped and drops you into a shell as `ubuntu`:
 
    ```shell
-   start-workbench
+   start-aws-workbench
    ```
 
 2. First day only, on the box, clone a repo into the shared workspace with a Bitbucket access token. After that, `git pull` as usual:
@@ -77,7 +77,7 @@ Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md), then `
 5. Close the terminal when you are done. The box stops itself after 15 idle minutes. To stop it right away, from the laptop:
 
    ```shell
-   workbench ec2 down
+   aws-workbench ec2 down
    ```
 
 ### Using the GPU box with Pi
@@ -85,20 +85,20 @@ Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md), then `
 Only when you want prompts to stay inside the VPC. On the laptop, then on the box:
 
 ```shell
-workbench llm up          # laptop, takes a few minutes
+aws-workbench llm up          # laptop, takes a few minutes
 start-pi --gpu-box        # box, inside your repo
 ```
 
-The GPU box stops itself when idle and has a 12-hour hard limit. `workbench llm down` removes it now.
+The GPU box stops itself when idle and has a 12-hour hard limit. `aws-workbench llm down` removes it now.
 
 ### Other commands
 
 | From the laptop | What it does |
 |---|---|
-| `workbench ec2 status` | Is my box running |
-| `workbench ec2 ssh` | Connect with plain SSH instead of SSM |
-| `workbench ec2 update` | Push the latest setup scripts to the box |
-| `workbench llm status` | Is the GPU box running |
+| `aws-workbench ec2 status` | Is my box running |
+| `aws-workbench ec2 ssh` | Connect with plain SSH instead of SSM |
+| `aws-workbench ec2 update` | Push the latest setup scripts to the box |
+| `aws-workbench llm status` | Is the GPU box running |
 
 `WORKBENCH_DEV=<name>` picks a different developer's box. It defaults to your local username.
 

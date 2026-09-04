@@ -3,5 +3,5 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
-"$SCRIPT_DIR/workbench" ec2 up
-exec "$SCRIPT_DIR/workbench" ec2 ssm
+"$SCRIPT_DIR/aws-workbench" ec2 up
+exec "$SCRIPT_DIR/aws-workbench" ec2 ssm

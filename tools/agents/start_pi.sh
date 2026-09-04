@@ -50,7 +50,7 @@ if [ -f /etc/agent-workbench/workbench.env ] &&
         --query 'Reservations[0].Instances[0].PrivateIpAddress' \
         --output text)"
       if [ -z "$gpu_ip" ] || [ "$gpu_ip" = "None" ]; then
-        echo "ERROR: No AWS GPU box is running. Run workbench llm up from your laptop first." >&2
+        echo "ERROR: No AWS GPU box is running. Run aws-workbench llm up from your laptop first." >&2
         exit 1
       fi
     fi

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs and updates everything on the EC2 workbench. Idempotent: cloud-init
-# runs it on first boot, and `workbench ec2 update` re-runs it for updates.
+# runs it on first boot, and `aws-workbench ec2 update` re-runs it for updates.
 set -euo pipefail
 
 # Pinned artifact versions and verification hashes.
@@ -196,7 +196,7 @@ systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
 echo "== Workbench files"
 install -d -m 755 /etc/agent-workbench
 
-install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop
+install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/aws-workbench-idle-stop
 install -m 755 "$REPO_DIR/infra/aws/ec2/clone-repo" /usr/local/bin/clone-repo
 ln -sfn /opt/agent-workbench/bin/start-pi /usr/local/bin/start-pi
 
@@ -339,4 +339,4 @@ if ! sudo -u "$WORKBENCH_USER" -H git config --global user.name >/dev/null 2>&1 
 fi
 
 echo "== Done"
-echo "The workbench is ready. Connect with start-workbench, then run agy or pi."
+echo "The workbench is ready. Connect with start-aws-workbench, then run agy or pi."
