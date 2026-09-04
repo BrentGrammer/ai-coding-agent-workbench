@@ -3,6 +3,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
+import { addBoxFilesInstall, boxFilesAsset } from "./box-files";
 
 // L40S, 48 GB VRAM: fits the model plus a 131K q8_0 KV cache. Override with
 // -c llmInstanceType, or WORKBENCH_LLM_INSTANCE_TYPE through bin/workbench.
@@ -20,8 +21,6 @@ const ON_DEMAND = "on-demand";
 const DISK_GIB = 75;
 const INSTANCE_NAME = "aws-native-agent-workbench-gpu-llm";
 export const LLM_MODEL = "qwen3.8:27b";
-const DEFAULT_REPO_URL =
-  "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
 // Ships the NVIDIA driver, so setup-llm.sh installs no driver and never
 // reboots. Confirm and override: docs/cloud-onetime-setup.md#6-gpu-ami.
 const DEFAULT_GPU_AMI_PARAMETER =
@@ -36,8 +35,6 @@ export class WorkbenchLlmStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WorkbenchLlmStackProps) {
     super(scope, id, props);
 
-    const repoUrl =
-      (this.node.tryGetContext("repoUrl") as string) ?? DEFAULT_REPO_URL;
     const amiParameter =
       (this.node.tryGetContext("llmAmiParameter") as string) ??
       DEFAULT_GPU_AMI_PARAMETER;
@@ -88,6 +85,9 @@ export class WorkbenchLlmStack extends cdk.Stack {
     );
     props.cacheBucket.grantReadWrite(role);
 
+    const asset = boxFilesAsset(this);
+    asset.grantRead(role);
+
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       "set -euo pipefail",
@@ -95,11 +95,9 @@ export class WorkbenchLlmStack extends cdk.Stack {
       "mkdir -p /etc/agent-workbench",
       `printf 'AWS_REGION=%s\\nLLM_CACHE_BUCKET=%s\\nLLM_MODEL=%s\\nOLLAMA_CONTEXT_LENGTH=%s\\nOLLAMA_KV_CACHE_TYPE=%s\\n' '${this.region}' '${props.cacheBucket.bucketName}' '${LLM_MODEL}' '${contextLength}' '${kvCacheType}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
-      "export DEBIAN_FRONTEND=noninteractive",
-      "apt-get update",
-      "apt-get install -y git",
-      `[ -d /opt/agent-workbench/.git ] || git clone --branch main ${repoUrl} /opt/agent-workbench`,
-      "chown -R root:root /opt/agent-workbench",
+    );
+    addBoxFilesInstall(userData, asset);
+    userData.addCommands(
       "bash /opt/agent-workbench/infra/aws/ec2/setup-llm.sh",
     );
 

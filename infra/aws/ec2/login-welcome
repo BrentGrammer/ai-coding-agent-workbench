@@ -1,6 +1,11 @@
------- Weclome to the A.I. Assisted Cloud Workbench ------
+------ Welcome to the A.I. Assisted Cloud Workbench ------
 
-Clone repos under ~/workspace (https clone only), then start an agent:
+Clone repos under ~/workspace with a Bitbucket access token:
+
+  git config --global credential.helper 'cache --timeout=28800'
+  git clone https://x-token-auth@bitbucket.org/WORKSPACE/REPO.git
+
+Then start an agent:
 
   cd ~/workspace/<your-repo>
   agy

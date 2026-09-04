@@ -2,18 +2,19 @@
 
 The CDK app deploys:
 
-- `AwsNativeWorkbenchTokenStack` for short-lived GitHub App tokens
 - `AwsNativeWorkbenchEc2Stack` for the persistent dev box
 - `AwsNativeWorkbenchLlmCacheStack` for model storage
 - `AwsNativeWorkbenchLlmStack` for the optional GPU box
 
-These names, EC2 tags, S3 cache, Lambda, IAM roles, and security groups are separate from the existing workbench deployment. Commands in this branch select only the AWS-native resources. The new Lambda reuses the existing GitHub App parameters read-only.
+These names, EC2 tags, S3 cache, IAM roles, and security groups are separate from the existing workbench deployment. Commands in this branch select only the AWS-native resources.
 
 The stacks reuse only account-level CDK bootstrap resources and the default VPC. They do not import or modify the existing workbench instances, roles, security groups, Lambda, or cache. Use `sshPublicKey` if the new stack should own its SSH key pair too.
 
+The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. First boot and `workbench ec2 update` download that zip. The instances never clone this repository.
+
 ## Prerequisites
 
-Complete [Cloud one-time setup](../../docs/cloud-onetime-setup.md). The only Parameter Store values are the GitHub App ID and private key.
+Complete [Cloud one-time setup](../../docs/cloud-onetime-setup.md).
 
 ## Deploy
 

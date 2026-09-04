@@ -3,32 +3,23 @@ import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
-import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
+import { addBoxFilesInstall, boxFilesAsset } from "./box-files";
 import { LLM_MODEL } from "./workbench-llm-stack";
 
 // Resizing is this one line plus a stop/start.
 const INSTANCE_TYPE = "t4g.large";
 const DISK_GIB = 30;
 const INSTANCE_NAME = "aws-native-agent-workbench-ec2";
-// Cloned to /opt/agent-workbench on first boot to run the setup script.
-// Override with CDK context: -c repoUrl=https://github.com/you/fork.git
-const DEFAULT_REPO_URL =
-  "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
 const UBUNTU_2404_ARM64_AMI_PARAMETER =
   "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id";
 
-export interface WorkbenchEc2StackProps extends cdk.StackProps {
-  githubTokenFunction: lambda.IFunction;
-}
 export class WorkbenchEc2Stack extends cdk.Stack {
   public readonly securityGroup: ec2.ISecurityGroup;
 
-  constructor(scope: Construct, id: string, props: WorkbenchEc2StackProps) {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const repoUrl =
-      (this.node.tryGetContext("repoUrl") as string) ?? DEFAULT_REPO_URL;
     const sshCidr = this.node.tryGetContext("sshCidr") as string | undefined;
     const sshKeyName = this.node.tryGetContext("sshKeyName") as
       | string
@@ -63,18 +54,20 @@ export class WorkbenchEc2Stack extends cdk.Stack {
     const role = new iam.Role(this, "WorkbenchInstanceRole", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
       description:
-        "Lets the workbench instance use SSM and invoke the GitHub token function.",
+        "Lets the workbench instance use SSM and read the box-files asset.",
     });
     role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
     );
-    props.githubTokenFunction.grantInvoke(role);
     role.addToPolicy(
       new iam.PolicyStatement({
         actions: ["ec2:DescribeInstances"],
         resources: ["*"],
       }),
     );
+
+    const asset = boxFilesAsset(this);
+    asset.grantRead(role);
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
@@ -83,15 +76,11 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       "mkdir -p /etc/agent-workbench",
       // This truncates, so every key the box needs belongs here. The setup
       // script only tops up what is missing on an already-running box.
-      `printf 'AWS_REGION=%s\\nGITHUB_APP_TOKEN_FUNCTION_NAME=%s\\nLOCAL_LLM_MODEL=%s\\nWORKBENCH_INSTANCE=true\\n' '${this.region}' '${props.githubTokenFunction.functionName}' '${LLM_MODEL}' > /etc/agent-workbench/workbench.env`,
+      `printf 'AWS_REGION=%s\\nLOCAL_LLM_MODEL=%s\\nWORKBENCH_INSTANCE=true\\n' '${this.region}' '${LLM_MODEL}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
-      "export DEBIAN_FRONTEND=noninteractive",
-      "apt-get update",
-      "apt-get install -y git",
-      // Root-owned machine config, not a working copy. The agent user runs as
-      // ubuntu and must not be able to edit what the update command sudo-runs.
-      `[ -d /opt/agent-workbench/.git ] || git clone --branch main ${repoUrl} /opt/agent-workbench`,
-      "chown -R root:root /opt/agent-workbench",
+    );
+    addBoxFilesInstall(userData, asset);
+    userData.addCommands(
       "bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh",
     );
 
@@ -130,9 +119,8 @@ export class WorkbenchEc2Stack extends cdk.Stack {
           volume: ec2.BlockDeviceVolume.ebs(DISK_GIB, {
             volumeType: ec2.EbsDeviceVolumeType.GP3,
             encrypted: true,
-            // The disk dies with the instance. Repos live on GitHub and the
-            // setup script rebuilds everything else; a rebuild only costs
-            // re-running the one-time setup. No orphaned volumes.
+            // The disk dies with the instance. Work repos live elsewhere and
+            // the setup script rebuilds everything else. No orphaned volumes.
             deleteOnTermination: true,
           }),
         },
@@ -185,5 +173,6 @@ export class WorkbenchEc2Stack extends cdk.Stack {
     new cdk.CfnOutput(this, "WorkbenchSecurityGroupId", {
       value: securityGroup.securityGroupId,
     });
+    new cdk.CfnOutput(this, "BoxFilesS3Url", { value: asset.s3ObjectUrl });
   }
 }

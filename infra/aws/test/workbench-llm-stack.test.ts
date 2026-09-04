@@ -138,6 +138,15 @@ const defaultLaunch = launchTemplateData(defaultTemplate);
 assert.equal(defaultLaunch.InstanceType, "g6e.xlarge");
 assert.match(
   JSON.stringify(defaultLaunch.UserData),
+  /aws s3 cp/,
+);
+assert.doesNotMatch(
+  JSON.stringify(defaultLaunch.UserData),
+  /git clone/,
+);
+assert.match(JSON.stringify(defaultTemplate.toJSON()), /s3:GetObject/);
+assert.match(
+  JSON.stringify(defaultLaunch.UserData),
   /OLLAMA_CONTEXT_LENGTH=%s/,
 );
 assert.match(JSON.stringify(defaultLaunch.UserData), /'131072'/);

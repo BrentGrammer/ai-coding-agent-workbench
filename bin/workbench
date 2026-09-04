@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 AWS_DIR="$SCRIPT_DIR/../infra/aws"
 WORKBENCH_TAG="aws-native-agent-workbench-ec2"
+EC2_STACK="AwsNativeWorkbenchEc2Stack"
 GPU_TAG="aws-native-agent-workbench-gpu-llm"
 GPU_CACHE_STACK="AwsNativeWorkbenchLlmCacheStack"
 GPU_STACK="AwsNativeWorkbenchLlmStack"
@@ -19,6 +20,7 @@ ec2: up, down, status, ssm, ssh, update
 llm: up, down, status
 
 SSM is the default connection. SSH requires sshCidr and a key at deploy time.
+update deploys the current laptop checkout as a zip, then re-runs setup.
 
 Set WORKBENCH_EC2_SSH_KEY when the private key is not loaded in ssh-agent or
 stored at a default OpenSSH path.
@@ -211,16 +213,21 @@ case "${1:-}" in
         exec ssh "${ssh_arguments[@]}" "${WORKBENCH_EC2_USER:-ubuntu}@$public_ip"
         ;;
       update)
+        require_aws_project
         instance_id="$(workbench_instance_id)"
-        branch="${3:-$(git -C "$SCRIPT_DIR/.." branch --show-current)}"
-        if [[ ! "$branch" =~ ^[A-Za-z0-9._/-]+$ ]]; then
-          echo "ERROR: Unsupported branch name: $branch" >&2
+        (cd "$AWS_DIR" && npx cdk deploy "$EC2_STACK" --require-approval never)
+        box_files_s3_url="$(aws cloudformation describe-stacks \
+          --stack-name "$EC2_STACK" \
+          --query "Stacks[0].Outputs[?OutputKey=='BoxFilesS3Url'].OutputValue" \
+          --output text)"
+        if [[ ! "$box_files_s3_url" =~ ^s3://[a-z0-9.-]+/[A-Za-z0-9._/-]+$ ]]; then
+          echo "ERROR: BoxFilesS3Url is missing or unexpected: $box_files_s3_url" >&2
           exit 1
         fi
         exec aws ssm start-session \
           --target "$instance_id" \
           --document-name AWS-StartInteractiveCommand \
-          --parameters "command=[\"sudo git -C /opt/agent-workbench fetch --prune origin $branch && sudo git -C /opt/agent-workbench reset --hard origin/$branch && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh\"]"
+          --parameters "command=[\"sudo bash -c 'aws s3 cp $box_files_s3_url /tmp/agent-workbench.zip && rm -rf /opt/agent-workbench && mkdir -p /opt/agent-workbench && unzip -o /tmp/agent-workbench.zip -d /opt/agent-workbench && chown -R root:root /opt/agent-workbench && bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh'\"]"
         ;;
       *) usage ;;
     esac

@@ -4,11 +4,12 @@
   "version": "0.1.0",
   "scripts": {
     "build": "tsc",
+    "test": "ts-node test/workbench-ec2-stack.test.ts && ts-node test/workbench-llm-stack.test.ts",
     "test:ec2": "ts-node test/workbench-ec2-stack.test.ts",
     "test:llm": "ts-node test/workbench-llm-stack.test.ts",
-    "deploy": "cdk deploy AwsNativeWorkbenchTokenStack AwsNativeWorkbenchEc2Stack",
-    "diff": "cdk diff AwsNativeWorkbenchTokenStack AwsNativeWorkbenchEc2Stack AwsNativeWorkbenchLlmCacheStack AwsNativeWorkbenchLlmStack",
-    "synth": "cdk synth AwsNativeWorkbenchTokenStack AwsNativeWorkbenchEc2Stack AwsNativeWorkbenchLlmCacheStack AwsNativeWorkbenchLlmStack"
+    "deploy": "cdk deploy AwsNativeWorkbenchEc2Stack",
+    "diff": "cdk diff AwsNativeWorkbenchEc2Stack AwsNativeWorkbenchLlmCacheStack AwsNativeWorkbenchLlmStack",
+    "synth": "cdk synth AwsNativeWorkbenchEc2Stack AwsNativeWorkbenchLlmCacheStack AwsNativeWorkbenchLlmStack"
   },
   "dependencies": {
     "aws-cdk-lib": "2.263.0",

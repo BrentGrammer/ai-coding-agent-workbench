@@ -8,7 +8,7 @@ laptop --(SSM or CIDR-locked SSH)--> dev box --(VPC, port 11435)--> GPU box
 
 ## Isolation from the existing deployment
 
-This branch creates only `AwsNativeWorkbench*` CloudFormation stacks. It uses unique instance tags, hostnames, Parameter Store paths, IAM roles, Lambda functions, security groups, and an S3 model cache. Its CLI searches for and destroys only those new names.
+This branch creates only `AwsNativeWorkbench*` CloudFormation stacks. It uses unique instance tags, hostnames, IAM roles, security groups, and an S3 model cache. Its CLI searches for and destroys only those new names.
 
 The AWS account's CDK bootstrap resources and default VPC are reused without modifying existing workbench resources. The new stacks create their own security groups inside that VPC. For a separate stack-owned SSH key pair, use `sshPublicKey`; `sshKeyName` intentionally references an existing key pair.
 
@@ -28,11 +28,14 @@ There is no bastion host, overlay network, or UDP-based shell.
 
 Use a Bitbucket repository access token over HTTPS for a private repository. Scope the token to that repository with Repository Read permission and add Repository Write only when the dev box must push branches.
 
-Store the token in AWS Secrets Manager or Parameter Store, not in the repository or an environment file. Supply it through a Git credential helper and clone with:
+Each developer runs this once on the box. Commits and the Bitbucket audit log use that person's identity, and there is no IAM or secrets surface for git:
 
 ```shell
+git config --global credential.helper 'cache --timeout=28800'
 git clone https://x-token-auth@bitbucket.org/WORKSPACE/REPOSITORY.git
 ```
+
+Later options, each a small separate change: a shared Secrets Manager token with a short credential helper, or SSH agent forwarding over SSH-through-SSM.
 
 ## GPU box
 
@@ -61,95 +64,33 @@ The only installed agent CLIs are:
 - Removed every agent launcher, configuration, and dev-box install except Antigravity CLI and Pi.
 - Removed Herdr and its runtime files.
 - Added new `AwsNativeWorkbench*` stack names and `aws-native-agent-workbench-*` instance tags so this deployment cannot update, stop, or destroy the existing workbench resources.
-- The new token Lambda reuses the existing GitHub App parameters read-only. All deployable resources, IAM roles, security groups, GPU cache, and instances are owned only by the new stacks.
+- All deployable resources, IAM roles, security groups, GPU cache, and instances are owned only by the new stacks.
+- The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. User data and `workbench ec2 update` download that zip. The instances never clone this repository.
+- Removed the GitHub App token chain from this branch. Work repos use a per-developer Bitbucket HTTPS token.
 
 Existing DigitalOcean resources are not destroyed by this repository change. Delete them in DigitalOcean before switching branches if any are still running or billing.
 
 Rebuild an existing dev box to remove agent binaries installed by the previous setup.
 
-## Plan: remove the GitHub dependency
+## Setup zip and updates
 
-The box is meant for work repositories and must not depend on github.com. Today it still does in two ways.
+The instances only need the scripts they run. CDK zips those from the laptop checkout into the existing bootstrap bucket. Nothing new is created in the account.
 
-### Current dependencies
+Dev instance: `infra/aws/ec2/{setup-workbench.sh, agent-workbench-profile.sh, login-welcome, workbench-idle-stop, workbench-idle-stop.service, workbench-idle-stop.timer}`, `bin/start-pi`, `tools/agents/start_pi.sh`, `tools/agents/local_llm.sh`.
 
-| Dependency | Where |
-|---|---|
-| Boot-time `git clone --branch main` of the public repo | `workbench-ec2-stack.ts`, `workbench-llm-stack.ts` user data |
-| `workbench ec2 update` runs `git fetch` and `reset --hard` on the box | `bin/workbench` |
-| GitHub App token chain: token stack, Lambda, relay service, credential helper, `lambda:InvokeFunction` on the instance role, `GITHUB_APP_TOKEN_FUNCTION_NAME` in `workbench.env` | `lib/workbench-token-stack.ts`, `lambda/github-app-token/`, `infra/aws/runtime/`, `ec2/github-token-relay*`, `setup-workbench.sh` |
-| `DEFAULT_REPO_URL` and `repoUrl` context | both stacks, README |
+GPU instance: `infra/aws/ec2/{setup-llm.sh, llm-idle-stop, llm-idle-stop.service, llm-idle-stop.timer}`, `tools/llm/ollama_inference_proxy.py`.
 
-The `main` clone is also a correctness bug. Until this branch merges, a fresh box runs main's setup script, which installs Tailscale and every agent CLI, then fails on a parameter the new instance role cannot read.
-
-Not in scope: `start_pi.sh` allows `release-assets.githubusercontent.com` inside the laptop sandbox because Pi downloads from GitHub Releases. That is Pi tooling, not infra, and is not on the box code path.
-
-### Files the boxes need
-
-Dev box: `infra/aws/ec2/{setup-workbench.sh, agent-workbench-profile.sh, login-welcome, workbench-idle-stop, workbench-idle-stop.service, workbench-idle-stop.timer}`, `bin/start-pi`, `tools/agents/start_pi.sh`, `tools/agents/local_llm.sh`.
-
-GPU box: `infra/aws/ec2/{setup-llm.sh, llm-idle-stop, llm-idle-stop.service, llm-idle-stop.timer}`, `tools/llm/ollama_inference_proxy.py`.
-
-On the box, `start_pi.sh` exits before it reaches `local_workspace.sh` and `sandbox_bootstrap.sh`, so those stay laptop-only.
-
-### Phase 1: ship box files as a CDK asset
-
-1. In both stacks, create an `aws-s3-assets.Asset` from the repo root with an `exclude` list so only the files above are zipped. The asset uploads to the existing CDK bootstrap bucket. Nothing new is created in the account.
-2. Replace `apt-get install git` and `git clone` in user data with `userData.addS3DownloadCommand`, then `unzip -o` into `/opt/agent-workbench`, `chown -R root:root`, and run the setup script. User data installs `unzip` and the AWS CLI before the download.
-3. `asset.grantRead(role)` on each instance role. Remove `githubTokenFunction.grantInvoke(role)`.
-4. `AwsNativeWorkbenchEc2Stack` outputs `BoxFilesS3Url` so the update path can find the current bundle.
-5. Remove `DEFAULT_REPO_URL`, the `repoUrl` context read, and the `githubTokenFunction` stack prop.
-
-Redeploying with a new asset hash is harmless to a running dev box. `ec2.Instance` does not replace on user-data change by default, and cloud-init runs user data once. The GPU box is recreated on every `llm up`, so it always gets the current bundle.
-
-### Phase 2: replace `workbench ec2 update`
-
-1. `npx cdk deploy AwsNativeWorkbenchEc2Stack --require-approval never` uploads the new bundle.
-2. Read `BoxFilesS3Url` from `aws cloudformation describe-stacks`.
-3. One SSM interactive command: `aws s3 cp` the bundle, `rm -rf /opt/agent-workbench`, `unzip` it back, `chown -R root:root`, run `setup-workbench.sh`.
-4. Drop the branch argument and its validation. The bundle is whatever is checked out on the laptop, which matches how `cdk deploy` already behaves.
-
-### Phase 3: remove the GitHub App chain
-
-Delete `lib/workbench-token-stack.ts`, `lambda/github-app-token/`, `infra/aws/runtime/`, `ec2/github-token-relay-service.mjs`, and `ec2/github-token-relay.service`.
-
-Edit:
-
-- `app.ts` goes to three stacks.
-- `setup-workbench.sh` drops the relay and credential-helper installs, the relay service, the `git config --global credential.*` lines, and the token-function warning. `git` stays in the apt list for work repos.
-- `workbench.env` becomes `AWS_REGION`, `LOCAL_LLM_MODEL`, `WORKBENCH_INSTANCE=true`.
-- `package.json` `deploy`, `diff`, and `synth` scripts drop the token stack.
-
-None of this touches main's `AgentWorkbenchTokenStack` or the `/coding-agent-workbench/github/*` parameters.
-
-### Phase 4: git auth for work repositories
-
-Start with manual auth and no AWS resources. Each developer runs once on the box:
+First boot installs unzip and the AWS CLI, downloads the zip with `aws s3 cp`, unpacks it to `/opt/agent-workbench`, and runs the setup script. The instance never clones this repository.
 
 ```shell
-git config --global credential.helper 'cache --timeout=28800'
-git clone https://x-token-auth@bitbucket.org/WORKSPACE/REPO.git
+workbench ec2 update
 ```
 
-Each person's commits and Bitbucket audit log use their own identity, and there is no new IAM or secrets surface. `login-welcome` gets a two-line hint for this.
+That deploys `AwsNativeWorkbenchEc2Stack` (which uploads a new zip if the files changed), reads the zip's S3 URL from the stack outputs, and runs one SSM command to replace `/opt/agent-workbench` and re-run `setup-workbench.sh`. The zip is whatever is checked out on the laptop. Redeploying with a new asset hash does not replace a running dev instance. The GPU instance is recreated on every `llm up`, so it always gets the current zip.
 
-Later options, each a small separate change:
+`start_pi.sh` allows `release-assets.githubusercontent.com` inside the laptop sandbox because Pi downloads from GitHub Releases. That is Pi tooling, not infra, and is not on the box code path.
 
-- Shared token: an `aws-native-agent-workbench/bitbucket-token` Secrets Manager secret, a short credential helper that calls `get-secret-value`, and `secret.grantRead(role)`.
-- SSH agent forwarding over SSH-through-SSM (`ProxyCommand aws ssm start-session --document-name AWS-StartSSHSession`). Needs the optional SSH ingress path, so not the default.
-
-### Phase 5: tests
-
-- `test/workbench-ec2-stack.test.ts`: remove the fake token Lambda. Assert no `AWS::Lambda::Function`, user data has `aws s3 cp` and no `git clone`, and the instance role grants `s3:GetObject` only on the asset bucket. Keep the SSH context validation asserts.
-- `test/workbench-llm-stack.test.ts`: assert no `git clone` in user data and `s3:GetObject` for the asset. Existing spot and on-demand asserts stay.
-- Add a `test` script to `package.json` that runs both.
-
-### Phase 6: docs and CLI text
-
-- `docs/cloud-onetime-setup.md`: remove the GitHub App parameter steps. Setup becomes bootstrap CDK if needed, `npm run deploy`, `start-workbench`.
-- This document: describe the asset bootstrap and the new update flow once implemented.
-- `infra/aws/README.md`: three stacks, no `repoUrl`.
-- `bin/workbench` usage text and `login-welcome`.
+If `AwsNativeWorkbenchTokenStack` was deployed from an earlier revision of this branch, destroy it. Do not destroy main's `AgentWorkbenchTokenStack` or the `/coding-agent-workbench/github/*` parameters.
 
 ## Plan: security hardening
 
@@ -158,7 +99,7 @@ The boxes hold proprietary code and run an AI agent that reads it. The AWS plumb
 ### Already in place
 
 - No inbound ports from the internet. SSM by default. Today's optional SSH is CIDR-locked; Phase 12 replaces it with an EC2 Instance Connect Endpoint. GPU box accepts 11435 only from the dev box security group.
-- Minimal instance role: `AmazonSSMManagedInstanceCore`, `ec2:DescribeInstances`, and after the GitHub plan, `s3:GetObject` on one asset.
+- Minimal instance role: `AmazonSSMManagedInstanceCore`, `ec2:DescribeInstances`, and `s3:GetObject` on that setup zip.
 - IMDSv2 with hop limit 1. Encrypted EBS, deleted on termination.
 - Inference-only proxy on the GPU box. Telemetry disabled for agy and Pi. Unattended security upgrades. Idle stop, a 6-hour CloudWatch backstop, and a 12-hour fuse on the GPU box.
 - Pi with `--gpu-box` keeps prompts inside the VPC. Antigravity uses Gemini under a zero-data-retention enterprise agreement.
@@ -269,6 +210,6 @@ Egress control is host-enforced rather than network-enforced. It depends on `age
 
 ## Order and safety
 
-Do phases 1 and 3 together since they touch the same lines, then 2, 5, 6. Then 7 and 10 together since both live in `setup-workbench.sh`, then 8, 9, and 12 together since the IAM policy depends on the per-developer tags and the endpoint, then 11. Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
+Do phases 7 and 10 together since both live in `setup-workbench.sh`, then 8, 9, and 12 together since the IAM policy depends on the per-developer tags and the endpoint, then 11. Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
 
 After this, the remaining external installs are Node, AWS CLI, Ollama, Pi, and Antigravity CLI, all pinned and verified. None is github.com.

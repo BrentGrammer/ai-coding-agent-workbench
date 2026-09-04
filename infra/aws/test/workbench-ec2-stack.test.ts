@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import * as path from "node:path";
 import * as cdk from "aws-cdk-lib/core";
-import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Template } from "aws-cdk-lib/assertions";
+import { BOX_FILES, boxFilesExclude } from "../lib/box-files";
 import { WorkbenchEc2Stack } from "../lib/workbench-ec2-stack";
 
 const account = "111111111111";
@@ -36,23 +37,80 @@ function synthesize(extraContext: Record<string, unknown> = {}): Template {
       ...extraContext,
     },
   });
-  const tokenStack = new cdk.Stack(app, "Token", {
-    env: { account, region },
-  });
-  const githubTokenFunction = new lambda.Function(tokenStack, "TokenFunction", {
-    runtime: lambda.Runtime.NODEJS_24_X,
-    handler: "index.handler",
-    code: lambda.Code.fromInline("exports.handler = async () => ({})"),
-  });
   const stack = new WorkbenchEc2Stack(app, "Workbench", {
     env: { account, region },
-    githubTokenFunction,
   });
   return Template.fromStack(stack);
 }
 
+interface PolicyStatement {
+  Action: string | string[];
+  Resource: unknown;
+}
+
+function policyStatements(template: Template): PolicyStatement[] {
+  const policies = Object.values(
+    template.findResources("AWS::IAM::Policy"),
+  ) as Array<{
+    Properties: { PolicyDocument: { Statement: PolicyStatement[] } };
+  }>;
+  const roles = Object.values(template.findResources("AWS::IAM::Role")) as Array<{
+    Properties: {
+      Policies?: Array<{ PolicyDocument: { Statement: PolicyStatement[] } }>;
+    };
+  }>;
+  return [
+    ...policies.flatMap((policy) => policy.Properties.PolicyDocument.Statement),
+    ...roles.flatMap((role) =>
+      (role.Properties.Policies ?? []).flatMap(
+        (policy) => policy.PolicyDocument.Statement,
+      ),
+    ),
+  ];
+}
+
+function actionsOf(statement: PolicyStatement): string[] {
+  return Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+}
+
 const ssmOnly = synthesize();
 ssmOnly.resourceCountIs("AWS::EC2::SecurityGroupIngress", 0);
+ssmOnly.resourceCountIs("AWS::Lambda::Function", 0);
+
+const templateJson = JSON.stringify(ssmOnly.toJSON());
+assert.match(templateJson, /aws s3 cp/);
+assert.doesNotMatch(templateJson, /git clone/);
+assert.match(templateJson, /BoxFilesS3Url/);
+
+const repoRoot = path.join(__dirname, "..", "..", "..");
+const ignore = cdk.IgnoreStrategy.glob(repoRoot, boxFilesExclude());
+for (const file of BOX_FILES) {
+  assert.equal(
+    ignore.ignores(path.join(repoRoot, file)),
+    false,
+    `${file} must be in the box-files zip`,
+  );
+}
+assert.equal(ignore.ignores(path.join(repoRoot, ".gitignore")), true);
+assert.equal(ignore.ignores(path.join(repoRoot, ".env")), true);
+assert.equal(ignore.ignores(path.join(repoRoot, "infra/aws/package.json")), true);
+assert.equal(
+  ignore.completelyIgnores(path.join(repoRoot, "infra/aws/node_modules")),
+  true,
+);
+
+const s3Statements = policyStatements(ssmOnly).filter((statement) =>
+  actionsOf(statement).some((action) => action.startsWith("s3:")),
+);
+assert.ok(
+  s3Statements.some((statement) =>
+    actionsOf(statement).some((action) => action.startsWith("s3:GetObject")),
+  ),
+);
+for (const statement of s3Statements) {
+  assert.notEqual(statement.Resource, "*");
+  assert.match(JSON.stringify(statement.Resource), /cdk-hnb659fds-assets/);
+}
 
 assert.throws(
   () => synthesize({ sshCidr: "203.0.113.4/32" }),

@@ -14,13 +14,10 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-if [ ! -f /etc/agent-workbench/workbench.env ]; then
-  echo "WARN: /etc/agent-workbench/workbench.env is missing." >&2
-  echo "WARN: Write AWS_REGION and GITHUB_APP_TOKEN_FUNCTION_NAME to it, or the token chain cannot work." >&2
-fi
 install -d -m 755 /etc/agent-workbench
 touch /etc/agent-workbench/workbench.env
 chmod 644 /etc/agent-workbench/workbench.env
+sed -i '/^GITHUB_APP_TOKEN_FUNCTION_NAME=/d' /etc/agent-workbench/workbench.env
 grep -q '^LOCAL_LLM_MODEL=' /etc/agent-workbench/workbench.env ||
   echo 'LOCAL_LLM_MODEL=qwen3.8:27b' >> /etc/agent-workbench/workbench.env
 grep -q '^WORKBENCH_INSTANCE=' /etc/agent-workbench/workbench.env ||
@@ -62,18 +59,26 @@ if ! command -v aws >/dev/null 2>&1; then
 fi
 
 echo "== Workbench files"
-install -d -m 755 /etc/agent-workbench /usr/local/lib/agent-workbench
-
-install -m 755 "$REPO_DIR/infra/aws/runtime/git-credential-github-app.mjs" /usr/local/bin/git-credential-github-app
-install -m 644 "$REPO_DIR/infra/aws/runtime/github-token-relay.mjs" /usr/local/lib/agent-workbench/github-token-relay.mjs
-install -m 644 "$REPO_DIR/infra/aws/runtime/github-app-token-client.mjs" /usr/local/lib/agent-workbench/github-app-token-client.mjs
-install -m 644 "$REPO_DIR/infra/aws/ec2/github-token-relay-service.mjs" /usr/local/lib/agent-workbench/github-token-relay-service.mjs
+install -d -m 755 /etc/agent-workbench
 
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop
 ln -sfn /opt/agent-workbench/bin/start-pi /usr/local/bin/start-pi
 
 install -m 644 "$REPO_DIR/infra/aws/ec2/agent-workbench-profile.sh" /etc/profile.d/agent-workbench.sh
 install -m 644 "$REPO_DIR/infra/aws/ec2/login-welcome" /etc/agent-workbench/login-welcome
+
+echo "== Remove leftover GitHub token chain"
+systemctl disable --now github-token-relay.service 2>/dev/null || true
+rm -f /etc/systemd/system/github-token-relay.service
+rm -f /usr/local/bin/git-credential-github-app
+rm -f /usr/local/lib/agent-workbench/github-token-relay.mjs \
+  /usr/local/lib/agent-workbench/github-app-token-client.mjs \
+  /usr/local/lib/agent-workbench/github-token-relay-service.mjs
+helper="$(sudo -u "$WORKBENCH_USER" -H git config --global --get credential.helper 2>/dev/null || true)"
+if [ "$helper" = "/usr/local/bin/git-credential-github-app" ]; then
+  sudo -u "$WORKBENCH_USER" -H git config --global --unset-all credential.helper || true
+  sudo -u "$WORKBENCH_USER" -H git config --global --unset-all credential.useHttpPath || true
+fi
 
 echo "== Swap"
 if [ ! -f /swapfile ]; then
@@ -85,18 +90,15 @@ grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fs
 swapon -a
 
 echo "== systemd units"
-install -m 644 "$REPO_DIR/infra/aws/ec2/github-token-relay.service" /etc/systemd/system/github-token-relay.service
 install -m 644 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop.service" /etc/systemd/system/workbench-idle-stop.service
 install -m 644 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop.timer" /etc/systemd/system/workbench-idle-stop.timer
 systemctl daemon-reload
-systemctl enable github-token-relay.service workbench-idle-stop.timer
-systemctl restart github-token-relay.service
+systemctl enable workbench-idle-stop.timer
 systemctl start workbench-idle-stop.timer
 
 echo "== Agent CLIs for $WORKBENCH_USER"
 sudo -u "$WORKBENCH_USER" -H \
-  env REPO_DIR="$REPO_DIR" \
-  PI_VERSION="$PI_VERSION" \
+  env PI_VERSION="$PI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
@@ -112,9 +114,6 @@ if ! command -v agy >/dev/null 2>&1; then
   curl -fsSL https://antigravity.google/cli/install.sh | bash
 fi
 agy --version
-
-git config --global credential.helper /usr/local/bin/git-credential-github-app
-git config --global credential.useHttpPath true
 
 mkdir -p "$HOME/.pi/agent"
 

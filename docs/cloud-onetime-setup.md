@@ -1,25 +1,5 @@
 # Cloud one-time setup
 
-## GitHub App
-
-The workbench uses a GitHub App to mint one-hour, repository-scoped tokens. The EC2 instance never receives the private key. If the two parameters below already exist for the current workbench, reuse them without changing their values.
-
-1. Create a GitHub App with repository **Contents** read and write permission.
-2. Disable webhooks and install the app on the repositories the workbench may access.
-3. Store its App ID and private key in AWS Systems Manager Parameter Store:
-
-   ```shell
-   aws ssm put-parameter --type String \
-     --name /coding-agent-workbench/github/app-id \
-     --value '<app-id>'
-
-   aws ssm put-parameter --type SecureString \
-     --name /coding-agent-workbench/github/private-key \
-     --value file://path/to/private-key.pem
-   ```
-
-Delete the downloaded private-key file after storing it.
-
 ## Laptop tools
 
 Install the AWS CLI, Node.js, and the Session Manager plugin. On macOS:
@@ -29,7 +9,20 @@ brew install awscli node
 brew install --cask session-manager-plugin
 ```
 
-Configure AWS credentials and bootstrap CDK in the target account and region.
+Configure AWS credentials and bootstrap CDK in the target account and region if that account has not been bootstrapped.
+
+```shell
+cd infra/aws
+npm ci --ignore-scripts
+npx cdk bootstrap
+npm run deploy
+```
+
+Connect:
+
+```shell
+start-workbench
+```
 
 ## Optional SSH
 
