@@ -227,3 +227,50 @@ Egress control is host-enforced rather than network-enforced. It depends on `age
 Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Prefer `npm run changeset` and review in the CloudFormation console before executing. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
 
 The remaining external installs are Node, AWS CLI, Ollama, Pi, and Antigravity CLI, all pinned and verified. None is github.com.
+
+
+# Using Docker Sandbox
+
+Would sbx be more isolated?
+
+ Yes, meaningfully. sbx runs the agent in a microVM with its own kernel and its own Docker daemon, and routes all outbound TCP through a host proxy that enforces the network policy. A compromised agent has to escape a hypervisor rather
+ than a uid. It also gives the agent a real Docker daemon, which the current setup can't offer safely.
+
+ Does it need x86?
+
+ Your instinct is right about the CLI: sbx supports arm64 Linux natively (version 0.33+, and it publishes  linux-arm64   .deb  packages). Your Mac runs it because Apple Silicon exposes virtualization to the guest.
+
+ The real requirement is KVM, not x86. And on AWS that's where the arch constraint comes from:
+
+   • Graviton (t4g, m7g, c7g, etc.) do not expose KVM. Only  .metal  Graviton instances do, and the cheapest of those is  c6g.metal  at about $2.18/hr.
+   • As of Feb 2026, AWS supports nested virtualization on virtual instances, but only on Intel families: c8i, m8i, r8i, and their  -flex  variants, plus c7i, m7i and flex. Enabled with  --cpu-options NestedVirtualization=enabled  (also a
+   launch-template property, so CDK can set it).
+
+ So whoever said "x86" was right for AWS specifically, just for the wrong reason.
+
+ Cheapest viable instance
+
+ ┌──────────────────────────┬─────────────┬────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │ Instance                 │ vCPU / RAM  │ On-demand (us-east-1)              │ Notes                                                                                               │
+ ├──────────────────────────┼─────────────┼────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+ │ t4g.large (current)      │ 2 / 8 GB    │ $0.067/hr                          │ No KVM. Dead end for sbx.                                                                           │
+ ├──────────────────────────┼─────────────┼────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+ │ m8i-flex.large           │ 2 / 8 GB    │ $0.10/hr                           │ Cheapest with nested virt. Tight: host + microVM + Docker in 8 GB.                                  │
+ ├──────────────────────────┼─────────────┼────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+ │ m8i-flex.xlarge          │ 4 / 16 GB   │ ~$0.20/hr                          │ My recommendation. Room for agy, a sandbox VM, and containers inside it.                            │
+ ├──────────────────────────┼─────────────┼────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────┤
+ │ c6g.metal                │ 64 / 128 GB │ $2.18/hr                           │ Only ARM option. Not worth it.                                                                      │
+ └──────────────────────────┴─────────────┴────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+ The  -flex  instances are 5% cheaper than plain m8i but can throttle under sustained load. For interactive dev that's fine. Since your idle-stop already keeps the box off most of the day, the roughly 3x hourly bump over t4g is a few
+ dollars a month in practice.
+
+ What switching would involve
+
+   • Instance type to Intel, AMI parameter to  amd64 , set  NestedVirtualization=enabled  via the launch template (CDK  CfnLaunchTemplate   cpuOptions , you already have one for IMDS).
+   • Install  docker-sbx  from Docker's apt repo, add  ubuntu  to the  kvm  group.
+   • sbx wants Ubuntu 24.04+, which you have.
+   • Then most of the Phase 7 machinery ( agent  user, nftables, tinyproxy, the agy wrapper) becomes redundant; the sandbox network policy replaces it, and you'd reuse  sandbox_bootstrap.sh  and the laptop-side  start_*.sh  flow that
+   already exists in this repo. Prefer deleting that code over maintaining both.
+   • One thing to verify on a real instance before committing: sbx docs say "your user in the  kvm  group" and the Arm guide says bare metal. The Intel nested-virt path is only months old, so run  kvm-ok  and  sbx run shell  on an m8i-flex
+   before rewriting the stack.
