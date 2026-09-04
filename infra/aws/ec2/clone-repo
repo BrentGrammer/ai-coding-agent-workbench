@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Clones into the shared workspace, then takes group write off .git so the
+# agent can edit source files but never hooks, config, or refs.
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: clone-repo <repository-url> [directory]" >&2
+  exit 1
+fi
+
+cd /home/agent/workspace
+git clone "$@"
+
+directory="${2:-$(basename "${1%/}" .git)}"
+chmod -R g-w "$directory/.git"
+echo "Cloned $directory. The agent can edit files there but not .git."

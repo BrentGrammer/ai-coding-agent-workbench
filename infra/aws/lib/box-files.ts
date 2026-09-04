@@ -18,6 +18,7 @@ export const BOX_FILES = [
   "infra/aws/ec2/agent-workbench-profile.sh",
   "infra/aws/ec2/login-welcome",
   "infra/aws/ec2/workbench-idle-stop",
+  "infra/aws/ec2/clone-repo",
   "infra/aws/ec2/workbench-idle-stop.service",
   "infra/aws/ec2/workbench-idle-stop.timer",
   "infra/aws/ec2/tinyproxy.conf",

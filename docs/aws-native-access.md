@@ -46,8 +46,10 @@ Each developer runs this once on the box. Commits and the Bitbucket audit log us
 
 ```shell
 git config --global credential.helper 'cache --timeout=28800'
-git clone https://x-token-auth@bitbucket.org/WORKSPACE/REPOSITORY.git
+clone-repo https://x-token-auth@bitbucket.org/WORKSPACE/REPOSITORY.git
 ```
+
+`clone-repo` clones into `~/workspace` and removes group write from `.git`. The agent can read and edit the working tree but cannot change hooks, config, refs, or the index. The developer stages, commits, and pushes.
 
 Later options, each a small separate change: a shared Secrets Manager token with a short credential helper, or SSH agent forwarding over SSH-through-SSM.
 
@@ -143,6 +145,12 @@ A root-owned local proxy (tinyproxy) with a domain allowlist: `generativelanguag
 
 Root owns `/opt/agent-workbench`, the systemd units, the proxy config, and the nftables rules. The agent cannot change any of it.
 
+The shared workspace is the one place both users write, and `ubuntu` has sudo. Anything the agent plants there that `ubuntu` later executes runs with full privileges. Three controls keep git from being that path:
+
+- `clone-repo` strips group write from `.git`, so the agent cannot plant hooks or set `core.pager`, `core.fsmonitor`, `diff.external`, or an alias in the repo config. Setup also applies this to existing clones on every `workbench ec2 update`.
+- `ubuntu`'s global `core.hooksPath` points at a root-owned empty directory, so hooks never run for the developer.
+- `ubuntu` has `ignore-scripts = true`, so `npm install` in the workspace does not run lifecycle scripts.
+
 `start-pi --gpu-box` looks up the GPU IP as `ubuntu` and passes it to the `agent` process.
 
 Blast radius of a prompt-injected agent is its own workspace plus the allowlisted hosts.
@@ -222,6 +230,10 @@ Tests require exactly one port 22 rule on the dev box, sourced from the endpoint
 
 Egress control is host-enforced rather than network-enforced. It depends on `agent` having no sudo and on the nftables rules being root-owned. If the security team wants network-level enforcement, add `fck-nat` with the same allowlist in front of both boxes.
 
+The developer is the trust boundary for code in the workspace. Git hooks, repo config, and npm scripts are neutralised, but `make`, `npm run <script>`, `./scripts/*.sh`, or `source`-ing anything the agent wrote still runs as `ubuntu` with sudo. Read it first, exactly as you would with a pull request from a stranger. Removing `ubuntu`'s passwordless sudo would shrink that blast radius further and is a small follow-up if the team wants it.
+
+DNS from the agent goes to `systemd-resolved` on loopback and out to the VPC resolver, so DNS tunnelling remains as a slow exfiltration channel.
+
 ## Deploy safety
 
 Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Prefer `npm run changeset` and review in the CloudFormation console before executing. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
@@ -274,3 +286,24 @@ Would sbx be more isolated?
    already exists in this repo. Prefer deleting that code over maintaining both.
    • One thing to verify on a real instance before committing: sbx docs say "your user in the  kvm  group" and the Arm guide says bare metal. The Intel nested-virt path is only months old, so run  kvm-ok  and  sbx run shell  on an m8i-flex
    before rewriting the stack.
+
+
+## Remaining Hardening
+
+ - storage.googleapis.com  is a public write target. Anyone can create a GCS bucket, so allowlisting the whole domain is a legitimate exfil route. It's needed for the agy download during setup, which runs through the proxy as  agent .
+ Consider downloading agy as root and removing this domain from the runtime allowlist, or accept and document it.
+
+ Smaller items
+
+   •  AWS_CLI_GPG_KEY_ID  and  AWS_CLI_GPG_FINGERPRINT  are defined but never used in both setup scripts.  gpg --verify  accepts any key in root's keyring. On a fresh box that's only the pinned key, so fine today, but the fingerprint check
+   is what makes it pinning. Use  gpgv --keyring <tempfile>  or check  VALIDSIG  from  --status-fd .
+   •  ssm:TerminateSession  on  session/${aws:userid}-*  (workbench-ec2-stack.ts:204): session IDs are prefixed by IAM username or role-session-name, not  aws:userid . Verify this actually works for your identity type (especially SSO/
+   assumed roles) before handing the policy out. AWS's own example uses  ${aws:username} .
+   • IMDS block is IPv4 only. Fine today since IMDS IPv6 is off by default, but add  ip6 daddr fd00:ec2::254 reject  so it stays true if someone enables it.
+   • DNS from  agent  goes to  systemd-resolved  on loopback, then out. DNS tunneling remains as a low-bandwidth exfil channel. Worth a line in "Remaining risk".
+   •  nft -f  with  flush ruleset  wipes any other tables on the box. Nothing else exists now, just be aware if Docker/ufw ever gets added.
+   • The  agy  wrapper (setup-workbench.sh:300) single-quotes  $target_dir  inside a  bash -c  string, so a directory name containing  '  breaks it. Self-inflicted by ubuntu only, so low, but  --chdir  or passing the path as an argument is
+   cleaner.
+   •  agy install || true  runs unverified post-install steps as  agent  through the proxy with errors swallowed. Not a security hole given the sandboxing, but you don't know what it did.
+   • The inference proxy reads the whole request body into memory with no size limit. Only reachable from dev boxes, so DoS-only.
+   • Both stacks use  associatePublicIpAddress: true  with all-outbound SGs. This is the documented, deliberate no-NAT decision, just noting the SG isn't where egress is enforced.

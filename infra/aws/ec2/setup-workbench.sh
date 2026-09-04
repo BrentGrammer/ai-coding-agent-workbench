@@ -196,7 +196,21 @@ echo "== Workbench files"
 install -d -m 755 /etc/agent-workbench
 
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop
+install -m 755 "$REPO_DIR/infra/aws/ec2/clone-repo" /usr/local/bin/clone-repo
 ln -sfn /opt/agent-workbench/bin/start-pi /usr/local/bin/start-pi
+
+echo "== Keep the agent out of the developer's git internals"
+# The agent edits source files. Only the developer may change hooks, config,
+# and refs, or a poisoned hook would run with ubuntu's sudo.
+install -d -m 755 /etc/agent-workbench/git-hooks-disabled
+sudo -u "$WORKBENCH_USER" -H git config --global core.hooksPath /etc/agent-workbench/git-hooks-disabled
+sudo -u "$WORKBENCH_USER" -H npm config set ignore-scripts true
+for git_dir in "/home/$AGENT_USER/workspace"/*/.git; do
+  [ -d "$git_dir" ] || continue
+  if [ "$(stat -c %U "$git_dir")" = "$WORKBENCH_USER" ]; then
+    chmod -R g-w "$git_dir"
+  fi
+done
 
 install -m 644 "$REPO_DIR/infra/aws/ec2/agent-workbench-profile.sh" /etc/profile.d/agent-workbench.sh
 install -m 644 "$REPO_DIR/infra/aws/ec2/login-welcome" /etc/agent-workbench/login-welcome
