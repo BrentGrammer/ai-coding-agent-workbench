@@ -41,7 +41,7 @@ See [Local LLM](docs/local-llm.md).
 
 Each developer gets a persistent EC2 dev box. A shared GPU box is optional.
 
-Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md) and deploy the [AWS stacks](infra/aws/README.md).
+Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md), then `workbench ec2 deploy`. That creates a per dev dedicated box and the shared SSH endpoint. An admin deploying for the team passes names: `workbench ec2 deploy alice bob`.
 
 ### Daily workflow
 

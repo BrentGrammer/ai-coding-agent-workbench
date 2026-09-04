@@ -23,8 +23,11 @@ usage() {
   cat <<'EOF'
 Usage: workbench <ec2|llm> <command>
 
-ec2: up, down, status, ssm, ssh, update
+ec2: up, down, status, ssm, ssh, update, deploy
 llm: up, down, status
+
+deploy creates your box (or the named ones) and the shared SSH endpoint.
+Set WORKBENCH_EC2_SSH_PUBKEY to a public key file to also enable SSH for yourself.
 
 WORKBENCH_DEV selects the box. It defaults to the local username.
 
@@ -252,6 +255,32 @@ case "${1:-}" in
       ssh)
         instance_id="$(workbench_instance_id)"
         exec workbench_ssh "$instance_id"
+        ;;
+      deploy)
+        require_aws_project
+        if [ $# -gt 2 ]; then
+          deploy_developers="${*:3}"
+        else
+          deploy_developers="$WORKBENCH_DEV"
+        fi
+        deploy_developers="${deploy_developers//,/ }"
+        for developer in $deploy_developers; do
+          if [[ ! "$developer" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
+            echo "ERROR: Invalid developer name: $developer" >&2
+            exit 1
+          fi
+        done
+        deploy_context=(-c "developers=$deploy_developers")
+        if [ -n "${WORKBENCH_EC2_SSH_PUBKEY:-}" ]; then
+          if [[ "$deploy_developers" == *' '* ]]; then
+            echo "ERROR: WORKBENCH_EC2_SSH_PUBKEY supports one developer at a time." >&2
+            exit 1
+          fi
+          deploy_context+=(-c "sshPublicKey-$deploy_developers=$(cat "$WORKBENCH_EC2_SSH_PUBKEY")")
+        fi
+        (cd "$AWS_DIR" && npx cdk deploy "/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/" \
+          --require-approval never "${deploy_context[@]}")
+        echo "Done. Attach each stack's DeveloperAccessPolicyArn output to that developer's IAM identity."
         ;;
       update)
         require_aws_project

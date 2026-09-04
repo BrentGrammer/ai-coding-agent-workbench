@@ -23,8 +23,10 @@ Complete [Cloud one-time setup](../../docs/cloud-onetime-setup.md).
 cd infra/aws
 npm ci --ignore-scripts
 npx cdk bootstrap
-npx cdk deploy "/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/" -c developers=alice
+workbench ec2 deploy
 ```
+
+`workbench ec2 deploy` wraps the CDK call with your local username. Pass names to deploy for others: `workbench ec2 deploy alice,bob`. Set `WORKBENCH_EC2_SSH_PUBKEY` to a public key file to enable SSH for a single-developer deploy. The raw CDK equivalent is `npx cdk deploy "/AwsNativeWorkbench(SharedStack|Ec2Stack.*)/" -c developers=...`.
 
 `npm run changeset` prepares CloudFormation change sets for those stacks without executing them. Review them in the console, then execute there if they look right.
 
