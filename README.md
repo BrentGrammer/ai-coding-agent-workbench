@@ -39,22 +39,68 @@ See [Local LLM](docs/local-llm.md).
 
 ## AWS workbench
 
-The AWS deployment creates a persistent EC2 dev box per developer and an optional shared GPU box. SSM Session Manager is the default connection. SSH is optional through an Instance Connect Endpoint. No third-party network or cloud provider is used.
+Each developer gets a persistent EC2 dev box. A shared GPU box is optional.
 
-Complete the [one-time setup](docs/cloud-onetime-setup.md), deploy the [AWS stacks](infra/aws/README.md), then connect:
+Prerequisite: complete the [one-time setup](docs/cloud-onetime-setup.md) and deploy the [AWS stacks](infra/aws/README.md).
+
+### Daily workflow
+
+1. On a laptop, start the box and open a terminal on it. This boots the instance if it is stopped and drops you into a shell as `ubuntu`:
+
+   ```shell
+   start-workbench
+   ```
+
+2. First day only, on the box, clone a repo into the shared workspace with a Bitbucket access token. After that, `git pull` as usual:
+
+   ```shell
+   git config --global credential.helper 'cache --timeout=28800'
+   clone-repo https://x-token-auth@bitbucket.org/WORKSPACE/REPO.git
+   ```
+
+3. On the box, go to the repo and start an agent. It runs as the locked-down `agent` user:
+
+   ```shell
+   cd ~/workspace/REPO
+   # start antigravity:
+   agy
+   ```
+
+4. Review what the agent changed, then commit and push. The agent cannot commit:
+
+   ```shell
+   git diff
+   git add -A && git commit
+   git push
+   ```
+
+5. Close the terminal when you are done. The box stops itself after 15 idle minutes. To stop it right away, from the laptop:
+
+   ```shell
+   workbench ec2 down
+   ```
+
+### Using the GPU box with Pi
+
+Only when you want prompts to stay inside the VPC. On the laptop, then on the box:
 
 ```shell
-start-workbench
+workbench llm up          # laptop, takes a few minutes
+start-pi --gpu-box        # box, inside your repo
 ```
 
-On the dev box, clone repositories under `~/workspace`. You are `ubuntu`; `agy` and `start-pi` run as the `agent` user:
+The GPU box stops itself when idle and has a 12-hour hard limit. `workbench llm down` removes it now.
 
-```shell
-agy
-start-pi --gpu-box
-```
+### Other commands
 
-The GPU box is reachable only from the dev box over the VPC on port `11435`. After `workbench llm up` on the laptop, run `start-pi --gpu-box` on the dev box.
+| From the laptop | What it does |
+|---|---|
+| `workbench ec2 status` | Is my box running |
+| `workbench ec2 ssh` | Connect with plain SSH instead of SSM |
+| `workbench ec2 update` | Push the latest setup scripts to the box |
+| `workbench llm status` | Is the GPU box running |
+
+`WORKBENCH_DEV=<name>` picks a different developer's box. It defaults to your local username.
 
 ## Reference
 
