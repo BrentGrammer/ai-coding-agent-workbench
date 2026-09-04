@@ -67,6 +67,8 @@ The only installed agent CLIs are:
 - All deployable resources, IAM roles, security groups, GPU cache, and instances are owned only by the new stacks.
 - The setup scripts, systemd units, and agent launchers the instances run ship as a zip in the CDK bootstrap bucket. User data and `workbench ec2 update` download that zip. The instances never clone this repository.
 - Removed the GitHub App token chain from this branch. Work repos use a per-developer Bitbucket HTTPS token.
+- Phase 7: Added `agent` user without sudo or remote login, sharing `/home/agent/workspace` via a setgid group. Blocked IMDS (`169.254.169.254`) and restricted egress via nftables and a root-owned tinyproxy egress filter with domain allowlist. `start-pi --gpu-box` resolves GPU IP as `ubuntu` and passes it to the `agent` process. Added an `agy` wrapper running inside the workspace as `agent`.
+- Phase 10: Pinned and verified all installs (Node via SHA-256, AWS CLI via GPG, Ollama via SHA-256, Pi with `ignore-scripts = true`, Antigravity CLI via SHA-512). Dropped `curl | bash` and nodesource.
 
 Existing DigitalOcean resources are not destroyed by this repository change. Delete them in DigitalOcean before switching branches if any are still running or billing.
 
@@ -76,7 +78,7 @@ Rebuild an existing dev box to remove agent binaries installed by the previous s
 
 The instances only need the scripts they run. CDK zips those from the laptop checkout into the existing bootstrap bucket. Nothing new is created in the account.
 
-Dev instance: `infra/aws/ec2/{setup-workbench.sh, agent-workbench-profile.sh, login-welcome, workbench-idle-stop, workbench-idle-stop.service, workbench-idle-stop.timer}`, `bin/start-pi`, `tools/agents/start_pi.sh`, `tools/agents/local_llm.sh`.
+Dev instance: `infra/aws/ec2/{setup-workbench.sh, agent-workbench-profile.sh, login-welcome, workbench-idle-stop, workbench-idle-stop.service, workbench-idle-stop.timer, tinyproxy.conf, agent-egress-allowlist.txt, nftables.conf}`, `bin/start-pi`, `tools/agents/start_pi.sh`, `tools/agents/local_llm.sh`.
 
 GPU instance: `infra/aws/ec2/{setup-llm.sh, llm-idle-stop, llm-idle-stop.service, llm-idle-stop.timer}`, `tools/llm/ollama_inference_proxy.py`.
 
@@ -110,7 +112,7 @@ The boxes hold proprietary code and run an AI agent that reads it. The AWS plumb
 - No SSM session content logging. CloudTrail already records `ssm:StartSession` with the caller and instance at no cost, which is the audit that matters.
 - One dev box per developer. The GPU box stays shared.
 
-### Phase 7: agent user with IMDS block and egress allowlist
+### Phase 7: agent user with IMDS block and egress allowlist (completed)
 
 Two Linux users, all configured by `setup-workbench.sh` as root:
 
@@ -147,7 +149,7 @@ One IAM policy per developer:
 
 Nobody else in the account can open a shell on a dev box. Session preferences set `runAsEnabled` with `runAsDefaultUser=ubuntu` so sessions never start as root.
 
-### Phase 10: pinned and verified installs
+### Phase 10: pinned and verified installs (completed)
 
 Every binary uses a fixed version and a recorded checksum or signature, and fails closed. No `curl | bash`.
 
@@ -210,6 +212,6 @@ Egress control is host-enforced rather than network-enforced. It depends on `age
 
 ## Order and safety
 
-Do phases 7 and 10 together since both live in `setup-workbench.sh`, then 8, 9, and 12 together since the IAM policy depends on the per-developer tags and the endpoint, then 11. Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
+Do phases 7 and 10 together since both live in `setup-workbench.sh` (completed), then 8, 9, and 12 together since the IAM policy depends on the per-developer tags and the endpoint, then 11. Before any deploy, run `npm run synth` and `npx cdk diff`. The diff must show only `AwsNativeWorkbench*` stacks and no mention of `AgentWorkbench*`. Destroy `AwsNativeWorkbenchTokenStack` only if it was ever deployed.
 
 After this, the remaining external installs are Node, AWS CLI, Ollama, Pi, and Antigravity CLI, all pinned and verified. None is github.com.

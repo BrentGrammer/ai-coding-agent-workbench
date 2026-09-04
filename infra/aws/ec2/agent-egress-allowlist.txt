@@ -1,0 +1,11 @@
+# Domain allowlist for tinyproxy egress filter
+archive.ubuntu.com
+security.ubuntu.com
+ports.ubuntu.com
+bitbucket.org
+generativelanguage.googleapis.com
+storage.googleapis.com
+antigravity-cli-auto-updater-974169037036.us-central1.run.app
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org

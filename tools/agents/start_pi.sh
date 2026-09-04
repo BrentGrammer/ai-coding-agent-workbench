@@ -6,7 +6,7 @@ source "$SCRIPT_DIR/local_llm.sh"
 
 if [ -f /etc/agent-workbench/workbench.env ] &&
   grep -Fqx 'WORKBENCH_INSTANCE=true' /etc/agent-workbench/workbench.env; then
-  use_gpu_box=false
+  use_gpu_box="${USE_GPU_BOX:-false}"
   workspace_dir="$PWD"
   workspace_path_was_given=false
   for argument in "$@"; do
@@ -23,13 +23,51 @@ if [ -f /etc/agent-workbench/workbench.env ] &&
         ;;
     esac
   done
+
+  if [ "$workspace_path_was_given" = false ] && { [ "$workspace_dir" = "$HOME" ] || [ "$workspace_dir" = "/home/ubuntu" ]; }; then
+    workspace_dir="/home/agent/workspace"
+  fi
+
   if [ ! -d "$workspace_dir" ]; then
     echo "ERROR: Workspace directory does not exist: $workspace_dir" >&2
     exit 1
   fi
+  workspace_dir="$(cd "$workspace_dir" && pwd)"
+
+  # ubuntu queries AWS because the agent user has IMDS blocked by nftables.
+  if [ "$(id -un)" != "agent" ]; then
+    gpu_ip=""
+    if [ "$use_gpu_box" = true ]; then
+      if [ -f /etc/agent-workbench/workbench.env ]; then
+        # shellcheck disable=SC1091
+        . /etc/agent-workbench/workbench.env
+      fi
+      gpu_ip="$(aws ec2 describe-instances \
+        --region "$AWS_REGION" \
+        --filters \
+          'Name=tag:Name,Values=aws-native-agent-workbench-gpu-llm' \
+          'Name=instance-state-name,Values=running' \
+        --query 'Reservations[0].Instances[0].PrivateIpAddress' \
+        --output text)"
+      if [ -z "$gpu_ip" ] || [ "$gpu_ip" = "None" ]; then
+        echo "ERROR: No AWS GPU box is running. Run workbench llm up from your laptop first." >&2
+        exit 1
+      fi
+    fi
+    exec sudo -u agent -i \
+      GPU_BOX_IP="$gpu_ip" \
+      USE_GPU_BOX="$use_gpu_box" \
+      /opt/agent-workbench/tools/agents/start_pi.sh "$workspace_dir"
+  fi
+
+  # Running as agent user inside the setgid workspace.
   if [ "$use_gpu_box" = true ]; then
-    USE_GPU_BOX=true
-    resolve_local_llm
+    if [ -z "${GPU_BOX_IP:-}" ]; then
+      echo "ERROR: Run start-pi as ubuntu so it can discover the GPU box instance." >&2
+      exit 1
+    fi
+    LOCAL_LLM_BASE_URL="http://${GPU_BOX_IP}:${LOCAL_PROXY_PORT}/v1"
+    LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-$GPU_BOX_MODEL}"
     config_dir="$HOME/.pi/agent"
     mkdir -p "$config_dir"
     models_config="$(mktemp)"

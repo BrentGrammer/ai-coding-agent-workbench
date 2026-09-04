@@ -3,10 +3,24 @@
 # runs it on first boot, and `workbench ec2 update` re-runs it for updates.
 set -euo pipefail
 
-NODE_MAJOR=24
-PI_VERSION=0.84.4
+# Pinned artifact versions and verification hashes.
+NODE_VERSION="24.9.0"
+NODE_SHA256_ARM64="dab232a90169737a48149149dd6707e7fdcbaefbaa94b4871047a38e93db947f"
+NODE_SHA256_X64="d57d6c28a35785f58f33899a0aa0bfc83f7a8ef4448b6cf3f7d0961efc7b9189"
+
+AWS_CLI_GPG_KEY_ID="A6310ACC4672475C"
+AWS_CLI_GPG_FINGERPRINT="FB5D B77F D5C1 18B8 0511  ADA8 A631 0ACC 4672 475C"
+
+PI_VERSION="0.84.4"
+
+AGY_VERSION="1.1.26"
+AGY_URL_ARM64="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.26-5550154686791680/linux-arm/cli_linux_arm64.tar.gz"
+AGY_SHA512_ARM64="332dddb06ab4d901a44cfd4b9b358848230e64a64515a8e79b03822348adac9ce92d54cb4fc5119ef075edfba922820c926dfddf82d3a49f4ecdb6e6704dfc75"
+AGY_URL_X64="https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.26-5550154686791680/linux-x64/cli_linux_x64.tar.gz"
+AGY_SHA512_X64="80f2e7bf1fe0833487975b320b07176b82dd2cc2043b8acb4201b37b86d604af50718400b58af0f41adc68b389640f6ff95362da87a9ef1682b34258e83110b2"
 
 WORKBENCH_USER=ubuntu
+AGENT_USER=agent
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -31,9 +45,12 @@ apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
   git \
+  gnupg \
   jq \
   less \
   ncurses-term \
+  nftables \
+  tinyproxy \
   unattended-upgrades \
   unzip
 
@@ -42,21 +59,116 @@ APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
 
-echo "== Node $NODE_MAJOR"
-if ! command -v node >/dev/null 2>&1 ||
-  [ "$(node --version | sed 's/^v//' | cut -d. -f1)" != "$NODE_MAJOR" ]; then
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
-  apt-get install -y nodejs
+echo "== Node $NODE_VERSION"
+need_node=true
+if command -v node >/dev/null 2>&1; then
+  if [ "$(node --version 2>/dev/null || true)" = "v$NODE_VERSION" ]; then
+    need_node=false
+  fi
 fi
+
+if [ "$need_node" = true ]; then
+  case "$(uname -m)" in
+    aarch64|arm64)
+      node_arch="arm64"
+      node_sha="$NODE_SHA256_ARM64"
+      ;;
+    x86_64|amd64)
+      node_arch="x64"
+      node_sha="$NODE_SHA256_X64"
+      ;;
+    *)
+      echo "ERROR: Unsupported architecture for Node: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+
+  node_tmp="$(mktemp -d)"
+  node_tarball="node-v${NODE_VERSION}-linux-${node_arch}.tar.gz"
+  curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${node_tarball}" -o "$node_tmp/$node_tarball"
+  echo "$node_sha  $node_tmp/$node_tarball" | sha256sum -c -
+  tar -xzf "$node_tmp/$node_tarball" -C /usr/local --strip-components=1
+  rm -rf "$node_tmp"
+fi
+node --version
+npm --version
 
 echo "== AWS CLI"
 if ! command -v aws >/dev/null 2>&1; then
+  case "$(uname -m)" in
+    aarch64|arm64) aws_arch="aarch64" ;;
+    *) aws_arch="x86_64" ;;
+  esac
+
   aws_tmp="$(mktemp -d)"
-  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "$aws_tmp/awscli.zip"
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" -o "$aws_tmp/awscli.zip"
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip.sig" -o "$aws_tmp/awscli.zip.sig"
+
+  gpg --import <<'GPGKEY'
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBF2Cr7UBEADJZHcgusOJl7ENSyumXh85z0TRV0xJorM2B/JL0kHOyigQluUG
+ZMLhENaG0bYatdrKP+3H91lvK050pXwnO/R7fB/FSTouki4ciIx5OuLlnJZIxSzx
+PqGl0mkxImLNbGWoi6Lto0LYxqHN2iQtzlwTVmq9733zd3XfcXrZ3+LblHAgEt5G
+TfNxEKJ8soPLyWmwDH6HWCnjZ/aIQRBTIQ05uVeEoYxSh6wOai7ss/KveoSNBbYz
+gbdzoqI2Y8cgH2nbfgp3DSasaLZEdCSsIsK1u05CinE7k2qZ7KgKAUIcT/cR/grk
+C6VwsnDU0OUCideXcQ8WeHutqvgZH1JgKDbznoIzeQHJD238GEu+eKhRHcz8/jeG
+94zkcgJOz3KbZGYMiTh277Fvj9zzvZsbMBCedV1BTg3TqgvdX4bdkhf5cH+7NtWO
+lrFj6UwAsGukBTAOxC0l/dnSmZhJ7Z1KmEWilro/gOrjtOxqRQutlIqG22TaqoPG
+fYVN+en3Zwbt97kcgZDwqbuykNt64oZWc4XKCa3mprEGC3IbJTBFqglXmZ7l9ywG
+EEUJYOlb2XrSuPWml39beWdKM8kzr1OjnlOm6+lpTRCBfo0wa9F8YZRhHPAkwKkX
+XDeOGpWRj4ohOx0d2GWkyV5xyN14p2tQOCdOODmz80yUTgRpPVQUtOEhXQARAQAB
+tCFBV1MgQ0xJIFRlYW0gPGF3cy1jbGlAYW1hem9uLmNvbT6JAlQEEwEIAD4CGwMF
+CwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQT7Xbd/1cEYuAURraimMQrMRnJHXAUC
+akV0ygUJDqP4lQAKCRCmMQrMRnJHXFHjD/9eyZLYcKuQOlLvtqSDtUBiEZf6ZZjM
+i3ygYH8rJNtuToUH+HvSpe819urJCquXhDrlK6N+aqW0hCLtNABJG/vsafIgvIYJ
+hSGgpgtNnQyMV1jViRWqPjbouw8OkYKBThUfT1i2Y+wn58ifs6ODBCmTexWtXspA
+Si+Gt49xDOW0APmbOPnI+a4HJW6tVEo6MWS0WjzpiBayR3d1A4pt4YrPfSdDgpLo
+h2SLQqlRqvvVZJaWBjhkErNFpfsBA06sDcPEOb0G8LBUbR4WOcdvhe5LubJbZuxC
+AG9kNPCVeQP1ixwjgjXKysaxeQ6rv0VzIQgRp6tLVLWhy6AKDNvLjFSsmXZ1Wl08
+Y/RlOHXlzLuQMRE6sR1wOdRxc9TsrNWTGiBK65cvSWOy03JeBkQQ8pesqltiyxI9
+U21kkgiXtTSKNGfKK8pO27D81YANhRqPK7iTp6kuFiY2WtOg90KTMNlIT+Ff85Y2
+b1rHj6Z0SrCkJujhWk3IBPic/wJgz01LEc/OAdUPlby90RJZcIBhSlWhT7mXnXIO
+c0HWlNQrns2s3CTyYwZSiSlYe9ApeLwhjDo8NhbFuCAy61l6O5UsR4AfZxx/rGKv
+2wFb1/RN/P4gNe6vmxZAPjR0AQcwD3tc2McimOLr/22kmPz8IH3I0X7WoSFr0Biz
+E91G7bb0hOb/cA==
+=knv7
+-----END PGP PUBLIC KEY BLOCK-----
+GPGKEY
+
+  gpg --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip"
   unzip -q "$aws_tmp/awscli.zip" -d "$aws_tmp"
-  "$aws_tmp/aws/install"
+  "$aws_tmp/aws/install" --update
   rm -rf "$aws_tmp"
 fi
+aws --version
+
+echo "== Users and workspace"
+if ! id "$AGENT_USER" >/dev/null 2>&1; then
+  useradd -m -s /bin/bash -U "$AGENT_USER"
+fi
+passwd -l "$AGENT_USER" >/dev/null 2>&1 || true
+
+# Group membership allows developer and agent to collaborate in the workspace.
+usermod -a -G "$AGENT_USER" "$WORKBENCH_USER"
+chmod 750 "/home/$AGENT_USER"
+install -d -m 2775 -o "$AGENT_USER" -g "$AGENT_USER" "/home/$AGENT_USER/workspace"
+
+ln -sfn "/home/$AGENT_USER/workspace" "/home/$WORKBENCH_USER/workspace"
+chown -h "$WORKBENCH_USER:$WORKBENCH_USER" "/home/$WORKBENCH_USER/workspace"
+
+echo "== Local egress proxy (tinyproxy)"
+install -d -m 755 /etc/tinyproxy
+install -m 644 "$REPO_DIR/infra/aws/ec2/agent-egress-allowlist.txt" /etc/tinyproxy/agent-egress-allowlist.txt
+install -m 644 "$REPO_DIR/infra/aws/ec2/tinyproxy.conf" /etc/tinyproxy/tinyproxy.conf
+systemctl daemon-reload
+systemctl enable tinyproxy
+systemctl restart tinyproxy
+
+echo "== nftables firewall"
+install -m 644 "$REPO_DIR/infra/aws/ec2/nftables.conf" /etc/nftables.conf
+nft -f /etc/nftables.conf
+systemctl enable nftables
 
 echo "== Workbench files"
 install -d -m 755 /etc/agent-workbench
@@ -66,6 +178,10 @@ ln -sfn /opt/agent-workbench/bin/start-pi /usr/local/bin/start-pi
 
 install -m 644 "$REPO_DIR/infra/aws/ec2/agent-workbench-profile.sh" /etc/profile.d/agent-workbench.sh
 install -m 644 "$REPO_DIR/infra/aws/ec2/login-welcome" /etc/agent-workbench/login-welcome
+
+# Root owns /opt/agent-workbench so the agent cannot tamper with it.
+chown -R root:root /opt/agent-workbench
+chmod -R 755 /opt/agent-workbench
 
 echo "== Remove leftover GitHub token chain"
 systemctl disable --now github-token-relay.service 2>/dev/null || true
@@ -96,9 +212,18 @@ systemctl daemon-reload
 systemctl enable workbench-idle-stop.timer
 systemctl start workbench-idle-stop.timer
 
-echo "== Agent CLIs for $WORKBENCH_USER"
-sudo -u "$WORKBENCH_USER" -H \
+echo "== Agent CLIs for $AGENT_USER"
+sudo -u "$AGENT_USER" -H \
   env PI_VERSION="$PI_VERSION" \
+      AGY_VERSION="$AGY_VERSION" \
+      AGY_URL_ARM64="$AGY_URL_ARM64" \
+      AGY_SHA512_ARM64="$AGY_SHA512_ARM64" \
+      AGY_URL_X64="$AGY_URL_X64" \
+      AGY_SHA512_X64="$AGY_SHA512_X64" \
+      HTTP_PROXY="http://127.0.0.1:8888" \
+      HTTPS_PROXY="http://127.0.0.1:8888" \
+      http_proxy="http://127.0.0.1:8888" \
+      https_proxy="http://127.0.0.1:8888" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
@@ -106,24 +231,75 @@ export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH"
 mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 
-# The npm prefix is user-owned so Pi can update itself later.
+# Skip lifecycle scripts on installs to prevent untrusted code execution.
+npm config set prefix "$HOME/.local/npm"
+npm config set ignore-scripts true
+npm config set proxy "http://127.0.0.1:8888"
+npm config set https-proxy "http://127.0.0.1:8888"
+
 npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}"
 pi --version
 
-if ! command -v agy >/dev/null 2>&1; then
-  curl -fsSL https://antigravity.google/cli/install.sh | bash
+need_agy=true
+if command -v agy >/dev/null 2>&1; then
+  if agy --version 2>&1 | grep -q "$AGY_VERSION"; then
+    need_agy=false
+  fi
+fi
+
+if [ "$need_agy" = true ]; then
+  case "$(uname -m)" in
+    aarch64|arm64)
+      agy_url="$AGY_URL_ARM64"
+      agy_sha="$AGY_SHA512_ARM64"
+      ;;
+    x86_64|amd64)
+      agy_url="$AGY_URL_X64"
+      agy_sha="$AGY_SHA512_X64"
+      ;;
+    *)
+      echo "ERROR: Unsupported architecture for agy: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+
+  agy_tmp="$(mktemp -d)"
+  curl -fsSL "$agy_url" -o "$agy_tmp/agy.tar.gz"
+  echo "$agy_sha  $agy_tmp/agy.tar.gz" | sha512sum -c -
+  tar -xzf "$agy_tmp/agy.tar.gz" -C "$agy_tmp" antigravity
+  install -m 755 "$agy_tmp/antigravity" "$HOME/.local/bin/agy"
+  rm -rf "$agy_tmp"
+  "$HOME/.local/bin/agy" install || true
 fi
 agy --version
 
 mkdir -p "$HOME/.pi/agent"
+git config --global --add safe.directory '*'
+USER_SETUP
 
-if ! git config --global user.name >/dev/null 2>&1 ||
-   ! git config --global user.email >/dev/null 2>&1; then
+echo "== agy launcher wrapper"
+cat > /usr/local/bin/agy <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$(id -un)" != "agent" ]; then
+  target_dir="$PWD"
+  if [ "$target_dir" = "$HOME" ] || [ "$target_dir" = "/home/ubuntu" ]; then
+    target_dir="/home/agent/workspace"
+  fi
+  exec sudo -u agent -i bash -c "cd '$target_dir' && exec /home/agent/.local/bin/agy \"\$@\"" -- "$@"
+fi
+
+exec /home/agent/.local/bin/agy "$@"
+WRAPPER
+chmod 755 /usr/local/bin/agy
+
+if ! sudo -u "$WORKBENCH_USER" -H git config --global user.name >/dev/null 2>&1 ||
+   ! sudo -u "$WORKBENCH_USER" -H git config --global user.email >/dev/null 2>&1; then
   echo "NOTE: Set your git identity on the box:"
   echo "  git config --global user.name 'Your Name'"
   echo "  git config --global user.email 'you@example.com'"
 fi
-USER_SETUP
 
 echo "== Done"
 echo "The workbench is ready. Connect with start-workbench, then run agy or pi."

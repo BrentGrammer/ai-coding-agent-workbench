@@ -18,6 +18,17 @@ case ":$PATH:" in
   *) export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH" ;;
 esac
 
+umask 002
+
+if [ "$(id -un)" = "agent" ]; then
+  export HTTP_PROXY="http://127.0.0.1:8888"
+  export HTTPS_PROXY="http://127.0.0.1:8888"
+  export http_proxy="http://127.0.0.1:8888"
+  export https_proxy="http://127.0.0.1:8888"
+  export NO_PROXY="127.0.0.1,localhost"
+  export no_proxy="127.0.0.1,localhost"
+fi
+
 # Interactive login shells only.
 case $- in
   *i*)

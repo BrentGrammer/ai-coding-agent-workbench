@@ -4,6 +4,13 @@
 # and no reboot.
 set -euo pipefail
 
+# Pinned artifact versions and verification hashes.
+AWS_CLI_GPG_KEY_ID="A6310ACC4672475C"
+AWS_CLI_GPG_FINGERPRINT="FB5D B77F D5C1 18B8 0511  ADA8 A631 0ACC 4672 475C"
+
+OLLAMA_VERSION="0.33.3"
+OLLAMA_SHA256="c13cea8f3389db4145f8a6cb88d1747242a48639d7c13e3bda7c1ebdc6eebb2f"
+
 LLM_MODEL_DIR=/usr/share/ollama/.ollama/models
 # Cloud-init sets no HOME, and the Ollama CLI panics reading $HOME/.ollama.
 export OLLAMA_MODELS="$LLM_MODEL_DIR"
@@ -44,19 +51,57 @@ apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
+  gnupg \
   iproute2 \
   jq \
   python3 \
-  unzip
+  unzip \
+  zstd
 
 echo "== AWS CLI"
 if ! command -v aws >/dev/null 2>&1; then
   aws_tmp="$(mktemp -d)"
   curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$aws_tmp/awscli.zip"
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip.sig" -o "$aws_tmp/awscli.zip.sig"
+
+  gpg --import <<'GPGKEY'
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBF2Cr7UBEADJZHcgusOJl7ENSyumXh85z0TRV0xJorM2B/JL0kHOyigQluUG
+ZMLhENaG0bYatdrKP+3H91lvK050pXwnO/R7fB/FSTouki4ciIx5OuLlnJZIxSzx
+PqGl0mkxImLNbGWoi6Lto0LYxqHN2iQtzlwTVmq9733zd3XfcXrZ3+LblHAgEt5G
+TfNxEKJ8soPLyWmwDH6HWCnjZ/aIQRBTIQ05uVeEoYxSh6wOai7ss/KveoSNBbYz
+gbdzoqI2Y8cgH2nbfgp3DSasaLZEdCSsIsK1u05CinE7k2qZ7KgKAUIcT/cR/grk
+C6VwsnDU0OUCideXcQ8WeHutqvgZH1JgKDbznoIzeQHJD238GEu+eKhRHcz8/jeG
+94zkcgJOz3KbZGYMiTh277Fvj9zzvZsbMBCedV1BTg3TqgvdX4bdkhf5cH+7NtWO
+lrFj6UwAsGukBTAOxC0l/dnSmZhJ7Z1KmEWilro/gOrjtOxqRQutlIqG22TaqoPG
+fYVN+en3Zwbt97kcgZDwqbuykNt64oZWc4XKCa3mprEGC3IbJTBFqglXmZ7l9ywG
+EEUJYOlb2XrSuPWml39beWdKM8kzr1OjnlOm6+lpTRCBfo0wa9F8YZRhHPAkwKkX
+XDeOGpWRj4ohOx0d2GWkyV5xyN14p2tQOCdOODmz80yUTgRpPVQUtOEhXQARAQAB
+tCFBV1MgQ0xJIFRlYW0gPGF3cy1jbGlAYW1hem9uLmNvbT6JAlQEEwEIAD4CGwMF
+CwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQT7Xbd/1cEYuAURraimMQrMRnJHXAUC
+akV0ygUJDqP4lQAKCRCmMQrMRnJHXFHjD/9eyZLYcKuQOlLvtqSDtUBiEZf6ZZjM
+i3ygYH8rJNtuToUH+HvSpe819urJCquXhDrlK6N+aqW0hCLtNABJG/vsafIgvIYJ
+hSGgpgtNnQyMV1jViRWqPjbouw8OkYKBThUfT1i2Y+wn58ifs6ODBCmTexWtXspA
+Si+Gt49xDOW0APmbOPnI+a4HJW6tVEo6MWS0WjzpiBayR3d1A4pt4YrPfSdDgpLo
+h2SLQqlRqvvVZJaWBjhkErNFpfsBA06sDcPEOb0G8LBUbR4WOcdvhe5LubJbZuxC
+AG9kNPCVeQP1ixwjgjXKysaxeQ6rv0VzIQgRp6tLVLWhy6AKDNvLjFSsmXZ1Wl08
+Y/RlOHXlzLuQMRE6sR1wOdRxc9TsrNWTGiBK65cvSWOy03JeBkQQ8pesqltiyxI9
+U21kkgiXtTSKNGfKK8pO27D81YANhRqPK7iTp6kuFiY2WtOg90KTMNlIT+Ff85Y2
+b1rHj6Z0SrCkJujhWk3IBPic/wJgz01LEc/OAdUPlby90RJZcIBhSlWhT7mXnXIO
+c0HWlNQrns2s3CTyYwZSiSlYe9ApeLwhjDo8NhbFuCAy61l6O5UsR4AfZxx/rGKv
+2wFb1/RN/P4gNe6vmxZAPjR0AQcwD3tc2McimOLr/22kmPz8IH3I0X7WoSFr0Biz
+E91G7bb0hOb/cA==
+=knv7
+-----END PGP PUBLIC KEY BLOCK-----
+GPGKEY
+
+  gpg --verify "$aws_tmp/awscli.zip.sig" "$aws_tmp/awscli.zip"
   unzip -q "$aws_tmp/awscli.zip" -d "$aws_tmp"
-  "$aws_tmp/aws/install"
+  "$aws_tmp/aws/install" --update
   rm -rf "$aws_tmp"
 fi
+aws --version
 
 echo "== NVIDIA driver"
 if ! nvidia-smi >/dev/null 2>&1; then
@@ -65,8 +110,40 @@ if ! nvidia-smi >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "== Ollama"
-command -v ollama >/dev/null 2>&1 || curl -fsSL https://ollama.com/install.sh | sh
+echo "== Ollama $OLLAMA_VERSION"
+if ! command -v ollama >/dev/null 2>&1; then
+  ollama_tmp="$(mktemp -d)"
+  curl -fsSL "https://ollama.com/download/ollama-linux-amd64.tar.zst?version=${OLLAMA_VERSION}" -o "$ollama_tmp/ollama.tar.zst"
+  echo "$OLLAMA_SHA256  $ollama_tmp/ollama.tar.zst" | sha256sum -c -
+  tar -xf "$ollama_tmp/ollama.tar.zst" -C /usr
+  rm -rf "$ollama_tmp"
+
+  if ! id ollama >/dev/null 2>&1; then
+    useradd -r -s /bin/false -U -m -d /usr/share/ollama ollama
+  fi
+  if getent group render >/dev/null 2>&1; then
+    usermod -a -G render ollama
+  fi
+  if getent group video >/dev/null 2>&1; then
+    usermod -a -G video ollama
+  fi
+
+  cat > /etc/systemd/system/ollama.service <<'EOF'
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ollama serve
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+EOF
+fi
 install -d -m 755 /etc/systemd/system/ollama.service.d
 # q8_0 halves what the context costs in KV cache but can cost quality at long
 # context. It is required on the 24 GB card; use f16 on a 48 GB one.
