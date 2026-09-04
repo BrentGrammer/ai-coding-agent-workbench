@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import * as cdk from "aws-cdk-lib/core";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { Template } from "aws-cdk-lib/assertions";
 import { WorkbenchLlmStack } from "../lib/workbench-llm-stack";
 
@@ -58,9 +59,16 @@ function synthesize(extraContext: Record<string, unknown> = {}): Template {
     env: { account, region },
   });
   const cacheBucket = new s3.Bucket(cacheStack, "CacheBucket");
+  const vpc = ec2.Vpc.fromLookup(cacheStack, "Vpc", { isDefault: true });
+  const workbenchSecurityGroup = new ec2.SecurityGroup(
+    cacheStack,
+    "WorkbenchSecurityGroup",
+    { vpc },
+  );
   const stack = new WorkbenchLlmStack(app, "Llm", {
     env: { account, region },
     cacheBucket,
+    workbenchSecurityGroup,
   });
   return Template.fromStack(stack);
 }
@@ -82,6 +90,8 @@ function launchTemplateData(template: Template): {
 
 const defaultTemplate = synthesize();
 const spotFleet = fleetProperties(defaultTemplate);
+assert.match(JSON.stringify(defaultTemplate.toJSON()), /11435/);
+assert.match(JSON.stringify(defaultTemplate.toJSON()), /SourceSecurityGroupId/);
 
 assert.equal(spotFleet.Type, "instant");
 assert.equal(
@@ -116,7 +126,7 @@ assert.equal(onDemandInstance.AvailabilityZone, undefined);
 // template must carry because the instance resource sets none.
 assert.match(
   JSON.stringify(launchTemplateData(onDemandTemplate)),
-  /agent-workbench-gpu-llm/,
+  /aws-native-agent-workbench-gpu-llm/,
 );
 
 assert.throws(
@@ -160,4 +170,3 @@ console.log(
   "workbench LLM stack supports Spot and On-Demand capacity, and a " +
     "configurable instance type, context length, and KV cache type",
 );
-

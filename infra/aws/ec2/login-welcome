@@ -1,8 +1,7 @@
 ------ Weclome to the A.I. Assisted Cloud Workbench ------
 
-Clone repos under ~/workspace (https clone only), then start Herdr:
+Clone repos under ~/workspace (https clone only), then start an agent:
 
   cd ~/workspace/<your-repo>
-  start-herdr [claude|codex|opencode|cursor|devin|pi]
-
-
+  agy
+  pi

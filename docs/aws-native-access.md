@@ -1,87 +1,58 @@
-# AWS-native access (no Tailscale)
+# AWS-native access
 
-Plan for this branch. Replaces the Tailscale path with AWS-native networking. Nothing here is built yet.
+This repository uses AWS-native networking only.
 
-Related: [issue #33](https://github.com/BrentGrammer/ai-coding-agent-workbench/issues/33).
-
-## Goal
-
-Laptop connects to the **dev box**. From there, run agents on the dev box, and optionally the GPU box for Qwen 3.8 27B. Tailscale is removed from this branch entirely. No extra bastion host.
-
-```
+```text
 laptop --(SSM or CIDR-locked SSH)--> dev box --(VPC, port 11435)--> GPU box
 ```
 
-## How you connect
+## Isolation from the existing deployment
 
-Two ways in, both to the dev box. Default is SSM. SSH is opt-in.
+This branch creates only `AwsNativeWorkbench*` CloudFormation stacks. It uses unique instance tags, hostnames, Parameter Store paths, IAM roles, Lambda functions, security groups, and an S3 model cache. Its CLI searches for and destroys only those new names.
 
-### 1. SSM Session Manager (default)
+The AWS account's CDK bootstrap resources and default VPC are reused without modifying existing workbench resources. The new stacks create their own security groups inside that VPC. For a separate stack-owned SSH key pair, use `sshPublicKey`; `sshKeyName` intentionally references an existing key pair.
 
-No inbound ports. IAM is the lock. Sessions go to CloudTrail.
+## Dev box access
 
-```
+SSM Session Manager is the default. It requires no inbound port and starts an Ubuntu login shell:
+
+```shell
 start-workbench
-# same as: workbench ec2 up && workbench ec2 ssm
 ```
 
-Needs the Session Manager plugin on the laptop (`brew install --cask session-manager-plugin`). Mosh does not work over SSM (no UDP), so this is an SSM shell, not mosh.
+Optional SSH opens port 22 only to the `sshCidr` supplied during deployment. It also requires exactly one of `sshKeyName` or `sshPublicKey`.
 
-Session Manager starts as `ssm-user`. Setup should land that session in ubuntu's home, where the agents live.
-
-### 2. SSH from your IP (optional, no bastion)
-
-A dedicated bastion is extra machinery for the same hop. Open port 22 on the **dev box** to one CIDR instead.
-
-Deploy with both:
-
-- `sshCidr` — e.g. `203.0.113.4/32`
-- `sshKeyName` (an EC2 key pair) or `sshPublicKey` (contents of `~/.ssh/id_ed25519.pub`)
-
-Then `workbench ec2 ssh` uses the public IP. Home IPs change; SSM does not care. If `sshCidr` is unset, port 22 stays closed.
+There is no bastion host, overlay network, or UDP-based shell.
 
 ## GPU box
 
-Unchanged except the network path: zero inbound from the internet, inference proxy on 11435, model cache, idle stop, teardown.
+The GPU box has no public ingress. Its security group accepts port `11435` only from the dev box security group. The dev box discovers the running GPU instance by its `aws-native-agent-workbench-gpu-llm` tag and uses its private IP.
 
-The workbench security group may reach the GPU security group on **11435 only**. Agents on the dev box call the GPU box by **private IP** (looked up from the `agent-workbench-gpu-llm` tag), not MagicDNS.
+GPU deployment and readiness checks run from the laptop. Readiness is checked through SSM against `127.0.0.1:11435` on the GPU instance.
 
-`--gpu-box` runs **on the workbench**, over the VPC. From a laptop it should fail with a short message to connect first.
+`start-pi --gpu-box` runs on the dev box. It discovers the GPU private IP and configures Pi for that endpoint.
 
-`workbench llm up` still deploys from the laptop. Readiness wait should probe the GPU box over SSM (`curl` to `127.0.0.1:11435` on the instance), not from the laptop's network.
+## Agents
 
-## What to remove
+The only installed agent CLIs are:
 
-Tailscale everywhere: install and `tailscale up` on both boxes, Parameter Store auth keys, IAM `ssm:GetParameter` for those keys, MagicDNS / `tailscale status` discovery, `sync-host`, mosh as the default connect, tailnet checks in idle-stop, and the Tailscale sections in docs.
+- Antigravity CLI (`agy`)
+- Pi (`pi`)
 
-Idle-stop keeps counting SSM sessions (and real SSH on 22) as in use.
+## Implemented changes
 
-## DigitalOcean GPU
+- Removed the DigitalOcean Terraform, droplet lifecycle, cache, CLI provider, and documentation.
+- Removed Tailscale, MagicDNS, mosh, and their Parameter Store and IAM setup.
+- Made SSM the default dev-box connection and moved updates to SSM.
+- Added optional port 22 ingress from one configured CIDR with an existing EC2 key pair or supplied OpenSSH public key.
+- Limited GPU ingress to port `11435` from the dev box security group.
+- Changed GPU readiness checks to run over SSM on the GPU instance.
+- Added `start-pi --gpu-box` on the dev box, using tag-based private-IP discovery.
+- Removed every agent launcher, configuration, and dev-box install except Antigravity CLI and Pi.
+- Removed Herdr and its runtime files.
+- Added new `AwsNativeWorkbench*` stack names and `aws-native-agent-workbench-*` instance tags so this deployment cannot update, stop, or destroy the existing workbench resources.
+- The new token Lambda reuses the existing GitHub App parameters read-only. All deployable resources, IAM roles, security groups, GPU cache, and instances are owned only by the new stacks.
 
-This branch does not use Tailscale, so the DO path cannot join a tailnet either. Open SSH on the droplet firewall (key is already registered). Keep 11435 off the public internet. The AWS workbench cannot reach a DO GPU over VPC; `--gpu-box` from the workbench is the AWS GPU box.
+Existing resources from the removed cloud provider are not destroyed by this repository change. Delete them in that provider before switching branches if any are still running or billing.
 
-## Stack changes (sketch)
-
-**Workbench CDK**
-
-- Drop Tailscale key IAM.
-- Allow `ec2:DescribeInstances` so the box can find the GPU private IP.
-- Export the workbench security group id.
-- If `sshCidr` is set, ingress TCP 22 from that CIDR, and install the SSH key. Synth should fail if CIDR is set without a key.
-
-**GPU CDK**
-
-- Drop Tailscale key IAM.
-- Ingress TCP 11435 from the imported workbench security group.
-
-**CLI**
-
-- `start-workbench` → SSM.
-- `workbench ec2 ssm` / `workbench ec2 ssh`.
-- Drop `mosh` and `sync-host`.
-- `workbench ec2 update` via SSM, not Tailscale SSH.
-- `wait_llm_ready` via SSM on the GPU instance.
-
-**Launchers**
-
-- Replace Tailscale IP lookup with the GPU instance private IP when running on the workbench.
+Rebuild an existing dev box to remove agent binaries installed by the previous setup.

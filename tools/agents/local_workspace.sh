@@ -156,5 +156,5 @@ runSandboxHarness() {
     after_sandbox_install
   fi
   sbx exec -it -w "$WORKSPACE_ROOT_DIR" "$SANDBOX_NAME" \
-    bash -lc "export PATH=\"\$HOME/.local/bin:\$HOME/.local/npm/bin:\$HOME/.grok/bin:\$HOME/.antigravity/bin:\$PATH\"; exec $harness_command"
+    bash -lc "export PATH=\"\$HOME/.local/bin:\$HOME/.local/npm/bin:\$HOME/.antigravity/bin:\$PATH\"; exec $harness_command"
 }

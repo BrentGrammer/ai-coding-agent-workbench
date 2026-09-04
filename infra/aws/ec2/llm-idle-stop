@@ -24,12 +24,6 @@ model_is_in_use() {
     return 0
   fi
 
-  # Someone is on the box by hand. Tailscale carries both ssh and mosh.
-  if tailscale status --json 2>/dev/null |
-    jq -e '[.Peer[]? | select(.Active)] | length > 0' >/dev/null; then
-    return 0
-  fi
-
   if pgrep -f ssm-session-worker >/dev/null 2>&1; then
     return 0
   fi
@@ -49,4 +43,3 @@ if [ "$idle_count" -ge "$IDLE_CHECK_LIMIT" ]; then
   echo "Nothing used the model for $idle_count checks. Terminating the box."
   systemctl poweroff
 fi
-

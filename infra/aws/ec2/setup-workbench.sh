@@ -4,10 +4,6 @@
 set -euo pipefail
 
 NODE_MAJOR=24
-HERDR_VERSION=0.8.2
-CLAUDE_CODE_VERSION=2.1.259
-CODEX_VERSION=0.153.2
-OPENCODE_VERSION=1.18.27
 PI_VERSION=0.84.4
 
 WORKBENCH_USER=ubuntu
@@ -25,25 +21,22 @@ fi
 install -d -m 755 /etc/agent-workbench
 touch /etc/agent-workbench/workbench.env
 chmod 644 /etc/agent-workbench/workbench.env
-grep -q '^LOCAL_LLM_BASE_URL=' /etc/agent-workbench/workbench.env ||
-  echo 'LOCAL_LLM_BASE_URL=http://agent-llm:11435/v1' >> /etc/agent-workbench/workbench.env
 grep -q '^LOCAL_LLM_MODEL=' /etc/agent-workbench/workbench.env ||
   echo 'LOCAL_LLM_MODEL=qwen3.8:27b' >> /etc/agent-workbench/workbench.env
+grep -q '^WORKBENCH_INSTANCE=' /etc/agent-workbench/workbench.env ||
+  echo 'WORKBENCH_INSTANCE=true' >> /etc/agent-workbench/workbench.env
 
 export DEBIAN_FRONTEND=noninteractive
 
 echo "== System packages"
 apt-get update
 apt-get install -y --no-install-recommends \
-  bubblewrap \
   ca-certificates \
   curl \
   git \
   jq \
   less \
-  mosh \
   ncurses-term \
-  socat \
   unattended-upgrades \
   unzip
 
@@ -51,15 +44,6 @@ cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
-
-echo "== Docker"
-apt-get install -y --no-install-recommends docker.io docker-compose-v2
-usermod -aG docker "$WORKBENCH_USER"
-systemctl enable --now docker
-
-echo "== AppArmor profile for bwrap"
-install -m 644 "$REPO_DIR/infra/aws/ec2/apparmor-bwrap" /etc/apparmor.d/bwrap
-apparmor_parser --replace /etc/apparmor.d/bwrap
 
 echo "== Node $NODE_MAJOR"
 if ! command -v node >/dev/null 2>&1 ||
@@ -77,61 +61,16 @@ if ! command -v aws >/dev/null 2>&1; then
   rm -rf "$aws_tmp"
 fi
 
-echo "== Tailscale"
-command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh
-systemctl enable --now tailscaled
-if ! tailscale status >/dev/null 2>&1; then
-  [ -f /etc/agent-workbench/workbench.env ] && . /etc/agent-workbench/workbench.env
-  tailscale_auth_key="$(aws ssm get-parameter \
-    --region "${AWS_REGION:-}" \
-    --name /coding-agent-workbench/tailscale/auth-key \
-    --with-decryption \
-    --query Parameter.Value \
-    --output text 2>/dev/null || true)"
-  if [ -n "$tailscale_auth_key" ]; then
-    tailscale up --ssh --hostname agent-workbench --auth-key "$tailscale_auth_key" ||
-      echo "WARN: Tailscale did not accept the stored auth key. Join by hand: sudo tailscale up --ssh" >&2
-  else
-    echo "WARN: No auth key at /coding-agent-workbench/tailscale/auth-key. Join by hand: sudo tailscale up --ssh" >&2
-  fi
-  unset tailscale_auth_key
-fi
-
-echo "== Herdr $HERDR_VERSION"
-if ! /usr/local/bin/herdr --version 2>/dev/null | grep -q "$HERDR_VERSION"; then
-  herdr_tmp="$(mktemp /usr/local/bin/herdr.XXXXXX)"
-  trap 'rm -f "$herdr_tmp"' EXIT
-  curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v${HERDR_VERSION}/herdr-linux-aarch64" -o "$herdr_tmp"
-  chmod 755 "$herdr_tmp"
-  "$herdr_tmp" --version | grep -q "$HERDR_VERSION"
-  mv -f "$herdr_tmp" /usr/local/bin/herdr
-  trap - EXIT
-  /usr/local/bin/herdr --version
-fi
-
 echo "== Workbench files"
-install -d -m 755 /etc/agent-workbench /etc/claude-code /usr/local/libexec /usr/local/lib/agent-workbench
-rm -f /usr/local/bin/herdr-pane
-
-install -m 755 "$REPO_DIR/runtime/herdr-session" /usr/local/bin/herdr-session
-install -m 755 "$REPO_DIR/runtime/workbench-pane-shell" /usr/local/bin/workbench-pane-shell
-install -m 755 "$REPO_DIR/runtime/deny-protected-file-reads" /usr/local/bin/deny-protected-file-reads
-install -m 644 "$REPO_DIR/runtime/herdr-config.toml" /etc/agent-workbench/herdr-config.toml
+install -d -m 755 /etc/agent-workbench /usr/local/lib/agent-workbench
 
 install -m 755 "$REPO_DIR/infra/aws/runtime/git-credential-github-app.mjs" /usr/local/bin/git-credential-github-app
-install -m 755 "$REPO_DIR/infra/aws/runtime/socat-ipv4" /usr/local/libexec/socat-ipv4
 install -m 644 "$REPO_DIR/infra/aws/runtime/github-token-relay.mjs" /usr/local/lib/agent-workbench/github-token-relay.mjs
 install -m 644 "$REPO_DIR/infra/aws/runtime/github-app-token-client.mjs" /usr/local/lib/agent-workbench/github-app-token-client.mjs
 install -m 644 "$REPO_DIR/infra/aws/ec2/github-token-relay-service.mjs" /usr/local/lib/agent-workbench/github-token-relay-service.mjs
 
-install -m 644 "$REPO_DIR/tools/agents/local_llm.sh" /usr/local/lib/agent-workbench/local_llm.sh
-install -m 755 "$REPO_DIR/infra/aws/ec2/start-herdr" /usr/local/bin/start-herdr
-rm -f /usr/local/bin/workbench-open
 install -m 755 "$REPO_DIR/infra/aws/ec2/workbench-idle-stop" /usr/local/bin/workbench-idle-stop
-
-install -m 644 "$REPO_DIR/tools/agents/config/claude/settings.json" /etc/claude-code/managed-settings.json
-install -m 644 "$REPO_DIR/tools/agents/config/codex/config.toml" /etc/agent-workbench/codex-config.toml
-install -m 644 "$REPO_DIR/tools/agents/config/cursor/cli-config.json" /etc/agent-workbench/cursor-cli-config.json
+ln -sfn /opt/agent-workbench/bin/start-pi /usr/local/bin/start-pi
 
 install -m 644 "$REPO_DIR/infra/aws/ec2/agent-workbench-profile.sh" /etc/profile.d/agent-workbench.sh
 install -m 644 "$REPO_DIR/infra/aws/ec2/login-welcome" /etc/agent-workbench/login-welcome
@@ -157,9 +96,6 @@ systemctl start workbench-idle-stop.timer
 echo "== Agent CLIs for $WORKBENCH_USER"
 sudo -u "$WORKBENCH_USER" -H \
   env REPO_DIR="$REPO_DIR" \
-  CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
-  CODEX_VERSION="$CODEX_VERSION" \
-  OPENCODE_VERSION="$OPENCODE_VERSION" \
   PI_VERSION="$PI_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
@@ -168,50 +104,19 @@ export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH"
 mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 
-# The npm prefix is user-owned so the agents can update themselves later.
-npm install -g --ignore-scripts \
-  "@openai/codex@${CODEX_VERSION}" \
-  "opencode-ai@${OPENCODE_VERSION}" \
-  "@earendil-works/pi-coding-agent@${PI_VERSION}"
-
-# Claude Code needs its install scripts to run so that `claude update` works.
-# Override the .npmrc ignore-scripts policy for this package only.
-npm install -g --ignore-scripts=false "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
-(cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
-claude --version
-codex --version
-opencode --version
+# The npm prefix is user-owned so Pi can update itself later.
+npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}"
 pi --version
 
-command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
-
-# The Devin installer ends with an interactive login, which needs a TTY. Skip it
-# here; sign-in happens the first time the harness runs.
-if ! command -v devin >/dev/null 2>&1; then
-  devin_installer="$(mktemp)"
-  curl -fsSL https://cli.devin.ai/install.sh -o "$devin_installer"
-  bash "$devin_installer" </dev/null || true
-  rm -f "$devin_installer"
+if ! command -v agy >/dev/null 2>&1; then
+  curl -fsSL https://antigravity.google/cli/install.sh | bash
 fi
-command -v devin >/dev/null 2>&1 || { echo "ERROR: The Devin CLI did not install." >&2; exit 1; }
+agy --version
 
 git config --global credential.helper /usr/local/bin/git-credential-github-app
 git config --global credential.useHttpPath true
 
-mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config/opencode" "$HOME/.cursor" "$HOME/.pi/agent/extensions"
-
-install -m 600 /etc/agent-workbench/codex-config.toml "$HOME/.codex/config.toml"
-install -m 600 /etc/agent-workbench/cursor-cli-config.json "$HOME/.cursor/cli-config.json"
-
-# Global scope on purpose, not managed scope, so the user can change the
-# model (audit finding #5). Seed once and never overwrite.
-if [ ! -f "$HOME/.config/opencode/opencode.json" ]; then
-  install -m 600 "$REPO_DIR/tools/agents/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
-fi
-
-for agent_name in claude codex opencode cursor devin pi; do
-  herdr integration install "$agent_name"
-done
+mkdir -p "$HOME/.pi/agent"
 
 if ! git config --global user.name >/dev/null 2>&1 ||
    ! git config --global user.email >/dev/null 2>&1; then
@@ -221,16 +126,5 @@ if ! git config --global user.name >/dev/null 2>&1 ||
 fi
 USER_SETUP
 
-optional_setup="$REPO_DIR/tools/agents/setup_ec2_optional.sh"
-if [ -f "$optional_setup" ]; then
-  echo "== Optional tools and skills for $WORKBENCH_USER"
-  sudo -u "$WORKBENCH_USER" -H \
-    env REPO_DIR="$REPO_DIR" \
-    bash "$optional_setup"
-fi
-
 echo "== Done"
-if ! tailscale status >/dev/null 2>&1; then
-  echo "NOTE: Tailscale is not connected yet. Run once: sudo tailscale up --ssh"
-fi
-echo "The workbench is ready. Run start-workbench which connects, cd into a repo under ~/workspace, then run: start-herdr [agent]"
+echo "The workbench is ready. Connect with start-workbench, then run agy or pi."

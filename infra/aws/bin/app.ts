@@ -7,18 +7,18 @@ import { WorkbenchTokenStack } from "../lib/workbench-token-stack";
 
 const app = new cdk.App();
 
-cdk.Tags.of(app).add("app", "agent-workbench");
+cdk.Tags.of(app).add("app", "aws-native-agent-workbench");
 
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT,
   region: process.env.CDK_DEFAULT_REGION,
 };
 
-const tokenStack = new WorkbenchTokenStack(app, "AgentWorkbenchTokenStack", {
+const tokenStack = new WorkbenchTokenStack(app, "AwsNativeWorkbenchTokenStack", {
   env,
   description: "GitHub App token Lambda for the coding-agent workbench.",
 });
-new WorkbenchEc2Stack(app, "AgentWorkbenchEc2Stack", {
+const workbenchStack = new WorkbenchEc2Stack(app, "AwsNativeWorkbenchEc2Stack", {
   env,
   description: "Persistent EC2 workbench instance for coding agents.",
   githubTokenFunction: tokenStack.githubTokenFunction,
@@ -26,15 +26,16 @@ new WorkbenchEc2Stack(app, "AgentWorkbenchEc2Stack", {
 
 const llmCacheStack = new WorkbenchLlmCacheStack(
   app,
-  "AgentWorkbenchLlmCacheStack",
+  "AwsNativeWorkbenchLlmCacheStack",
   {
     env,
     description: "S3 cache for workbench local-LLM model weights.",
   },
 );
 
-new WorkbenchLlmStack(app, "AgentWorkbenchLlmStack", {
+new WorkbenchLlmStack(app, "AwsNativeWorkbenchLlmStack", {
   env,
   description: "GPU instance that serves workbench local LLMs.",
   cacheBucket: llmCacheStack.bucket,
+  workbenchSecurityGroup: workbenchStack.securityGroup,
 });

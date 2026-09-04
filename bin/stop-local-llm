@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stops the host processes that `start-opencode --local-model` started.
+# Stops the host processes that `start-pi --local-model` started.
 set -euo pipefail
 
 STATE_DIR="$HOME/.local/state/agent-workbench"
@@ -8,7 +8,7 @@ usage() {
   cat <<'EOF'
 Usage: stop-local-llm
 
-Stops the Ollama server and the inference proxy that `start-opencode
+Stops the Ollama server and the inference proxy that `start-pi
 --local-model` started on this host, and removes their logs.
 
 It stops only processes this workbench started. An Ollama you run yourself,
@@ -45,4 +45,3 @@ stop_recorded_process() {
 
 stop_recorded_process "Inference proxy" llm-proxy ollama_inference_proxy.py
 stop_recorded_process "Ollama" ollama "ollama serve"
-

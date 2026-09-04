@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# Shared --local-model bootstrap for launchers. Source after local_workspace.sh
+# Shared --local-model bootstrap for Pi. Source after local_workspace.sh
 # (needs $WORKBENCH_ROOT) and set $SANDBOX_NAME before calling allow_local_llm_network.
 
 LOCAL_OLLAMA_PORT=11434
 LOCAL_PROXY_PORT=11435
-# The GPU box joins the tailnet under this name and serves LLM_MODEL from the
-# CDK stack. Set USE_GPU_BOX=true to target it instead of a local Ollama.
-GPU_BOX_HOST=agent-llm
 GPU_BOX_MODEL=qwen3.8:27b
 LOCAL_PROXY_BIND="${WORKBENCH_LLM_PROXY_BIND:-127.0.0.1}"
 LOCAL_LLM_STATE_DIR="$HOME/.local/state/agent-workbench"
@@ -72,41 +69,6 @@ start_local_inference_proxy() {
   sleep 1
 }
 
-host_from_url() {
-  local rest="${1#*://}"
-  rest="${rest%%/*}"
-  echo "${rest%%:*}"
-}
-
-# The online node only. A dead node keeps the name until Tailscale reaps it,
-# so the live box joins as name-1 and the name itself times out.
-tailnet_ip() {
-  command -v tailscale >/dev/null 2>&1 || return 1
-  command -v jq >/dev/null 2>&1 || return 1
-  local ip
-  ip="$(tailscale status --json 2>/dev/null |
-    jq -r --arg name "$1" \
-      '[.Peer[]? | select(.Online and (.HostName == $name or (.HostName | test("^\($name)-[0-9]+$"))))][0].TailscaleIPs[0] // empty' \
-      2>/dev/null)" || return 1
-  [ -n "$ip" ] || return 1
-  echo "$ip"
-}
-
-# The Docker sandbox routes to the tailnet but cannot resolve MagicDNS names,
-# so swap a tailnet hostname for its address before the agent ever sees the URL.
-use_tailnet_address() {
-  local host ip
-  host="$(host_from_url "$LOCAL_LLM_BASE_URL")"
-  case "$host" in
-    "" | localhost | host.docker.internal) return 0 ;;
-    *[!0-9.]*) ;;
-    *) return 0 ;;
-  esac
-  ip="$(tailnet_ip "$host")" || return 0
-  LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL/$host/$ip}"
-  echo "Resolved $host to $ip on the tailnet."
-}
-
 defaultLocalLlmModelForHost() {
   local host_kernel_name
   local macos_kernel_name="Darwin"
@@ -125,7 +87,6 @@ defaultLocalLlmModelForHost() {
 }
 
 # Sets the local LLM configuration and starts host Ollama and its proxy.
-# On EC2, workbench.env points at the GPU box, so nothing local starts.
 resolve_local_llm() {
   if [ -f /etc/agent-workbench/workbench.env ]; then
     set -a
@@ -134,19 +95,32 @@ resolve_local_llm() {
     set +a
   fi
   if [ "${USE_GPU_BOX:-false}" = true ]; then
-    LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://$GPU_BOX_HOST:$LOCAL_PROXY_PORT/v1}"
+    if [ "${WORKBENCH_INSTANCE:-false}" != true ]; then
+      echo "ERROR: --gpu-box runs on the AWS workbench. Connect with start-workbench first." >&2
+      exit 1
+    fi
+    local gpu_ip
+    gpu_ip="$(aws ec2 describe-instances \
+      --region "$AWS_REGION" \
+      --filters \
+        'Name=tag:Name,Values=aws-native-agent-workbench-gpu-llm' \
+        'Name=instance-state-name,Values=running' \
+      --query 'Reservations[0].Instances[0].PrivateIpAddress' \
+      --output text)"
+    if [ -z "$gpu_ip" ] || [ "$gpu_ip" = "None" ]; then
+      echo "ERROR: No AWS GPU box is running. Run workbench llm up from your laptop first." >&2
+      exit 1
+    fi
+    LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://$gpu_ip:$LOCAL_PROXY_PORT/v1}"
     LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-$GPU_BOX_MODEL}"
   fi
   LOCAL_LLM_BASE_URL="${LOCAL_LLM_BASE_URL:-http://host.docker.internal:$LOCAL_PROXY_PORT/v1}"
   LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-$(defaultLocalLlmModelForHost)}"
-  LOCAL_LLM_CONTEXT_LENGTH="${LOCAL_LLM_CONTEXT_LENGTH:-${OLLAMA_CONTEXT_LENGTH:-131072}}"
   # none | low | medium | high
   LOCAL_LLM_REASONING_EFFORT="${LOCAL_LLM_REASONING_EFFORT:-medium}"
   if [[ "$LOCAL_LLM_BASE_URL" == *host.docker.internal* ]]; then
     start_local_ollama
     start_local_inference_proxy
-  else
-    use_tailnet_address
   fi
 }
 
@@ -155,29 +129,6 @@ require_jq() {
     echo "ERROR: jq is required for local-model configuration." >&2
     exit 1
   fi
-}
-
-# reasoningEffort may be dropped for custom providers (anomalyco/opencode#27361).
-opencode_local_model_config() {
-  require_jq
-  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
-     --arg effort "$LOCAL_LLM_REASONING_EFFORT" \
-    '{
-       model: ("local-llm/" + $model),
-       provider: {
-         "local-llm": {
-           npm: "@ai-sdk/openai-compatible",
-           name: "Local LLM",
-           options: { baseURL: $url, apiKey: "ollama" },
-           models: {
-             ($model): (
-               { name: $model }
-               + (if $effort == "" then {} else { options: { reasoningEffort: $effort } } end)
-             )
-           }
-         }
-       }
-     }'
 }
 
 pi_default_model_settings() {
@@ -190,55 +141,26 @@ pi_default_model_settings() {
      }'
 }
 
-kilo_local_model_config() {
+pi_models_config() {
   require_jq
   jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
-     --argjson context "$LOCAL_LLM_CONTEXT_LENGTH" \
-    '{
-       "$schema": "https://app.kilo.ai/config.json",
-       model: ("local-llm/" + $model),
-       provider: {
-         "local-llm": {
-           npm: "@ai-sdk/openai-compatible",
-           name: "Local LLM",
-           options: { baseURL: $url, apiKey: "ollama" },
-           models: {
-             ($model): {
-               name: $model,
-               tool_call: true,
-               limit: { context: $context, output: 32768 }
-             }
-           }
-         }
-       }
-     }'
+    '{providers:{"local-llm":{baseUrl:$url,api:"openai-completions",apiKey:"ollama",models:[{id:$model,reasoning:true,thinkingLevelMap:{off:"none",minimal:null,low:"low",medium:"medium",high:"high",xhigh:null,max:null},compat:{supportsReasoningEffort:true}}]}}}'
 }
 
-qwen_local_model_config() {
-  require_jq
-  jq -n --arg url "$LOCAL_LLM_BASE_URL" --arg model "$LOCAL_LLM_MODEL" \
-     --argjson context "$LOCAL_LLM_CONTEXT_LENGTH" \
-    '{
-       env: { OLLAMA_API_KEY: "ollama" },
-       security: { auth: { selectedType: "openai" } },
-       model: { name: $model },
-       modelProviders: {
-         openai: [ {
-           id: $model,
-           name: "Local LLM",
-           envKey: "OLLAMA_API_KEY",
-           baseUrl: $url,
-           generationConfig: {
-             timeout: 300000,
-             maxRetries: 1,
-             contextWindowSize: $context
-           }
-         } ]
-       }
-     }'
+merge_json_file() {
+  local fragment="$1" destination="$2"
+  local existing merged
+  existing="$(mktemp)"
+  merged="$(mktemp)"
+  if ! jq -e . "$destination" > "$existing" 2>/dev/null; then
+    echo '{}' > "$existing"
+  fi
+  jq -s '.[0] * .[1]' "$existing" "$fragment" > "$merged"
+  install -m 600 "$merged" "$destination"
+  rm -f "$existing" "$merged"
 }
 
-# Harnesses write their own state back to these files, so replacing one would
+# Pi writes its own state back to these files, so replacing one would
 # discard the model, permission and MCP choices made in the last session.
 merge_json_into_sandbox_file() {
   local fragment="$1" dest="$2"

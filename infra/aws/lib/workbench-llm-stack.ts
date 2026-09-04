@@ -18,10 +18,8 @@ const ON_DEMAND = "on-demand";
 // The AMI snapshot size. It leaves room for two models, since a single card
 // caps a usable model near its VRAM size.
 const DISK_GIB = 75;
-const INSTANCE_NAME = "agent-workbench-gpu-llm";
+const INSTANCE_NAME = "aws-native-agent-workbench-gpu-llm";
 export const LLM_MODEL = "qwen3.8:27b";
-const TAILSCALE_AUTH_KEY_PARAMETER =
-  "/coding-agent-workbench/tailscale/llm-auth-key";
 const DEFAULT_REPO_URL =
   "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
 // Ships the NVIDIA driver, so setup-llm.sh installs no driver and never
@@ -31,6 +29,7 @@ const DEFAULT_GPU_AMI_PARAMETER =
 
 export interface WorkbenchLlmStackProps extends cdk.StackProps {
   cacheBucket: s3.IBucket;
+  workbenchSecurityGroup: ec2.ISecurityGroup;
 }
 
 export class WorkbenchLlmStack extends cdk.Stack {
@@ -70,36 +69,29 @@ export class WorkbenchLlmStack extends cdk.Stack {
 
     const securityGroup = new ec2.SecurityGroup(this, "LlmSecurityGroup", {
       vpc,
-      description: "Agent LLM. No inbound; Tailscale and SSM go outbound.",
+      description: "Agent LLM. Inference is reachable only from the workbench.",
       allowAllOutbound: true,
     });
+    securityGroup.addIngressRule(
+      props.workbenchSecurityGroup,
+      ec2.Port.tcp(11435),
+      "Inference from the workbench",
+    );
 
     const role = new iam.Role(this, "LlmInstanceRole", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
       description:
-        "Lets the LLM instance use SSM, read the Tailscale key, and use the model cache bucket.",
+        "Lets the LLM instance use SSM and the model cache bucket.",
     });
     role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
-    );
-    role.addToPolicy(
-      new iam.PolicyStatement({
-        actions: ["ssm:GetParameter"],
-        resources: [
-          this.formatArn({
-            service: "ssm",
-            resource: "parameter",
-            resourceName: TAILSCALE_AUTH_KEY_PARAMETER.replace(/^\//, ""),
-          }),
-        ],
-      }),
     );
     props.cacheBucket.grantReadWrite(role);
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       "set -euo pipefail",
-      "hostnamectl set-hostname agent-llm",
+      "hostnamectl set-hostname aws-native-agent-llm",
       "mkdir -p /etc/agent-workbench",
       `printf 'AWS_REGION=%s\\nLLM_CACHE_BUCKET=%s\\nLLM_MODEL=%s\\nOLLAMA_CONTEXT_LENGTH=%s\\nOLLAMA_KV_CACHE_TYPE=%s\\n' '${this.region}' '${props.cacheBucket.bucketName}' '${LLM_MODEL}' '${contextLength}' '${kvCacheType}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
@@ -182,4 +174,3 @@ export class WorkbenchLlmStack extends cdk.Stack {
     }
   }
 }
-

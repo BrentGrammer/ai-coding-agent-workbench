@@ -1,5 +1,0 @@
-onboarding = false
-
-[terminal]
-default_shell = "/usr/local/bin/workbench-pane-shell"
-new_cwd = "follow"

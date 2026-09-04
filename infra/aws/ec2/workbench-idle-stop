@@ -15,12 +15,6 @@ if [ "$uptime_seconds" -lt "$BOOT_GRACE_SECONDS" ]; then
 fi
 
 client_is_connected() {
-  # Tailscale carries both ssh and mosh, so an active peer means a client.
-  if tailscale status --json 2>/dev/null |
-    jq -e '[.Peer[]? | select(.Active)] | length > 0' >/dev/null; then
-    return 0
-  fi
-
   if pgrep -f ssm-session-worker >/dev/null 2>&1; then
     return 0
   fi

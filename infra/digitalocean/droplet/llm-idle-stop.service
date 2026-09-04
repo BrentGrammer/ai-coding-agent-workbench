@@ -1,7 +1,0 @@
-[Unit]
-Description=Destroy the GPU droplet when nothing is using the model
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/llm-idle-stop
-

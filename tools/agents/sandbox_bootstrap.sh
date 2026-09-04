@@ -50,21 +50,6 @@ allow_standard_model_network() {
   done
 }
 
-install_bash_sandbox_runtime() {
-  sbx exec "$SANDBOX_NAME" bash -c '
-set -euo pipefail
-if ! command -v bwrap >/dev/null 2>&1 || ! command -v socat >/dev/null 2>&1; then
-  sudo apt-get update
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    bubblewrap socat
-fi
-if ! bwrap --ro-bind / / --dev /dev true 2>/dev/null; then
-  echo "ERROR: The Claude Code Bash sandbox cannot start." >&2
-  exit 1
-fi
-'
-}
-
 install_node_lts() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail

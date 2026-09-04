@@ -10,7 +10,6 @@ export OLLAMA_MODELS="$LLM_MODEL_DIR"
 LLM_PROXY_PORT=11435
 EC2_DIR=/opt/agent-workbench/infra/aws/ec2
 INFERENCE_PROXY_SCRIPT=/opt/agent-workbench/tools/llm/ollama_inference_proxy.py
-TAILSCALE_AUTH_KEY_PARAMETER=/coding-agent-workbench/tailscale/llm-auth-key
 SETUP_STATE_DIR=/var/lib/agent-workbench
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -59,25 +58,6 @@ if ! command -v aws >/dev/null 2>&1; then
   rm -rf "$aws_tmp"
 fi
 
-echo "== Tailscale"
-command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh
-systemctl enable --now tailscaled
-if ! tailscale status >/dev/null 2>&1; then
-  tailscale_auth_key="$(aws ssm get-parameter \
-    --region "$AWS_REGION" \
-    --name "$TAILSCALE_AUTH_KEY_PARAMETER" \
-    --with-decryption \
-    --query Parameter.Value \
-    --output text 2>/dev/null || true)"
-  if [ -n "$tailscale_auth_key" ]; then
-    tailscale up --ssh --hostname agent-llm --auth-key "$tailscale_auth_key" ||
-      echo "WARN: Tailscale did not accept the stored auth key. Join by hand: sudo tailscale up --ssh --hostname agent-llm" >&2
-  else
-    echo "WARN: No auth key at $TAILSCALE_AUTH_KEY_PARAMETER. Join by hand: sudo tailscale up --ssh --hostname agent-llm" >&2
-  fi
-  unset tailscale_auth_key
-fi
-
 echo "== NVIDIA driver"
 if ! nvidia-smi >/dev/null 2>&1; then
   echo "ERROR: nvidia-smi failed. This script expects a Deep Learning AMI," >&2
@@ -106,7 +86,7 @@ systemctl enable --now ollama
 systemctl restart ollama
 
 echo "== Inference-only proxy"
-# The tailnet reaches this proxy, not Ollama. The Ollama port also pulls,
+# The workbench reaches this proxy, not Ollama. The Ollama port also pulls,
 # creates, and deletes models, and a pull fetches from any registry host the
 # caller names.
 cat > /etc/systemd/system/llm-inference-proxy.service <<EOF
@@ -173,5 +153,4 @@ install -m 644 "$EC2_DIR/llm-idle-stop.timer" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now llm-idle-stop.timer
 
-echo "== Done. Serving $LLM_MODEL on http://agent-llm:$LLM_PROXY_PORT/v1"
-
+echo "== Done. Serving $LLM_MODEL on port $LLM_PROXY_PORT inside the VPC"

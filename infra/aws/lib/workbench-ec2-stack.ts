@@ -10,14 +10,11 @@ import { LLM_MODEL } from "./workbench-llm-stack";
 // Resizing is this one line plus a stop/start.
 const INSTANCE_TYPE = "t4g.large";
 const DISK_GIB = 30;
-const INSTANCE_NAME = "agent-workbench-ec2";
-const TAILSCALE_AUTH_KEY_PARAMETER = "/coding-agent-workbench/tailscale/auth-key";
+const INSTANCE_NAME = "aws-native-agent-workbench-ec2";
 // Cloned to /opt/agent-workbench on first boot to run the setup script.
 // Override with CDK context: -c repoUrl=https://github.com/you/fork.git
 const DEFAULT_REPO_URL =
   "https://github.com/BrentGrammer/ai-coding-agent-workbench.git";
-// The GPU box joins the tailnet as agent-llm. 11435 is its inference-only proxy.
-const LOCAL_LLM_BASE_URL = "http://agent-llm:11435/v1";
 const UBUNTU_2404_ARM64_AMI_PARAMETER =
   "/aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id";
 
@@ -25,20 +22,43 @@ export interface WorkbenchEc2StackProps extends cdk.StackProps {
   githubTokenFunction: lambda.IFunction;
 }
 export class WorkbenchEc2Stack extends cdk.Stack {
+  public readonly securityGroup: ec2.ISecurityGroup;
+
   constructor(scope: Construct, id: string, props: WorkbenchEc2StackProps) {
     super(scope, id, props);
 
     const repoUrl =
       (this.node.tryGetContext("repoUrl") as string) ?? DEFAULT_REPO_URL;
+    const sshCidr = this.node.tryGetContext("sshCidr") as string | undefined;
+    const sshKeyName = this.node.tryGetContext("sshKeyName") as
+      | string
+      | undefined;
+    const sshPublicKey = this.node.tryGetContext("sshPublicKey") as
+      | string
+      | undefined;
+
+    if (sshCidr && !sshKeyName && !sshPublicKey) {
+      throw new Error("sshCidr requires sshKeyName or sshPublicKey");
+    }
+    if (sshKeyName && sshPublicKey) {
+      throw new Error("Set only one of sshKeyName or sshPublicKey");
+    }
 
     const vpc = ec2.Vpc.fromLookup(this, "DefaultVpc", { isDefault: true });
 
-    // Zero inbound rules. Tailscale and SSM both connect outbound.
     const securityGroup = new ec2.SecurityGroup(this, "WorkbenchSecurityGroup", {
       vpc,
-      description: "Agent workbench. No inbound; Tailscale and SSM go outbound.",
+      description: "Agent workbench. SSM by default; optional CIDR-locked SSH.",
       allowAllOutbound: true,
     });
+    this.securityGroup = securityGroup;
+    if (sshCidr) {
+      securityGroup.addIngressRule(
+        ec2.Peer.ipv4(sshCidr),
+        ec2.Port.tcp(22),
+        "SSH from the configured client CIDR",
+      );
+    }
 
     const role = new iam.Role(this, "WorkbenchInstanceRole", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
@@ -51,25 +71,19 @@ export class WorkbenchEc2Stack extends cdk.Stack {
     props.githubTokenFunction.grantInvoke(role);
     role.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["ssm:GetParameter"],
-        resources: [
-          this.formatArn({
-            service: "ssm",
-            resource: "parameter",
-            resourceName: TAILSCALE_AUTH_KEY_PARAMETER.replace(/^\//, ""),
-          }),
-        ],
+        actions: ["ec2:DescribeInstances"],
+        resources: ["*"],
       }),
     );
 
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       "set -euo pipefail",
-      "hostnamectl set-hostname agent-workbench",
+      "hostnamectl set-hostname aws-native-workbench",
       "mkdir -p /etc/agent-workbench",
       // This truncates, so every key the box needs belongs here. The setup
       // script only tops up what is missing on an already-running box.
-      `printf 'AWS_REGION=%s\\nGITHUB_APP_TOKEN_FUNCTION_NAME=%s\\nLOCAL_LLM_BASE_URL=%s\\nLOCAL_LLM_MODEL=%s\\n' '${this.region}' '${props.githubTokenFunction.functionName}' '${LOCAL_LLM_BASE_URL}' '${LLM_MODEL}' > /etc/agent-workbench/workbench.env`,
+      `printf 'AWS_REGION=%s\\nGITHUB_APP_TOKEN_FUNCTION_NAME=%s\\nLOCAL_LLM_MODEL=%s\\nWORKBENCH_INSTANCE=true\\n' '${this.region}' '${props.githubTokenFunction.functionName}' '${LLM_MODEL}' > /etc/agent-workbench/workbench.env`,
       "chmod 644 /etc/agent-workbench/workbench.env",
       "export DEBIAN_FRONTEND=noninteractive",
       "apt-get update",
@@ -128,6 +142,23 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       launchTemplateId: imdsLaunchTemplate.ref,
       version: imdsLaunchTemplate.attrLatestVersionNumber,
     };
+
+    let effectiveKeyName = sshKeyName;
+    let generatedKey: ec2.CfnKeyPair | undefined;
+    if (sshPublicKey) {
+      generatedKey = new ec2.CfnKeyPair(this, "WorkbenchSshKey", {
+        keyName: `${this.stackName}-ssh`,
+        publicKeyMaterial: sshPublicKey,
+      });
+      effectiveKeyName = generatedKey.keyName;
+    }
+    if (effectiveKeyName) {
+      const cfnInstance = instance.node.defaultChild as ec2.CfnInstance;
+      cfnInstance.keyName = effectiveKeyName;
+      if (generatedKey) {
+        cfnInstance.addResourceDependency(generatedKey);
+      }
+    }
     cdk.Tags.of(instance).add("Name", INSTANCE_NAME);
 
     // Backstop in case the on-box idle-stop timer ever breaks.
@@ -151,5 +182,8 @@ export class WorkbenchEc2Stack extends cdk.Stack {
     );
 
     new cdk.CfnOutput(this, "InstanceId", { value: instance.instanceId });
+    new cdk.CfnOutput(this, "WorkbenchSecurityGroupId", {
+      value: securityGroup.securityGroupId,
+    });
   }
 }

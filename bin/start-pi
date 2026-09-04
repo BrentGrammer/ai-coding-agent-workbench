@@ -2,4 +2,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -f /etc/agent-workbench/workbench.env ] &&
+  grep -Fqx 'WORKBENCH_INSTANCE=true' /etc/agent-workbench/workbench.env; then
+  exec /opt/agent-workbench/tools/agents/start_pi.sh "$@"
+fi
+
 exec "$SCRIPT_DIR/../tools/agents/start_pi.sh" "$@"
