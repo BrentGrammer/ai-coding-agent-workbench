@@ -18,6 +18,10 @@ allow_pi_network() {
   allow_standard_model_network
   sbx policy allow network --sandbox "$SANDBOX_NAME" pi.dev:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" archive.ubuntu.com:80
+  sbx policy allow network --sandbox "$SANDBOX_NAME" security.ubuntu.com:80
+  sbx policy allow network --sandbox "$SANDBOX_NAME" download.docker.com:443
   if [ "$USE_LOCAL_MODEL" = true ]; then
     allow_local_llm_network
   fi
