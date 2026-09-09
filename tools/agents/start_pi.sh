@@ -22,6 +22,7 @@ allow_pi_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" archive.ubuntu.com:80
   sbx policy allow network --sandbox "$SANDBOX_NAME" security.ubuntu.com:80
   sbx policy allow network --sandbox "$SANDBOX_NAME" download.docker.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
   if [ "$USE_LOCAL_MODEL" = true ]; then
     allow_local_llm_network
   fi
@@ -30,7 +31,7 @@ allow_pi_network() {
 install_pi() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.84.2
+sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.1
 '
 
   merge_json_into_sandbox_file "$SCRIPT_DIR/config/pi/settings.json" /home/agent/.pi/agent/settings.json
