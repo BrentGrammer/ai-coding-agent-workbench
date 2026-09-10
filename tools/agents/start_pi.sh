@@ -49,7 +49,8 @@ sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.1
     merge_json_into_sandbox_file "$models_config" /home/agent/.pi/agent/models.json
     merge_json_into_sandbox_file "$settings_config" /home/agent/.pi/agent/settings.json
     rm -f "$models_config" "$settings_config"
-  fi
+  fi/login
+  
 }
 
 PI_COMMAND="$(cat <<'EOF'
@@ -69,6 +70,7 @@ clear_unused_sandbox_credential OPENAI_API_KEY SBX_CRED_OPENAI_MODE
 clear_unused_sandbox_credential OPENROUTER_API_KEY SBX_CRED_OPENROUTER_MODE
 clear_unused_sandbox_credential XAI_API_KEY SBX_CRED_XAI_MODE
 
+# The workbench-pi argument below becomes $0, bash -c's shell name for error info.
 exec pi "$@"
 ' workbench-pi
 EOF
