@@ -23,6 +23,10 @@ allow_pi_network() {
   sbx policy allow network --sandbox "$SANDBOX_NAME" security.ubuntu.com:80
   sbx policy allow network --sandbox "$SANDBOX_NAME" download.docker.com:443
   sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" auth.openai.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" chatgpt.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" files.openai.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" ab.chatgpt.com:443
   if [ "$USE_LOCAL_MODEL" = true ]; then
     allow_local_llm_network
   fi
@@ -78,4 +82,26 @@ EOF
 '
 }
 
-runSandboxHarness allow_pi_network install_pi true bash
+PI_COMMAND="$(cat <<'EOF'
+bash -c '
+clear_unused_sandbox_credential() {
+  local key_variable="$1"
+  local mode_variable="$2"
+
+  if [ "${!key_variable:-}" = "proxy-managed" ] && [ "${!mode_variable:-none}" = "none" ]; then
+    unset "$key_variable"
+  fi
+}
+
+clear_unused_sandbox_credential ANTHROPIC_API_KEY SBX_CRED_ANTHROPIC_MODE
+clear_unused_sandbox_credential MISTRAL_API_KEY SBX_CRED_MISTRAL_MODE
+clear_unused_sandbox_credential OPENAI_API_KEY SBX_CRED_OPENAI_MODE
+clear_unused_sandbox_credential OPENROUTER_API_KEY SBX_CRED_OPENROUTER_MODE
+clear_unused_sandbox_credential XAI_API_KEY SBX_CRED_XAI_MODE
+
+exec pi "$@"
+' workbench-pi
+EOF
+)"
+
+runSandboxHarness allow_pi_network install_pi true "$PI_COMMAND"
