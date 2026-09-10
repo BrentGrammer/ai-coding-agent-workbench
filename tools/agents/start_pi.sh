@@ -49,8 +49,7 @@ sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.1
     merge_json_into_sandbox_file "$models_config" /home/agent/.pi/agent/models.json
     merge_json_into_sandbox_file "$settings_config" /home/agent/.pi/agent/settings.json
     rm -f "$models_config" "$settings_config"
-  fi/login
-  
+  fi
 }
 
 PI_COMMAND="$(cat <<'EOF'
