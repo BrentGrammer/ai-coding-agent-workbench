@@ -69,7 +69,7 @@ clear_unused_sandbox_credential OPENAI_API_KEY SBX_CRED_OPENAI_MODE
 clear_unused_sandbox_credential OPENROUTER_API_KEY SBX_CRED_OPENROUTER_MODE
 clear_unused_sandbox_credential XAI_API_KEY SBX_CRED_XAI_MODE
 
-# The workbench-pi argument below becomes $0, bash -c's shell name for error info.
+# The workbench-pi argument below becomes $0, the shell name used in errors.
 exec pi "$@"
 ' workbench-pi
 EOF
