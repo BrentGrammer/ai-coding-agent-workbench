@@ -18,7 +18,7 @@ allow_codex_network() {
 install_codex() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g @openai/codex@0.153.2 --ignore-scripts
+sudo npm install -g @openai/codex@0.154.0 --ignore-scripts
 codex --version
 '
   install_file_into_sandbox "$SCRIPT_DIR/config/codex/config.toml" /home/agent/.codex/config.toml
