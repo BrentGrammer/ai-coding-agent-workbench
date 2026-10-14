@@ -37,4 +37,4 @@ muse --version
 '
 }
 
-runSandboxHarness allow_muse_network install_muse false muse
+runSandboxHarness allow_muse_network install_muse true muse
