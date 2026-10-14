@@ -198,6 +198,7 @@ qwen --version
 command -v agy >/dev/null 2>&1 || curl -fsSL https://antigravity.google/cli/install.sh | bash
 command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
 command -v grok >/dev/null 2>&1 || curl -fsSL https://x.ai/cli/install.sh | bash
+command -v muse >/dev/null 2>&1 || curl -fsSL https://dev.meta.ai/install.sh | bash
 
 # The Devin installer ends with an interactive login, which needs a TTY. Skip it
 # here; sign-in happens the first time the harness runs.
