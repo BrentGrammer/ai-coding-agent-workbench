@@ -57,6 +57,7 @@ start-devin
 start-grok
 start-junie
 start-kilo
+start-muse
 start-pi
 start-qwen
 ```
@@ -83,7 +84,7 @@ start-codex --clone /path/to/project
 
 The clone contains committed files only. Commit the work that the harness must see before you start it. A separate sandbox name prevents a cloned launch from reusing a live-mount sandbox.
 
-Use `--clone` for Cline, Cursor, Antigravity, Grok, Junie, Kilo, Pi, Qwen, and Command Code. Their own ignore rules are defense-in-depth, not a complete read barrier.
+Use `--clone` for Cline, Cursor, Antigravity, Grok, Junie, Kilo, Muse, Pi, Qwen, and Command Code. Their own ignore rules are defense-in-depth, not a complete read barrier.
 
 ### Remove old sandboxes
 
@@ -95,7 +96,7 @@ sbx rm $(sbx ls | awk '$3=="stopped"{print $1}')
 
 ## Cloud: AWS EC2 dev box
 
-The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr, four harnesses (Claude Code, Codex, Cursor, Devin, Pi and OpenCode), and all skills and tools by default.
+The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Tailscale with mosh. It installs Herdr and twelve harnesses: Antigravity, Claude Code, Cline, Codex, Cursor, Devin, Grok, Kilo, Muse, OpenCode, Pi, and Qwen and all skills and tools by default.
 
 ### Requirements
 
