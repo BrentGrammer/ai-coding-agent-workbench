@@ -20,7 +20,7 @@ fi
 
 case ":$PATH:" in
   *":$HOME/.local/npm/bin:"*) ;;
-  *) export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH" ;;
+  *) export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigravity/bin:$PATH" ;;
 esac
 
 # Interactive login shells only (ssh/mosh). Herdr panes are non-login and skip this.
