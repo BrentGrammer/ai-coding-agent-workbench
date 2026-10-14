@@ -35,7 +35,7 @@ allow_pi_network() {
 install_pi() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.1
+sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@1.0.4
 '
 
   if [ "$USE_LOCAL_MODEL" = true ]; then

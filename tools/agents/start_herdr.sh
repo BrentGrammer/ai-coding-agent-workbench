@@ -83,7 +83,7 @@ case "$(uname -m)" in
   *) echo "ERROR: Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
-curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v0.8.0/herdr-linux-${herdr_arch}" \
+curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v0.9.3/herdr-linux-${herdr_arch}" \
   -o "$HOME/.local/bin/herdr"
 chmod 755 "$HOME/.local/bin/herdr"
 
@@ -92,10 +92,10 @@ case '"$WORKBENCH_AGENT"' in
     command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash
     ;;
   codex)
-    npm install -g @openai/codex@0.154.0 --ignore-scripts
+    npm install -g @openai/codex@0.161.0 --ignore-scripts
     ;;
   opencode)
-    npm install -g opencode-ai@1.18.21 --ignore-scripts
+    npm install -g opencode-ai@1.18.35 --ignore-scripts
     (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
     ;;
   cursor)

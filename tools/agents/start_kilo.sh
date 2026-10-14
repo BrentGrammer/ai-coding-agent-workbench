@@ -38,7 +38,7 @@ set -euo pipefail
 export NPM_CONFIG_PREFIX="$HOME/.local"
 export PATH="$HOME/.local/bin:$PATH"
 mkdir -p "$HOME/.local/bin" "$HOME/.local/lib"
-npm install -g @kilocode/cli@7.4.22 --ignore-scripts
+npm install -g @kilocode/cli@7.8.8 --ignore-scripts
 grep -q "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null ||
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
 '
