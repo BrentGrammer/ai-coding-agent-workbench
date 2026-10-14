@@ -6,9 +6,12 @@ set -euo pipefail
 NODE_MAJOR=24
 HERDR_VERSION=0.8.2
 CLAUDE_CODE_VERSION=2.1.259
+CLINE_VERSION=3.0.55
 CODEX_VERSION=0.154.0
+KILO_VERSION=7.4.22
 OPENCODE_VERSION=1.18.27
 PI_VERSION=0.84.4
+QWEN_VERSION=0.21.14
 
 WORKBENCH_USER=ubuntu
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -158,32 +161,43 @@ echo "== Agent CLIs for $WORKBENCH_USER"
 sudo -u "$WORKBENCH_USER" -H \
   env REPO_DIR="$REPO_DIR" \
   CLAUDE_CODE_VERSION="$CLAUDE_CODE_VERSION" \
+  CLINE_VERSION="$CLINE_VERSION" \
   CODEX_VERSION="$CODEX_VERSION" \
+  KILO_VERSION="$KILO_VERSION" \
   OPENCODE_VERSION="$OPENCODE_VERSION" \
   PI_VERSION="$PI_VERSION" \
+  QWEN_VERSION="$QWEN_VERSION" \
   bash -s <<'USER_SETUP'
 set -euo pipefail
 
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
-export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigravity/bin:$PATH"
 mkdir -p "$HOME/.local/npm" "$HOME/.local/bin" "$HOME/workspace"
 
 # The npm prefix is user-owned so the agents can update themselves later.
-npm install -g --ignore-scripts \
+npm install -g --ignore-scripts --allow-git=none \
+  "cline@${CLINE_VERSION}" \
   "@openai/codex@${CODEX_VERSION}" \
+  "@kilocode/cli@${KILO_VERSION}" \
   "opencode-ai@${OPENCODE_VERSION}" \
-  "@earendil-works/pi-coding-agent@${PI_VERSION}"
+  "@earendil-works/pi-coding-agent@${PI_VERSION}" \
+  "@qwen-code/qwen-code@${QWEN_VERSION}"
 
 # Claude Code needs its install scripts to run so that `claude update` works.
 # Override the .npmrc ignore-scripts policy for this package only.
 npm install -g --ignore-scripts=false "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 (cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
 claude --version
+cline --version
 codex --version
+kilo --version
 opencode --version
 pi --version
+qwen --version
 
+command -v agy >/dev/null 2>&1 || curl -fsSL https://antigravity.google/cli/install.sh | bash
 command -v cursor-agent >/dev/null 2>&1 || curl -fsS https://cursor.com/install | bash
+command -v grok >/dev/null 2>&1 || curl -fsSL https://x.ai/cli/install.sh | bash
 
 # The Devin installer ends with an interactive login, which needs a TTY. Skip it
 # here; sign-in happens the first time the harness runs.
