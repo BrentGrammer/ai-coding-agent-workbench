@@ -6,9 +6,9 @@ NPM_AXI_VERSION=0.1.1
 SKILLS_CLI_VERSION=1.5.23
 
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
-export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigravity/bin:$PATH"
 
-mkdir -p "$HOME/.agents/skills" "$HOME/.config/opencode" "$HOME/.cursor"
+mkdir -p "$HOME/.agents/skills" "$HOME/.config/muse" "$HOME/.config/opencode" "$HOME/.cursor"
 
 npm install -g --ignore-scripts \
   "gh-axi@${GH_AXI_VERSION}" \
@@ -37,6 +37,29 @@ if [ -f "$HOME/.config/opencode/opencode.json" ] &&
     "$HOME/.config/opencode/opencode.json" > "$tmp_json"
   mv "$tmp_json" "$HOME/.config/opencode/opencode.json"
   chmod 600 "$HOME/.config/opencode/opencode.json"
+fi
+
+if [ ! -f "$HOME/.config/muse/settings.json" ]; then
+  cat > "$HOME/.config/muse/settings.json" <<'EOF'
+{
+  "schema_version": 1,
+  "mcp_servers": {
+    "exa": {
+      "transport": "streamable_http",
+      "url": "https://mcp.exa.ai/mcp",
+      "enabled": true,
+      "mode": "optional"
+    }
+  }
+}
+EOF
+  chmod 600 "$HOME/.config/muse/settings.json"
+elif ! jq -e '.mcp_servers.exa' "$HOME/.config/muse/settings.json" >/dev/null 2>&1; then
+  tmp_json="$(mktemp)"
+  jq '.schema_version //= 1 | .mcp_servers.exa = {"transport": "streamable_http", "url": "https://mcp.exa.ai/mcp", "enabled": true, "mode": "optional"}' \
+    "$HOME/.config/muse/settings.json" > "$tmp_json"
+  mv "$tmp_json" "$HOME/.config/muse/settings.json"
+  chmod 600 "$HOME/.config/muse/settings.json"
 fi
 
 echo "Installing the Matt Pocock skills plugin for Claude Code..."

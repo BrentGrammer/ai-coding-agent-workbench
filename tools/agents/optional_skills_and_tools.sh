@@ -178,6 +178,8 @@ skill_agent_names_for_sandbox() {
     grok-*) printf '%s\n' grok ;;
     antigravity-*) printf '%s\n' antigravity-cli ;;
     devin-*) printf '%s\n' devin ;;
+    # skills CLI has no muse target yet. Muse reads ~/.codex/skills natively.
+    muse-*) printf '%s\n' codex ;;
     herdr-*) printf '%s\n' claude-code codex opencode cursor ;;
     *) return 1 ;;
   esac
@@ -563,6 +565,15 @@ else
 fi
 '
       ;;
+    muse-*)
+      echo "Registering the Exa MCP server with Muse Code..."
+      local muse_exa_fragment
+      muse_exa_fragment="$(mktemp)"
+      printf '%s\n' '{"schema_version":1,"mcp_servers":{"exa":{"transport":"streamable_http","url":"https://mcp.exa.ai/mcp","enabled":true,"mode":"optional"}}}' \
+        > "$muse_exa_fragment"
+      merge_json_into_sandbox_file "$muse_exa_fragment" /home/agent/.config/muse/settings.json
+      rm -f "$muse_exa_fragment"
+      ;;
   esac
 }
 
@@ -590,7 +601,7 @@ install_selected_skills_and_tools() {
   install_pstack_skills "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
   install_github_tools "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
   case "$SANDBOX_NAME" in
-    codex-*|herdr-*)
+    codex-*|muse-*|herdr-*)
       if [ "$INSTALL_ANY_SKILL" = true ]; then
         link_codex_skills_for_discovery
       fi

@@ -35,6 +35,7 @@ grep -q "HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null ||
   echo '\''export PATH="$HOME/.local/bin:$PATH"'\'' >> "$HOME/.bashrc"
 muse --version
 '
+  install_bash_sandbox_runtime
 }
 
 runSandboxHarness allow_muse_network install_muse true muse
