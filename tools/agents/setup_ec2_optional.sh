@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GH_AXI_VERSION=0.1.30
+GH_AXI_VERSION=0.1.35
 NPM_AXI_VERSION=0.1.1
-SKILLS_CLI_VERSION=1.5.23
+SKILLS_CLI_VERSION=1.7.1
 
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigravity/bin:$PATH"

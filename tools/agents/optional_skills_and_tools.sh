@@ -230,7 +230,7 @@ install_matt_pocock_skills() {
   if ! sbx exec "$SANDBOX_NAME" bash -lc "
 set -euo pipefail
 cd '$workspace_dir'
-npx --yes skills@1.5.23 add mattpocock/skills \
+npx --yes skills@1.7.1 add mattpocock/skills \
   ${agent_flags[*]} \
   --skill '*' \
   --global \
@@ -254,7 +254,7 @@ install_skill_creator() {
   if ! sbx exec "$SANDBOX_NAME" bash -lc "
 set -euo pipefail
 cd '$workspace_dir'
-npx --yes skills@1.5.23 add anthropics/skills \
+npx --yes skills@1.7.1 add anthropics/skills \
   --skill skill-creator \
   ${agent_flags[*]} \
   --global \
@@ -286,7 +286,7 @@ install_pstack_skills() {
   if ! sbx exec "$SANDBOX_NAME" bash -lc "
 set -euo pipefail
 cd '$workspace_dir'
-npx --yes skills@1.5.23 add cursor/plugins/pstack \
+npx --yes skills@1.7.1 add cursor/plugins/pstack \
   ${skill_flags[*]} \
   ${agent_flags[*]} \
   --global \
@@ -316,7 +316,7 @@ install_github_tools() {
     sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 source /etc/sandbox-persistent.sh 2>/dev/null || true
-gh_version=2.97.0
+gh_version=2.102.0
 if ! gh --version 2>/dev/null | grep -q "gh version $gh_version"; then
   case "$(uname -m)" in
     aarch64|arm64) gh_arch="arm64" ;;
@@ -337,7 +337,7 @@ gh --version
 
   if [ "$INSTALL_GH_AXI" = true ]; then
     echo "Installing gh-axi for: $*"
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts gh-axi@0.1.30'
+    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts gh-axi@0.1.35'
   fi
   if [ "$INSTALL_NPM_AXI" = true ]; then
     echo "Installing npm-axi for: $*"
@@ -347,7 +347,7 @@ gh --version
     sbx exec "$SANDBOX_NAME" bash -lc "
 set -euo pipefail
 cd '$workspace_dir'
-npx --yes skills@1.5.23 add kunchenguid/gh-axi \
+npx --yes skills@1.7.1 add kunchenguid/gh-axi \
   --skill gh-axi \
   ${agent_flags[*]} \
   --global \
@@ -359,7 +359,7 @@ npx --yes skills@1.5.23 add kunchenguid/gh-axi \
     sbx exec "$SANDBOX_NAME" bash -lc "
 set -euo pipefail
 cd '$workspace_dir'
-npx --yes skills@1.5.23 add SSBrouhard/npm-axi \
+npx --yes skills@1.7.1 add SSBrouhard/npm-axi \
   --skill npm-axi \
   ${agent_flags[*]} \
   --global \
@@ -561,7 +561,7 @@ export PATH="$HOME/.local/bin:$PATH"
 if grep -q pi-web-access "$HOME/.pi/agent/settings.json" 2>/dev/null; then
   echo "pi-web-access already installed."
 else
-  pi install npm:pi-web-access@0.14.0 </dev/null || echo "WARN: Could not install pi-web-access for Pi." >&2
+  pi install npm:pi-web-access@0.37.0 </dev/null || echo "WARN: Could not install pi-web-access for Pi." >&2
 fi
 '
       ;;
