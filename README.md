@@ -120,15 +120,18 @@ Do the [cloud one-time setup](docs/cloud-onetime-setup.md) first: Tailscale acce
 
 ### New box
 
-1. Store a fresh Tailscale auth key (single use, `tag:workbench`, 1-day
-   expiry) at `/coding-agent-workbench/tailscale/auth-key` in Parameter Store.
-2. `workbench ec2 rebuild`
-3. `workbench ec2 update optional-skills-tools` (optional extras)
-4. `start-workbench`, then log in to each agent once.
+1. Make a Tailscale auth key: admin console → **Settings → Keys → Generate
+   auth key**. Reusable off, expiration 1 day, ephemeral off, tag
+   `tag:workbench`, pre-approved on if device approval is on.
+2. Store it in Parameter Store at `/coding-agent-workbench/tailscale/auth-key`.
+3. `workbench ec2 rebuild`
+4. `workbench ec2 update optional-skills-tools` (optional extras)
+5. `start-workbench`, then log in to each agent once.
+6. Optional cleanup in Tailscale: remove the old offline `agent-workbench`
+   under **Machines**, and revoke old keys under **Settings → Keys**.
 
-Box not on Tailscale? `workbench ec2 ssm`, then
-`sudo tailscale up --ssh --hostname agent-workbench --auth-key <new key>`,
-then `workbench ec2 sync-host` and `workbench ec2 trust-host`.
+Box built but not on Tailscale (for example, the stored key was stale)? Do
+steps 1 and 2, then run `workbench ec2 join-tailnet`.
 
 ### Connect and run
 

@@ -74,6 +74,7 @@ ec2 commands:
   ssm        Connect with SSM (break-glass, no Tailscale needed)
   update     Re-run the setup script on the box and refresh skills
   rebuild    Replace the box with a new one on the newest Ubuntu image
+  join-tailnet  Join the box to Tailscale with the key in Parameter Store
   sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
   trust-host Read the SSH host key over SSM and refresh known_hosts
 
@@ -142,15 +143,14 @@ instance_state() {
 # fails with it. Read the real key over SSM, which AWS authenticates and which
 # does not use ssh, then replace the stale known_hosts entries. Reading it over
 # ssh would prove nothing: that is the channel in doubt.
-trust_host() {
-  local instance_id="$1" name="$2"
-  local command_id status key ip key_file
+run_on_box_over_ssm() {
+  local instance_id="$1" script="$2"
+  local command_id status
 
-  echo "Reading the host key from $instance_id over SSM..."
   command_id="$(aws ssm send-command \
     --instance-ids "$instance_id" \
     --document-name AWS-RunShellScript \
-    --parameters 'commands=["cat /etc/ssh/ssh_host_ed25519_key.pub"]' \
+    --parameters "$(jq -n --arg script "$script" '{commands: [$script]}')" \
     --query 'Command.CommandId' --output text)"
 
   aws ssm wait command-executed \
@@ -159,13 +159,24 @@ trust_host() {
     --command-id "$command_id" --instance-id "$instance_id" \
     --query 'Status' --output text)"
   if [ "$status" != "Success" ]; then
+    aws ssm get-command-invocation \
+      --command-id "$command_id" --instance-id "$instance_id" \
+      --query 'StandardErrorContent' --output text >&2
     echo "ERROR: The SSM command ended as $status. Is the box running with the SSM agent?" >&2
     return 1
   fi
 
-  key="$(aws ssm get-command-invocation \
+  aws ssm get-command-invocation \
     --command-id "$command_id" --instance-id "$instance_id" \
-    --query 'StandardOutputContent' --output text |
+    --query 'StandardOutputContent' --output text
+}
+
+trust_host() {
+  local instance_id="$1" name="$2"
+  local key ip key_file
+
+  echo "Reading the host key from $instance_id over SSM..."
+  key="$(run_on_box_over_ssm "$instance_id" "cat /etc/ssh/ssh_host_ed25519_key.pub" |
     awk '/^ssh-ed25519 / { print $1, $2; exit }')"
   if [ -z "$key" ]; then
     echo "ERROR: The box returned no ed25519 host key." >&2
@@ -207,6 +218,27 @@ forget_saved_ubuntu_image() {
   jq 'with_entries(select(.key | contains("canonical/ubuntu") | not))' \
     "$context_file" > "$context_file.tmp"
   mv "$context_file.tmp" "$context_file"
+}
+
+# The box's repo checkout is what update and join-tailnet run from. Default to
+# the branch checked out here.
+branch_for_box() {
+  local branch="${1:-$(git -C "$SCRIPT_DIR/.." branch --show-current 2>/dev/null || echo main)}"
+  echo "${branch:-main}"
+}
+
+# Uses SSM, not ssh, because the box is not on the tailnet yet.
+join_tailnet() {
+  local instance_id branch
+  instance_id="$(find_instance_id)"
+  branch="$(branch_for_box "${1:-}")"
+  echo "Joining $instance_id to the tailnet with the key in Parameter Store..."
+  run_on_box_over_ssm "$instance_id" \
+    "git -C /opt/agent-workbench fetch --prune origin '$branch' \
+      && git -C /opt/agent-workbench reset --hard 'origin/$branch' \
+      && bash /opt/agent-workbench/infra/aws/ec2/join-tailnet.sh"
+  sync_host
+  trust_host "$instance_id" agent-workbench
 }
 
 rebuild_ec2() {
@@ -538,8 +570,7 @@ case "${1:-}" in
         exec aws ssm start-session --target "$(find_instance_id)"
         ;;
       update)
-        branch="${3:-$(git -C "$SCRIPT_DIR/.." branch --show-current 2>/dev/null || echo main)}"
-        branch="${branch:-main}"
+        branch="$(branch_for_box "${3:-}")"
         exec ssh "$CONNECT_USER@$(find_connect_host)" \
           "sudo git -C /opt/agent-workbench fetch --prune origin '$branch' \
             && sudo git -C /opt/agent-workbench reset --hard 'origin/$branch' \
@@ -547,6 +578,9 @@ case "${1:-}" in
         ;;
       rebuild)
         rebuild_ec2
+        ;;
+      join-tailnet)
+        join_tailnet "${3:-}"
         ;;
       sync-host)
         sync_host
