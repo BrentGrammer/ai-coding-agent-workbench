@@ -83,22 +83,9 @@ fi
 echo "== Tailscale"
 command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh
 systemctl enable --now tailscaled
-if ! tailscale status >/dev/null 2>&1; then
-  [ -f /etc/agent-workbench/workbench.env ] && . /etc/agent-workbench/workbench.env
-  tailscale_auth_key="$(aws ssm get-parameter \
-    --region "${AWS_REGION:-}" \
-    --name /coding-agent-workbench/tailscale/auth-key \
-    --with-decryption \
-    --query Parameter.Value \
-    --output text 2>/dev/null || true)"
-  if [ -n "$tailscale_auth_key" ]; then
-    tailscale up --ssh --hostname agent-workbench --auth-key "$tailscale_auth_key" ||
-      echo "WARN: Tailscale did not accept the stored auth key. Join by hand: sudo tailscale up --ssh" >&2
-  else
-    echo "WARN: No auth key at /coding-agent-workbench/tailscale/auth-key. Join by hand: sudo tailscale up --ssh" >&2
-  fi
-  unset tailscale_auth_key
-fi
+# A failed join must not stop the rest of the setup. The box can join later.
+bash "$REPO_DIR/infra/aws/ec2/join-tailnet.sh" ||
+  echo "WARN: Not on the tailnet yet. Store a fresh auth key, then run: workbench ec2 join-tailnet" >&2
 
 echo "== Herdr $HERDR_VERSION"
 if ! /usr/local/bin/herdr --version 2>/dev/null | grep -q "$HERDR_VERSION"; then
