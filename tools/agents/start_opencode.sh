@@ -37,8 +37,8 @@ allow_opencode_network() {
 install_opencode() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-npm install -g opencode-ai@1.18.35 --ignore-scripts
-(cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
+npm install -g @opencode/cli@2.2.1 --ignore-scripts
+(cd "$(npm root -g)/@opencode/cli" && node postinstall.mjs)
 opencode --version
 '
   local source_config="$SCRIPT_DIR/config/opencode/opencode.json"

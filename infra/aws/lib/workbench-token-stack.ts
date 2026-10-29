@@ -27,7 +27,7 @@ export class WorkbenchTokenStack extends cdk.Stack {
   // GitHub expires in an hour and scopes to one repository.
   private createGitHubTokenFunction(): lambda.Function {
     const tokenFunction = new lambda.Function(this, "GitHubAppTokenFunction", {
-      runtime: lambda.Runtime.NODEJS_22_X,
+      runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset(
         path.join(__dirname, "..", "lambda", "github-app-token"),

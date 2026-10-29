@@ -35,7 +35,7 @@ allow_pi_network() {
 install_pi() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@1.0.4
+sudo npm install -g --ignore-scripts @earendil-works/pi-coding-agent@1.4.0
 '
 
   merge_json_into_sandbox_file "$SCRIPT_DIR/config/pi/settings.json" /home/agent/.pi/agent/settings.json

@@ -16,7 +16,7 @@ allow_commandcode_network() {
 install_commandcode() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g command-code@1.77.0 --ignore-scripts
+sudo npm install -g command-code@1.88.2 --ignore-scripts
 '
 }
 
