@@ -64,29 +64,24 @@ At each rebuild (destroy + deploy): make a fresh Tailscale auth key (non-reusabl
 
 ## Rebuild from scratch
 
-The instance and its disk are disposable.
+The instance and its disk are disposable. A plain deploy keeps the Ubuntu image the box was built from, so it never replaces the box by surprise. To get a new box on the newest image:
 
-1. Destroy the instance stack. The token stack can stay.
+1. Store a fresh Tailscale auth key in the SSM parameter, as above.
 
-   ```shell
-   cd infra/aws
-   npx cdk destroy AgentWorkbenchEc2Stack
-   ```
-
-2. Deploy. This recreates the instance stack.
+2. Rebuild. This asks first, then destroys the instance stack, deploys a new one on the newest Ubuntu image, and trusts the new SSH host key. The token stack stays.
 
    ```shell
-   npm run deploy
+   workbench ec2 rebuild
    ```
 
-3. Wait 3 to 5 minutes after the deploy finishes so first boot can join the tailnet.
+3. Optional: delete the old offline `agent-workbench` machine in the Tailscale admin console. The `workbench` commands find the new box either way.
 
 4. Connect with `start-workbench`. Then log in each agent once on the new box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
 
 ## Maintenance
 
 - Monthly: bump the tool version pins in `ec2/setup-workbench.sh`, then run `workbench ec2 update`.
-- Quarterly: destroy and deploy to get a fresh, fully patched AMI.
+- Quarterly: run `workbench ec2 rebuild` to get a fresh, fully patched AMI.
 - Renew the Tailscale auth key if an expiration is set.
 
 ## Cost controls

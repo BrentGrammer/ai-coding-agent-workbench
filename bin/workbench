@@ -73,6 +73,7 @@ ec2 commands:
   mosh       Connect with mosh over Tailscale
   ssm        Connect with SSM (break-glass, no Tailscale needed)
   update     Re-run the setup script on the box and refresh skills
+  rebuild    Replace the box with a new one on the newest Ubuntu image
   sync-host  Point agent-workbench in /etc/hosts at the box's Tailscale IP
   trust-host Read the SSH host key over SSM and refresh known_hosts
 
@@ -196,6 +197,39 @@ require_aws_dir() {
     echo "ERROR: CDK app not found at $AWS_DIR" >&2
     exit 1
   fi
+}
+
+# The EC2 stack saves the Ubuntu image it used in cdk.context.json. Dropping
+# that entry makes the next deploy look up the newest image.
+forget_saved_ubuntu_image() {
+  local context_file="$AWS_DIR/cdk.context.json"
+  [ -f "$context_file" ] || return 0
+  jq 'with_entries(select(.key | contains("canonical/ubuntu") | not))' \
+    "$context_file" > "$context_file.tmp"
+  mv "$context_file.tmp" "$context_file"
+}
+
+rebuild_ec2() {
+  require_aws_dir
+  cat <<'EOF'
+This destroys the workbench and builds a new one on the newest Ubuntu image.
+Anything on the box that is not pushed to git is lost.
+
+Before you continue, store a fresh Tailscale auth key (single use, tagged
+tag:workbench) in Parameter Store at /coding-agent-workbench/tailscale/auth-key.
+The new box uses it to join the tailnet.
+EOF
+  local answer
+  read -r -p "Rebuild the workbench? [y/N] " answer
+  if [ "$answer" != y ] && [ "$answer" != Y ]; then
+    echo "Cancelled."
+    return 1
+  fi
+
+  forget_saved_ubuntu_image
+  (cd "$AWS_DIR" && npx cdk destroy AgentWorkbenchEc2Stack --force && npm run deploy)
+  trust_host "$(find_instance_id)" agent-workbench
+  echo "Done. Optional cleanup: delete the old offline agent-workbench machine in Tailscale."
 }
 
 llm_stack_exists() {
@@ -510,6 +544,9 @@ case "${1:-}" in
           "sudo git -C /opt/agent-workbench fetch --prune origin '$branch' \
             && sudo git -C /opt/agent-workbench reset --hard 'origin/$branch' \
             && sudo bash /opt/agent-workbench/infra/aws/ec2/setup-workbench.sh"
+        ;;
+      rebuild)
+        rebuild_ec2
         ;;
       sync-host)
         sync_host

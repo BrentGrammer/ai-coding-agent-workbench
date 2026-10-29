@@ -112,6 +112,24 @@ The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Ta
 
 Do the [cloud one-time setup](docs/cloud-onetime-setup.md) first: Tailscale access, the GitHub App, and the SSM parameters. Then see [infra/aws/README.md](infra/aws/README.md) for deployment instructions.
 
+### Deploy updates
+
+1. Push your changes to GitHub.
+2. `cd infra/aws && npm ci && npm run deploy`
+3. `workbench ec2 update` (add `optional-skills-tools` for the extras)
+
+### New box
+
+1. Store a fresh Tailscale auth key (single use, `tag:workbench`, 1-day
+   expiry) at `/coding-agent-workbench/tailscale/auth-key` in Parameter Store.
+2. `workbench ec2 rebuild`
+3. `workbench ec2 update optional-skills-tools` (optional extras)
+4. `start-workbench`, then log in to each agent once.
+
+Box not on Tailscale? `workbench ec2 ssm`, then
+`sudo tailscale up --ssh --hostname agent-workbench --auth-key <new key>`,
+then `workbench ec2 sync-host` and `workbench ec2 trust-host`.
+
 ### Connect and run
 
 Connect to the instance:

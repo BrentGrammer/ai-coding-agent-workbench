@@ -102,7 +102,9 @@ export class WorkbenchEc2Stack extends cdk.Stack {
       instanceType: new ec2.InstanceType(INSTANCE_TYPE),
       machineImage: ec2.MachineImage.fromSsmParameter(
         UBUNTU_2404_ARM64_AMI_PARAMETER,
-        { os: ec2.OperatingSystemType.LINUX },
+        // Saved in cdk.context.json so a new Ubuntu image does not replace the
+        // box on a plain deploy. `workbench ec2 rebuild` picks up the newest one.
+        { os: ec2.OperatingSystemType.LINUX, cachedInContext: true },
       ),
       role,
       securityGroup,
