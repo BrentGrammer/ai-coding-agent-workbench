@@ -5,7 +5,7 @@ import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
-import { LLM_MODEL } from "./workbench-llm-stack";
+import { LLM_MODEL } from "./workbench-llm-stack.ts";
 
 // Resizing is this one line plus a stop/start.
 const INSTANCE_TYPE = "t4g.large";

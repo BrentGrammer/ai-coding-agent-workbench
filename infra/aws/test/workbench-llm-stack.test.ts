@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import * as cdk from "aws-cdk-lib/core";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { Template } from "aws-cdk-lib/assertions";
-import { WorkbenchLlmStack } from "../lib/workbench-llm-stack";
+import { WorkbenchLlmStack } from "../lib/workbench-llm-stack.ts";
 
 const account = "111111111111";
 const region = "us-west-2";

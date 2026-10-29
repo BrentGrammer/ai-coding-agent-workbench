@@ -30,7 +30,7 @@ export class WorkbenchTokenStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_24_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset(
-        path.join(__dirname, "..", "lambda", "github-app-token"),
+        path.join(import.meta.dirname, "..", "lambda", "github-app-token"),
       ),
       timeout: cdk.Duration.seconds(15),
       memorySize: 256,
