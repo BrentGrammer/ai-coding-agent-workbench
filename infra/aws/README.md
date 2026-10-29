@@ -54,35 +54,14 @@ npx cdk deploy --all -c repoUrl=https://github.com/<you>/ai-coding-agent-workben
 
 The deploy command deploys both stacks: the token Lambda and the EC2 workbench instance.
 
-## Tailscale auto-join
+## Rebuild and Tailscale
 
-The instance boots with no inbound ports. On first boot it reads a Tailscale auth key from Parameter Store and joins the tailnet by itself. `bin/workbench ec2 update` re-runs the setup script for updates.
-
-The tailnet policy and the auth key are one-time setup. The steps are in [Cloud one-time setup](../../docs/cloud-onetime-setup.md).
-
-At each rebuild (destroy + deploy): make a fresh Tailscale auth key (non-reusable, tagged `tag:workbench`, 1-day expiry), store it in the SSM parameter, then deploy right away so first boot uses it. Revoke the old key in Tailscale afterward.
-
-## Rebuild from scratch
-
-The instance and its disk are disposable. A plain deploy keeps the Ubuntu image the box was built from, so it never replaces the box by surprise. To get a new box on the newest image:
-
-1. Store a fresh Tailscale auth key in the SSM parameter, as above.
-
-2. Rebuild. This asks first, then destroys the instance stack, deploys a new one on the newest Ubuntu image, and trusts the new SSH host key. The token stack stays.
-
-   ```shell
-   workbench ec2 rebuild
-   ```
-
-3. Optional: delete the old offline `agent-workbench` machine in the Tailscale admin console. The `workbench` commands find the new box either way.
-
-4. Connect with `start-workbench`. Then log in each agent once on the new box: `claude`, `codex`, `opencode auth login`, `cursor-agent login`.
+The instance boots with no inbound ports and joins the tailnet with the auth key in Parameter Store. A plain deploy keeps the box's Ubuntu image, so it never replaces the box by surprise. For a new box, follow **New box** under [Deploy](../../README.md#deploy).
 
 ## Maintenance
 
 - Monthly: bump the tool version pins in `ec2/setup-workbench.sh`, then run `workbench ec2 update`.
 - Quarterly: run `workbench ec2 rebuild` to get a fresh, fully patched AMI.
-- Renew the Tailscale auth key if an expiration is set.
 
 ## Cost controls
 

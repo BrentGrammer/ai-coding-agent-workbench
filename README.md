@@ -110,28 +110,27 @@ The AWS setup creates one persistent EC2 instance, a `t4g.large` reached over Ta
 
 ### Deploy
 
-Do the [cloud one-time setup](docs/cloud-onetime-setup.md) first: Tailscale access, the GitHub App, and the SSM parameters. Then see [infra/aws/README.md](infra/aws/README.md) for deployment instructions.
+First time: do the [cloud one-time setup](docs/cloud-onetime-setup.md), then follow [infra/aws/README.md](infra/aws/README.md).
 
-### Deploy updates
+Updates:
 
 1. Push your changes to GitHub.
 2. `cd infra/aws && npm ci && npm run deploy`
-3. `workbench ec2 update` (add `optional-skills-tools` for the extras)
+3. `workbench ec2 update`
 
-### New box
+New box:
 
-1. Make a Tailscale auth key: admin console → **Settings → Keys → Generate
-   auth key**. Reusable off, expiration 1 day, ephemeral off, tag
-   `tag:workbench`, pre-approved on if device approval is on.
-2. Store it in Parameter Store at `/coding-agent-workbench/tailscale/auth-key`.
-3. `workbench ec2 rebuild`
-4. `workbench ec2 update optional-skills-tools` (optional extras)
-5. `start-workbench`, then log in to each agent once.
-6. Optional cleanup in Tailscale: remove the old offline `agent-workbench`
-   under **Machines**, and revoke old keys under **Settings → Keys**.
+1. Make a Tailscale auth key under **Settings → Keys**: single use, 1-day
+   expiry, tag `tag:workbench`, pre-approved.
+2. Sign it on your laptop: `tailscale lock sign tskey-auth-...`. Keep the
+   longer key it prints.
+3. Store the signed key in Parameter Store at
+   `/coding-agent-workbench/tailscale/auth-key`.
+4. `workbench ec2 rebuild`
+5. `workbench ec2 update` if you work from a branch other than `main`.
 
-Box built but not on Tailscale (for example, the stored key was stale)? Do
-steps 1 and 2, then run `workbench ec2 join-tailnet`.
+Box not on Tailscale? Do steps 1 to 3, then `workbench ec2 join-tailnet`. If
+tailnet lock blocks the box, it prints the sign command to run on your laptop.
 
 ### Connect and run
 

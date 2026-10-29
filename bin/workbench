@@ -284,9 +284,11 @@ rebuild_ec2() {
 This destroys the workbench and builds a new one on the newest Ubuntu image.
 Anything on the box that is not pushed to git is lost.
 
-Before you continue, store a fresh Tailscale auth key (single use, tagged
-tag:workbench) in Parameter Store at /coding-agent-workbench/tailscale/auth-key.
-The new box uses it to join the tailnet.
+Before you continue:
+  1. Make a Tailscale auth key: single use, 1-day expiry, tag:workbench.
+  2. Sign it on your laptop: tailscale lock sign tskey-auth-...
+  3. Store the signed key in Parameter Store at
+     /coding-agent-workbench/tailscale/auth-key
 EOF
   local answer
   read -r -p "Rebuild the workbench? [y/N] " answer
