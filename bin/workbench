@@ -227,11 +227,48 @@ branch_for_box() {
   echo "${branch:-main}"
 }
 
+start_ec2() {
+  local instance_id="$1" state
+  state="$(instance_state "$instance_id")"
+
+  # The idle timer stops the box on its own. EC2 refuses a start while the
+  # instance is still stopping, so wait for the stop to finish first.
+  if [ "$state" = "stopping" ]; then
+    echo "$instance_id is stopping. Waiting for it to stop..."
+    aws ec2 wait instance-stopped --instance-ids "$instance_id"
+    state=stopped
+  fi
+
+  if [ "$state" = "stopped" ]; then
+    aws ec2 start-instances --instance-ids "$instance_id" >/dev/null
+    echo "Starting $instance_id..."
+  else
+    echo "$instance_id is $state."
+  fi
+
+  aws ec2 wait instance-running --instance-ids "$instance_id"
+}
+
+# SSM refuses commands until the agent on a freshly started box checks in.
+wait_for_ssm_agent() {
+  local instance_id="$1" tries=0
+  until [ "$(aws ssm describe-instance-information \
+    --filters "Key=InstanceIds,Values=$instance_id" \
+    --query 'InstanceInformationList[0].PingStatus' --output text)" = Online ]; do
+    tries=$((tries + 1))
+    if [ "$tries" -eq 1 ]; then echo "Waiting for the SSM agent on $instance_id..."; fi
+    if [ "$tries" -gt 30 ]; then echo "ERROR: SSM agent not online after 5 minutes." >&2; return 1; fi
+    sleep 10
+  done
+}
+
 # Uses SSM, not ssh, because the box is not on the tailnet yet.
 join_tailnet() {
   local instance_id branch
   instance_id="$(find_instance_id)"
   branch="$(branch_for_box "${1:-}")"
+  start_ec2 "$instance_id"
+  wait_for_ssm_agent "$instance_id"
   echo "Joining $instance_id to the tailnet with the key in Parameter Store..."
   run_on_box_over_ssm "$instance_id" \
     "git -C /opt/agent-workbench fetch --prune origin '$branch' \
@@ -525,25 +562,7 @@ case "${1:-}" in
   ec2)
     case "${2:-}" in
       up)
-        instance_id="$(find_instance_id)"
-        state="$(instance_state "$instance_id")"
-
-        # The idle timer stops the box on its own. EC2 refuses a start while the
-        # instance is still stopping, so wait for the stop to finish first.
-        if [ "$state" = "stopping" ]; then
-          echo "$instance_id is stopping. Waiting for it to stop..."
-          aws ec2 wait instance-stopped --instance-ids "$instance_id"
-          state=stopped
-        fi
-
-        if [ "$state" = "stopped" ]; then
-          aws ec2 start-instances --instance-ids "$instance_id" >/dev/null
-          echo "Starting $instance_id..."
-        else
-          echo "$instance_id is $state."
-        fi
-
-        aws ec2 wait instance-running --instance-ids "$instance_id"
+        start_ec2 "$(find_instance_id)"
         echo "Running. Connect with: workbench ec2 mosh"
         echo "A new instance joins the tailnet by itself on first boot. Give it a few minutes."
         ;;
