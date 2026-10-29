@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib/core";
-import { WorkbenchEc2Stack } from "../lib/workbench-ec2-stack";
-import { WorkbenchLlmCacheStack } from "../lib/workbench-llm-cache-stack";
-import { WorkbenchLlmStack } from "../lib/workbench-llm-stack";
-import { WorkbenchTokenStack } from "../lib/workbench-token-stack";
+import { WorkbenchEc2Stack } from "../lib/workbench-ec2-stack.ts";
+import { WorkbenchLlmCacheStack } from "../lib/workbench-llm-cache-stack.ts";
+import { WorkbenchLlmStack } from "../lib/workbench-llm-stack.ts";
+import { WorkbenchTokenStack } from "../lib/workbench-token-stack.ts";
 
 const app = new cdk.App();
 
