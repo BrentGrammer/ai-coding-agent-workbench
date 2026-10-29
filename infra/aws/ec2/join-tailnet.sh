@@ -20,8 +20,16 @@ if [ -z "$tailscale_auth_key" ]; then
   exit 1
 fi
 
-if ! tailscale up --ssh --hostname agent-workbench --auth-key "$tailscale_auth_key"; then
+if ! up_output="$(tailscale up --ssh --hostname agent-workbench --auth-key "$tailscale_auth_key" 2>&1)"; then
+  echo "$up_output" >&2
   echo "ERROR: Tailscale did not accept the stored auth key. Store a fresh one and run: workbench ec2 join-tailnet" >&2
   exit 1
+fi
+
+if grep -qi 'locked out' <<<"$up_output"; then
+  node_key="$(tailscale status --json | python3 -c 'import json, sys; print(json.load(sys.stdin)["Self"]["PublicKey"])')"
+  echo "Locked out by tailnet lock. On your laptop, run:"
+  echo "  tailscale lock sign $node_key"
+  exit 0
 fi
 echo "Joined the tailnet."
