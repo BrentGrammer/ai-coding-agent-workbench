@@ -73,7 +73,7 @@ case "$(uname -m)" in
   x86_64|amd64) node_arch="x64" ;;
   *) echo "ERROR: Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
-curl -fsSL "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-${node_arch}.tar.gz" |
+curl -fsSL "https://nodejs.org/dist/v24.22.2/node-v24.22.2-linux-${node_arch}.tar.gz" |
   sudo tar -xz -C /usr/local --strip-components=1
 '
 }

@@ -18,7 +18,7 @@ allow_cline_network() {
 install_cline() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g cline@3.0.69 --ignore-scripts --allow-git=none
+sudo npm install -g cline@3.0.74 --ignore-scripts --allow-git=none
 '
 }
 

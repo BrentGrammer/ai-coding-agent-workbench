@@ -4,14 +4,14 @@
 set -euo pipefail
 
 NODE_MAJOR=24
-HERDR_VERSION=0.9.3
-CLAUDE_CODE_VERSION=2.1.293
-CLINE_VERSION=3.0.69
-CODEX_VERSION=0.161.0
-KILO_VERSION=7.8.8
-OPENCODE_VERSION=1.18.35
-PI_VERSION=1.0.4
-QWEN_VERSION=0.25.0
+HERDR_VERSION=0.9.5
+CLAUDE_CODE_VERSION=2.1.312
+CLINE_VERSION=3.0.74
+CODEX_VERSION=0.165.0
+KILO_VERSION=7.8.18
+OPENCODE_VERSION=2.2.1
+PI_VERSION=1.4.0
+QWEN_VERSION=0.26.3
 
 WORKBENCH_USER=ubuntu
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -179,14 +179,14 @@ npm install -g --ignore-scripts --allow-git=none \
   "cline@${CLINE_VERSION}" \
   "@openai/codex@${CODEX_VERSION}" \
   "@kilocode/cli@${KILO_VERSION}" \
-  "opencode-ai@${OPENCODE_VERSION}" \
+  "@opencode/cli@${OPENCODE_VERSION}" \
   "@earendil-works/pi-coding-agent@${PI_VERSION}" \
   "@qwen-code/qwen-code@${QWEN_VERSION}"
 
 # Claude Code needs its install scripts to run so that `claude update` works.
 # Override the .npmrc ignore-scripts policy for this package only.
 npm install -g --ignore-scripts=false "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
-(cd "$(npm root -g)/opencode-ai" && node postinstall.mjs)
+(cd "$(npm root -g)/@opencode/cli" && node postinstall.mjs)
 claude --version
 cline --version
 codex --version

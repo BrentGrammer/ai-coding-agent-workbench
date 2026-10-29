@@ -10,13 +10,13 @@
     "synth": "cdk synth AgentWorkbenchTokenStack AgentWorkbenchEc2Stack AgentWorkbenchLlmCacheStack AgentWorkbenchLlmStack"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.263.0",
-    "constructs": "10.7.1"
+    "aws-cdk-lib": "2.275.0",
+    "constructs": "10.8.1"
   },
   "devDependencies": {
-    "@types/node": "24.13.3",
-    "aws-cdk": "2.1134.0",
+    "@types/node": "24.19.2",
+    "aws-cdk": "2.1146.1",
     "ts-node": "10.9.2",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   }
 }
