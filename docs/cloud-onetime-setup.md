@@ -44,7 +44,7 @@ One GitHub App gives repository access without a permanent token for each reposi
 1. Open GitHub **Settings → Developer settings → GitHub Apps → New GitHub App**.
 2. Give the app a unique name and use an appropriate GitHub page as its homepage URL.
 3. Disable **Active** under Webhook, because this workbench does not receive webhooks.
-4. Under Repository permissions, set **Contents** to **Read and write**.
+4. Under Repository permissions, set **Contents** to **Read and write**. For `gh` on the box (optional tools), also set **Issues** and **Pull requests** to **Read and write**.
 5. Leave callback URLs, user authorization, device flow, post-installation setup, and the IP allow list unset.
 6. Create the app and note its **App ID**.
 7. Generate and download a private key. Do not generate a client secret, because this workbench does not use OAuth. If macOS offers to import the PEM file into Keychain, cancel the import.

@@ -202,6 +202,8 @@ start-herdr claude --exa
 
 `--gh`, `--gh-axi`, and `--npm-axi` need `gh auth login` once in each new sandbox. Choose HTTPS.
 
+On the EC2 box, `gh` needs no login. It gets a fresh one-hour GitHub App token for the current repository on each call. The GitHub App needs the Issues and Pull requests permissions from [Cloud one-time setup](docs/cloud-onetime-setup.md#2-github-app).
+
 ## Project instruction files
 
 When you start a launcher on a project that is missing AGENTS/CLAUDE.md, it asks if it should copy the missing files into that project.

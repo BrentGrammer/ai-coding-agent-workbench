@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Runs gh with a fresh one-hour GitHub App token for the current repository, so
+# no GitHub login is ever stored on the box.
+set -euo pipefail
+
+REAL_GH="$HOME/.local/lib/gh/bin/gh"
+
+# Accepts owner/repo, host/owner/repo, or a GitHub URL, and prints owner/repo.
+owner_and_repo() {
+  sed -E 's#^(https://|git@)?(github\.com[:/])?##; s#\.git$##; s#/$##' <<<"$1" |
+    awk -F/ 'NF >= 2 { print $(NF - 1) "/" $NF }'
+}
+
+repo_from_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -R | --repo) owner_and_repo "${2:-}"; return ;;
+      --repo=*) owner_and_repo "${1#--repo=}"; return ;;
+      -R?*) owner_and_repo "${1#-R}"; return ;;
+    esac
+    shift
+  done
+}
+
+repo_from_origin() {
+  local url
+  url="$(git remote get-url origin 2>/dev/null)" || return 0
+  case "$url" in
+    *github.com*) owner_and_repo "$url" ;;
+  esac
+}
+
+if [ "${1:-}" = auth ] && [ "${2:-}" = login ]; then
+  echo "gh auth login is off on the workbench: it would store a long-lived token." >&2
+  echo "gh gets a fresh token for the current repository on each call." >&2
+  exit 1
+fi
+
+repo="$(repo_from_args "$@")"
+repo="${repo:-$(repo_from_origin)}"
+if [ -z "$repo" ]; then
+  exec "$REAL_GH" "$@"
+fi
+
+token="$(printf 'host=github.com\npath=%s.git\n' "$repo" |
+  git-credential-github-app get | sed -n 's/^password=//p')"
+GH_TOKEN="$token" exec "$REAL_GH" "$@"

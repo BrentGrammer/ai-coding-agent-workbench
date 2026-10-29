@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+GH_VERSION=2.103.3
 GH_AXI_VERSION=0.1.44
 NPM_AXI_VERSION=0.1.1
 SKILLS_CLI_VERSION=1.7.4
@@ -8,13 +9,29 @@ SKILLS_CLI_VERSION=1.7.4
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigravity/bin:$PATH"
 
-mkdir -p "$HOME/.agents/skills" "$HOME/.config/muse" "$HOME/.config/opencode" "$HOME/.cursor"
+mkdir -p "$HOME/.local/lib" "$HOME/.agents/skills" "$HOME/.config/muse" "$HOME/.config/opencode" "$HOME/.cursor"
 
 npm install -g --ignore-scripts \
   "gh-axi@${GH_AXI_VERSION}" \
   "npm-axi@${NPM_AXI_VERSION}"
 gh-axi --version
 npm-axi --version
+
+# gh-axi needs gh. The wrapper takes the gh name and hands the real binary a
+# fresh GitHub App token per call, so no login is stored.
+gh_dir="$HOME/.local/lib/gh"
+if ! "$gh_dir/bin/gh" --version 2>/dev/null | grep -q "gh version $GH_VERSION "; then
+  gh_tmp="$(mktemp -d)"
+  gh_release="gh_${GH_VERSION}_linux_arm64"
+  curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/${gh_release}.tar.gz" \
+    -o "$gh_tmp/gh.tar.gz"
+  tar -xzf "$gh_tmp/gh.tar.gz" -C "$gh_tmp"
+  rm -rf "$gh_dir"
+  mv "$gh_tmp/$gh_release" "$gh_dir"
+  rm -rf "$gh_tmp"
+fi
+install -m 755 "$REPO_DIR/infra/aws/runtime/gh-with-app-token" "$HOME/.local/bin/gh"
+"$gh_dir/bin/gh" --version
 
 if [ ! -f "$HOME/.cursor/mcp.json" ]; then
   cat > "$HOME/.cursor/mcp.json" <<'EOF'
