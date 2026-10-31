@@ -59,7 +59,7 @@ if ! (
   echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
 fi
 
-echo "Installing gh-axi, npm-axi, skill-creator, and PStack skills..."
+echo "Installing gh-axi, npm-axi, and PStack skills..."
 if ! (
   cd "$HOME"
   npx --yes "skills@${SKILLS_CLI_VERSION}" add kunchenguid/gh-axi \
@@ -80,15 +80,6 @@ if ! (
     --global \
     --yes \
     --copy
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add anthropics/skills \
-    --skill skill-creator \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
   npx --yes "skills@${SKILLS_CLI_VERSION}" add cursor/plugins/pstack \
     --skill unslop \
     --agent claude-code \
@@ -99,7 +90,7 @@ if ! (
     --yes \
     --copy
 ) </dev/null; then
-  echo "WARN: Could not install gh-axi, npm-axi, skill-creator, or PStack skills." >&2
+  echo "WARN: Could not install gh-axi, npm-axi, or PStack skills." >&2
 fi
 
 echo "Setting up gh-axi and npm-axi session hooks..."

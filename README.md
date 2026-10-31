@@ -192,7 +192,6 @@ start-herdr claude --gh
 | Flag                   | Installs                                                  |
 | ---------------------- | --------------------------------------------------------- |
 | `--matt-pocock-skills` | Matt Pocock skills                                        |
-| `--skill-creator`      | skill-creator                                             |
 | `--pstack-skills`      | PStack skills (unslop)                                    |
 | `--pi-web-search`      | pi-web-access web search, Pi only (uses Exa's search API) |
 | `--gh`                 | `gh` plus the login reminder                              |
