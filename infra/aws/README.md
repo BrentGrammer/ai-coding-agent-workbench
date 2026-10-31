@@ -82,7 +82,7 @@ mfa_serial = arn:aws:iam::<account-id>:mfa/<mfa-device-name>
 region = <region>
 ```
 
-The CLI asks for an MFA code and keeps the role session for up to one hour in `~/.aws/cli/cache`. Delete that folder when you finish.
+The CLI asks for an MFA code and keeps the role session for up to one hour in `~/.aws/cli/cache`. Run `workbench aws-logout` when you finish to end it early.
 
 The role cannot write Parameter Store. Store or rotate the Tailscale auth keys as admin.
 
