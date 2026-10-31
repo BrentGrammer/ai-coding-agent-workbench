@@ -68,13 +68,25 @@ npm run deploy:operator -- --profile <admin-profile>
 
 Then in the AWS console:
 
-1. IAM Identity Center: **Enable**, with AWS Organizations. This makes an organization with your account as its management account.
+1. IAM Identity Center: **Enable**, with AWS Organizations. This makes an organization with your account as its management account. Keep it in one region and use the AWS owned key for encryption. Extra regions force a customer managed KMS key, which costs money and locks you out if it is ever disabled.
 2. Settings, Authentication: require MFA every time a user signs in. Optionally shorten the session duration from 8 hours.
-3. Users: add yourself. Accept the email invite, set a password, and register an MFA device.
+3. Users: add a new Identity Center user for yourself. Identity Center keeps its own users, separate from IAM users and root. Name it and give it only this permission set. Accept the invite, set a password, and register an MFA device.
 4. Permission sets: create a custom set named `AgentWorkbenchOperator`. Attach the customer managed policy `agent-workbench-operator` and set the session duration to 1 hour.
-5. AWS accounts: select your account and assign your user with `AgentWorkbenchOperator`.
+5. AWS accounts: select your account and assign your user.
 
-On your laptop, run `aws configure sso`. Use the AWS access portal URL from the Identity Center dashboard, pick `AgentWorkbenchOperator`, and name the profile `default`.
+On your laptop, run `aws configure sso` and answer:
+
+| Prompt                  | Answer                                                                                 |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| SSO session name        | `agent-workbench`, a label for the sign-in settings                                    |
+| SSO start URL           | the IPv4-only AWS access portal URL in Identity Center settings, not the Issuer URL    |
+| SSO region              | the region Identity Center runs in                                                     |
+| SSO registration scopes | press Enter for the default                                                            |
+| (browser opens)         | sign in as the user you created and approve                                      |
+| Account and role        | your account and `AgentWorkbenchOperator`                                              |
+| Default client region   | the region the workbench runs in                                                       |
+| Output format           | `json`                                                                                 |
+| Profile name            | `default`, so `aws`, `cdk`, and `workbench` use it without `--profile` or `AWS_PROFILE` |
 
 Sign in with `aws sso login` and sign out with `workbench aws-logout`.
 
