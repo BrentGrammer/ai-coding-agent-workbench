@@ -3,6 +3,7 @@
 ## Restricted Files
 
 - Do not inspect, print, summarize, or modify `.env` or `.env.*`.
+- Never read the ~/.aws/ folder or any AWS IAM credentials or keys.
 
 ## Communication
 

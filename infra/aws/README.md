@@ -58,6 +58,34 @@ The deploy command deploys both stacks: the token Lambda and the EC2 workbench i
 
 The instance boots with no inbound ports and joins the tailnet with the auth key in Parameter Store. A plain deploy keeps the box's Ubuntu image, so it never replaces the box by surprise. For a new box, follow **New box** under [Deploy](../../README.md#deploy).
 
+## Limited operator profile
+
+`AgentWorkbenchOperatorStack` makes an IAM user, `agent-workbench-operator`, whose access keys can only assume the `agent-workbench-operator` role, and only with an MFA code. The role can start, stop, reach, update, and deploy the workbench. Deploy it once with an admin profile:
+
+```shell
+npx cdk deploy AgentWorkbenchOperatorStack --profile <admin-profile>
+```
+
+In the IAM console, open the user, assign an MFA device, and create an access key for the CLI. Then on your laptop, save the key under its own profile name:
+
+```shell
+aws configure --profile agent-workbench-keys
+```
+
+Make the role your default profile in `~/.aws/config`, so `aws`, `cdk`, and `workbench` use it without `--profile` or `AWS_PROFILE`:
+
+```ini
+[default]
+role_arn = arn:aws:iam::<account-id>:role/agent-workbench-operator
+source_profile = agent-workbench-keys
+mfa_serial = arn:aws:iam::<account-id>:mfa/<mfa-device-name>
+region = <region>
+```
+
+The CLI asks for an MFA code and keeps the role session for up to one hour in `~/.aws/cli/cache`. Delete that folder when you finish.
+
+The role cannot write Parameter Store. Store or rotate the Tailscale auth keys as admin.
+
 ## Maintenance
 
 - Monthly: bump the tool version pins in `ec2/setup-workbench.sh`, then run `workbench ec2 update`.

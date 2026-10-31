@@ -3,6 +3,7 @@ import * as cdk from "aws-cdk-lib/core";
 import { WorkbenchEc2Stack } from "../lib/workbench-ec2-stack.ts";
 import { WorkbenchLlmCacheStack } from "../lib/workbench-llm-cache-stack.ts";
 import { WorkbenchLlmStack } from "../lib/workbench-llm-stack.ts";
+import { WorkbenchOperatorStack } from "../lib/workbench-operator-stack.ts";
 import { WorkbenchTokenStack } from "../lib/workbench-token-stack.ts";
 
 const app = new cdk.App();
@@ -37,4 +38,9 @@ new WorkbenchLlmStack(app, "AgentWorkbenchLlmStack", {
   env,
   description: "GPU instance that serves workbench local LLMs.",
   cacheBucket: llmCacheStack.bucket,
+});
+
+new WorkbenchOperatorStack(app, "AgentWorkbenchOperatorStack", {
+  env,
+  description: "Limited IAM user and role for operating the workbench.",
 });
