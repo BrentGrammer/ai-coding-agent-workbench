@@ -63,7 +63,7 @@ The instance boots with no inbound ports and joins the tailnet with the auth key
 `AgentWorkbenchOperatorStack` makes an IAM user, `agent-workbench-operator`, whose access keys can only assume the `agent-workbench-operator` role, and only with an MFA code. The role can start, stop, reach, update, and deploy the workbench. Deploy it once with an admin profile:
 
 ```shell
-npx cdk deploy AgentWorkbenchOperatorStack --profile <admin-profile>
+npm run deploy:operator -- --profile <admin-profile>
 ```
 
 In the IAM console, open the user, assign an MFA device, and create an access key for the CLI. Then on your laptop, save the key under its own profile name:
