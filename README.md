@@ -2,7 +2,7 @@
 
 This project sets up and bootstraps an environment for running AI coding harnesses in Docker sandboxes or on an AWS EC2 dev box.
 
-**This branch installs ALL [optional skills and tools](#optional-skills-and-tools) by default.** Pass a flag such as `--exa` to install only that tool and not others.
+**This branch installs ALL [optional skills and tools](#optional-skills-and-tools) by default.** Pass a flag such as `--gh` to install only that tool and not others.
 
 For the same project with tooling and skills stripped out, use [`main`](https://github.com/BrentGrammer/ai-coding-agent-workbench/tree/main).
 
@@ -182,23 +182,23 @@ NOTE: `--clone`, `--local-model`, and `--gpu-box` are not skill or tool flags, s
 # every optional skill and tool
 start-claude
 
-# Exa and gh only
-start-codex --exa --gh
+# gh and npm-axi only
+start-codex --gh --npm-axi
 
-# Exa only (Herdr uses the same rule)
-start-herdr claude --exa
+# gh only (Herdr uses the same rule)
+start-herdr claude --gh
 ```
 
-| Flag                   | Installs                                       |
-| ---------------------- | ---------------------------------------------- |
-| `--matt-pocock-skills` | Matt Pocock skills                             |
-| `--skill-creator`      | skill-creator                                  |
-| `--pstack-skills`      | PStack skills (unslop)                         |
-| `--exa`                | Exa web search (where the harness supports it) |
-| `--gh`                 | `gh` plus the login reminder                   |
-| `--gh-axi`             | gh-axi CLI and skill (also installs `gh`)      |
-| `--npm-axi`            | npm-axi CLI and skill                          |
-| `--full`               | every item in this table                       |
+| Flag                   | Installs                                                  |
+| ---------------------- | --------------------------------------------------------- |
+| `--matt-pocock-skills` | Matt Pocock skills                                        |
+| `--skill-creator`      | skill-creator                                             |
+| `--pstack-skills`      | PStack skills (unslop)                                    |
+| `--pi-web-search`      | pi-web-access web search, Pi only (uses Exa's search API) |
+| `--gh`                 | `gh` plus the login reminder                              |
+| `--gh-axi`             | gh-axi CLI and skill (also installs `gh`)                 |
+| `--npm-axi`            | npm-axi CLI and skill                                     |
+| `--full`               | every item in this table                                  |
 
 `--gh`, `--gh-axi`, and `--npm-axi` need `gh auth login` once in each new sandbox. Choose HTTPS.
 

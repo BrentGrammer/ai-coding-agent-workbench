@@ -4,7 +4,7 @@
 INSTALL_MATT_POCOCK_SKILLS="${INSTALL_MATT_POCOCK_SKILLS:-false}"
 INSTALL_SKILL_CREATOR="${INSTALL_SKILL_CREATOR:-false}"
 INSTALL_PSTACK_SKILLS="${INSTALL_PSTACK_SKILLS:-false}"
-INSTALL_EXA="${INSTALL_EXA:-false}"
+INSTALL_PI_WEB_SEARCH="${INSTALL_PI_WEB_SEARCH:-false}"
 INSTALL_GH="${INSTALL_GH:-false}"
 INSTALL_GH_AXI="${INSTALL_GH_AXI:-false}"
 INSTALL_NPM_AXI="${INSTALL_NPM_AXI:-false}"
@@ -12,14 +12,14 @@ OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=false
 PROMPT_INSTRUCTION_COPY=false
 
 optional_skill_and_tool_flags_for_usage() {
-  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--skill-creator] [--pstack-skills] [--exa] [--gh] [--gh-axi] [--npm-axi] [--full]"
+  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--skill-creator] [--pstack-skills] [--pi-web-search] [--gh] [--gh-axi] [--npm-axi] [--full]"
 }
 
 turn_on_all_optional_skills_and_tools() {
   INSTALL_MATT_POCOCK_SKILLS=true
   INSTALL_SKILL_CREATOR=true
   INSTALL_PSTACK_SKILLS=true
-  INSTALL_EXA=true
+  INSTALL_PI_WEB_SEARCH=true
   INSTALL_GH=true
   INSTALL_GH_AXI=true
   INSTALL_NPM_AXI=true
@@ -37,7 +37,7 @@ turn_on_optional_skill_or_tool() {
     --matt-pocock-skills) INSTALL_MATT_POCOCK_SKILLS=true ;;
     --skill-creator) INSTALL_SKILL_CREATOR=true ;;
     --pstack-skills) INSTALL_PSTACK_SKILLS=true ;;
-    --exa) INSTALL_EXA=true ;;
+    --pi-web-search) INSTALL_PI_WEB_SEARCH=true ;;
     --gh) INSTALL_GH=true ;;
     --gh-axi) INSTALL_GH=true; INSTALL_GH_AXI=true ;;
     --npm-axi) INSTALL_NPM_AXI=true ;;
@@ -209,12 +209,6 @@ allow_skills_marketplace_network() {
   do
     sbx policy allow network --sandbox "$SANDBOX_NAME" "$host"
   done
-}
-
-allow_exa_mcp_network() {
-  [ "${INSTALL_EXA:-false}" = true ] || return 0
-  sbx policy allow network --sandbox "$SANDBOX_NAME" mcp.exa.ai:443
-  sbx policy allow network --sandbox "$SANDBOX_NAME" auth.exa.ai:443
 }
 
 install_matt_pocock_skills() {
@@ -448,114 +442,18 @@ done
 '
 }
 
-install_exa_for_harness() {
-  [ "$INSTALL_EXA" = true ] || return 0
-  allow_exa_mcp_network
+# Pi has no built-in web search. pi-web-access uses Exa's backend by default,
+# so only Pi sandboxes may reach Exa.
+install_pi_web_search() {
+  [ "$INSTALL_PI_WEB_SEARCH" = true ] || return 0
   case "$SANDBOX_NAME" in
-    claude-*|herdr-*)
-      echo "Installing Exa web search for Claude Code..."
-      sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-export PATH="$HOME/.local/bin:$PATH"
-if claude plugin list 2>/dev/null | grep -q exa; then
-  echo "Exa plugin already installed."
-else
-  claude plugin marketplace add anthropics/claude-plugins-official </dev/null >/dev/null 2>&1 || true
-  if claude plugin install exa@claude-plugins-official </dev/null >/dev/null 2>&1; then
-    echo "Installed the Exa plugin."
-  elif claude mcp get exa >/dev/null 2>&1; then
-    echo "Exa MCP server already registered."
-  else
-    echo "Plugin install did not work, falling back to the MCP server."
-    claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp
-  fi
-fi
-'
-      ;;
-    codex-*)
-      echo "Registering the Exa MCP server with Codex..."
-      sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-if codex mcp get exa >/dev/null 2>&1; then
-  echo "Exa MCP server already registered."
-else
-  timeout 20 codex mcp add exa --url https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-fi
-'
-      ;;
-    grok-*)
-      echo "Registering the Exa MCP server with Grok Build..."
-      sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-export PATH="$HOME/.grok/bin:$HOME/.local/bin:$PATH"
-if grok mcp list 2>/dev/null | grep -q exa; then
-  echo "Exa MCP server already registered."
-else
-  timeout 20 grok mcp add --transport http exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-fi
-'
-      ;;
-    opencode-*)
-      echo "Registering the Exa MCP server with OpenCode..."
-      local opencode_exa_fragment
-      opencode_exa_fragment="$(mktemp)"
-      printf '%s\n' '{"mcp":{"exa":{"type":"remote","url":"https://mcp.exa.ai/mcp","enabled":true}}}' \
-        > "$opencode_exa_fragment"
-      merge_json_into_sandbox_file "$opencode_exa_fragment" /home/agent/.config/opencode/opencode.json
-      rm -f "$opencode_exa_fragment"
-      ;;
-    kilo-*)
-      echo "Registering the Exa MCP server with Kilo..."
-      local kilo_exa_fragment
-      kilo_exa_fragment="$(mktemp)"
-      printf '%s\n' '{"mcp":{"exa":{"type":"remote","url":"https://mcp.exa.ai/mcp","enabled":true}}}' \
-        > "$kilo_exa_fragment"
-      merge_json_into_sandbox_file "$kilo_exa_fragment" /home/agent/.config/kilo/kilo.jsonc
-      rm -f "$kilo_exa_fragment"
-      ;;
-    devin-*)
-      echo "Registering the Exa MCP server with Devin CLI..."
-      sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-export PATH="$HOME/.local/bin:$PATH"
-if devin mcp list 2>/dev/null | grep -q exa; then
-  echo "Exa MCP server already registered."
-else
-  timeout 20 devin mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-fi
-'
-      ;;
-    qwen-*)
-      echo "Registering the Exa MCP server with Qwen Code..."
-      sbx exec "$SANDBOX_NAME" bash -lc '
-set -euo pipefail
-if qwen mcp list 2>/dev/null | grep -q exa; then
-  echo "Exa MCP server already registered."
-else
-  timeout 20 qwen mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-fi
-'
-      ;;
-    # The Cursor CLI has no non-interactive mcp add, so write its mcp.json.
-    # An existing file is left alone because the CLI drops it on bad merges.
-    cursor-*)
-      echo "Registering the Exa MCP server with Cursor CLI..."
-      local cursor_mcp_fragment
-      cursor_mcp_fragment="$(mktemp)"
-      printf '%s\n' '{"mcpServers":{"exa":{"type":"http","url":"https://mcp.exa.ai/mcp"}}}' \
-        > "$cursor_mcp_fragment"
-      if sbx exec "$SANDBOX_NAME" test -f /home/agent/.cursor/mcp.json 2>/dev/null; then
-        echo "WARN: ~/.cursor/mcp.json exists in the sandbox. Add the exa server to it by hand." >&2
-      else
-        install_file_into_sandbox "$cursor_mcp_fragment" /home/agent/.cursor/mcp.json
-      fi
-      rm -f "$cursor_mcp_fragment"
-      ;;
-    # Pi has no MCP support, so it gets the pinned pi-web-access extension,
-    # which proxies the same Exa backend. fetch_content stays allowlist-bound.
-    pi-*)
-      echo "Installing pi-web-access for Pi web search..."
-      sbx exec "$SANDBOX_NAME" bash -lc '
+    pi-*) ;;
+    *) return 0 ;;
+  esac
+  sbx policy allow network --sandbox "$SANDBOX_NAME" mcp.exa.ai:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" auth.exa.ai:443
+  echo "Installing pi-web-access for Pi web search..."
+  sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 if grep -q pi-web-access "$HOME/.pi/agent/settings.json" 2>/dev/null; then
@@ -564,17 +462,6 @@ else
   pi install npm:pi-web-access@0.46.0 </dev/null || echo "WARN: Could not install pi-web-access for Pi." >&2
 fi
 '
-      ;;
-    muse-*)
-      echo "Registering the Exa MCP server with Muse Code..."
-      local muse_exa_fragment
-      muse_exa_fragment="$(mktemp)"
-      printf '%s\n' '{"schema_version":1,"mcp_servers":{"exa":{"transport":"streamable_http","url":"https://mcp.exa.ai/mcp","enabled":true,"mode":"optional"}}}' \
-        > "$muse_exa_fragment"
-      merge_json_into_sandbox_file "$muse_exa_fragment" /home/agent/.config/muse/settings.json
-      rm -f "$muse_exa_fragment"
-      ;;
-  esac
 }
 
 install_selected_skills_and_tools() {
@@ -591,8 +478,7 @@ install_selected_skills_and_tools() {
 
   create_npm_global_prefix
   allow_skills_marketplace_network
-  allow_exa_mcp_network
-  install_exa_for_harness
+  install_pi_web_search
   case "$SANDBOX_NAME" in
     claude-*|herdr-*) install_matt_pocock_skills_plugin ;;
   esac

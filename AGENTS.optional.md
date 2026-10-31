@@ -11,7 +11,6 @@ Optional skills and tools are opt-in. Do not assume they are installed unless th
 - If `gh-axi` is installed, use it instead of `gh` for GitHub operations.
 - If `npm-axi` is installed, use it for npm registry lookups.
 - If an optional tool is unavailable, say so instead of installing it implicitly.
-- Use the Exa MCP server for documentation when it is available. If it takes longer than 10 seconds, stop waiting and use another source.
 
 ## Agent Documentation
 

@@ -9,7 +9,7 @@ SKILLS_CLI_VERSION=1.7.4
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
 export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigravity/bin:$PATH"
 
-mkdir -p "$HOME/.local/lib" "$HOME/.agents/skills" "$HOME/.config/muse" "$HOME/.config/opencode" "$HOME/.cursor"
+mkdir -p "$HOME/.local/lib" "$HOME/.agents/skills"
 
 npm install -g --ignore-scripts \
   "gh-axi@${GH_AXI_VERSION}" \
@@ -32,52 +32,6 @@ if ! "$gh_dir/bin/gh" --version 2>/dev/null | grep -q "gh version $GH_VERSION ";
 fi
 install -m 755 "$REPO_DIR/infra/aws/runtime/gh-with-app-token" "$HOME/.local/bin/gh"
 "$gh_dir/bin/gh" --version
-
-if [ ! -f "$HOME/.cursor/mcp.json" ]; then
-  cat > "$HOME/.cursor/mcp.json" <<'EOF'
-{
-  "mcpServers": {
-    "exa": {
-      "type": "http",
-      "url": "https://mcp.exa.ai/mcp"
-    }
-  }
-}
-EOF
-  chmod 600 "$HOME/.cursor/mcp.json"
-fi
-
-if [ -f "$HOME/.config/opencode/opencode.json" ] &&
-  ! jq -e '.mcp.exa' "$HOME/.config/opencode/opencode.json" >/dev/null 2>&1; then
-  tmp_json="$(mktemp)"
-  jq '.mcp.exa = {"type": "remote", "url": "https://mcp.exa.ai/mcp", "enabled": true}' \
-    "$HOME/.config/opencode/opencode.json" > "$tmp_json"
-  mv "$tmp_json" "$HOME/.config/opencode/opencode.json"
-  chmod 600 "$HOME/.config/opencode/opencode.json"
-fi
-
-if [ ! -f "$HOME/.config/muse/settings.json" ]; then
-  cat > "$HOME/.config/muse/settings.json" <<'EOF'
-{
-  "schema_version": 1,
-  "mcp_servers": {
-    "exa": {
-      "transport": "streamable_http",
-      "url": "https://mcp.exa.ai/mcp",
-      "enabled": true,
-      "mode": "optional"
-    }
-  }
-}
-EOF
-  chmod 600 "$HOME/.config/muse/settings.json"
-elif ! jq -e '.mcp_servers.exa' "$HOME/.config/muse/settings.json" >/dev/null 2>&1; then
-  tmp_json="$(mktemp)"
-  jq '.schema_version //= 1 | .mcp_servers.exa = {"transport": "streamable_http", "url": "https://mcp.exa.ai/mcp", "enabled": true, "mode": "optional"}' \
-    "$HOME/.config/muse/settings.json" > "$tmp_json"
-  mv "$tmp_json" "$HOME/.config/muse/settings.json"
-  chmod 600 "$HOME/.config/muse/settings.json"
-fi
 
 echo "Installing the Matt Pocock skills plugin for Claude Code..."
 if claude plugin list 2>/dev/null | grep -q mattpocock-skills; then
@@ -158,24 +112,3 @@ for skill_dir in "$HOME/.codex/skills"/*; do
   [ "$skill_name" = ".system" ] && continue
   ln -sfn "$skill_dir" "$HOME/.agents/skills/$skill_name"
 done
-
-echo "Installing Exa for Claude Code..."
-if ! claude plugin list 2>/dev/null | grep -q exa; then
-  claude plugin marketplace add anthropics/claude-plugins-official </dev/null >/dev/null 2>&1 || true
-  if ! claude plugin install exa@claude-plugins-official </dev/null >/dev/null 2>&1 &&
-    ! claude mcp get exa >/dev/null 2>&1; then
-    claude mcp add --transport http --scope user exa https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-  fi
-fi
-if ! claude plugin list 2>/dev/null | grep -q exa &&
-  ! claude mcp list 2>/dev/null | grep -q exa; then
-  echo "WARN: Claude Code has neither the Exa plugin nor the Exa MCP server." >&2
-fi
-
-echo "Registering the Exa MCP server with Codex..."
-if ! codex mcp get exa >/dev/null 2>&1; then
-  timeout 20 codex mcp add exa --url https://mcp.exa.ai/mcp </dev/null >/dev/null 2>&1 || true
-fi
-if ! codex mcp get exa >/dev/null 2>&1; then
-  echo "WARN: Codex does not list the Exa MCP server." >&2
-fi
