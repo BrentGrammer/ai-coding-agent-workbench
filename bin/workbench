@@ -60,7 +60,7 @@ find_connect_host() {
 usage() {
   cat <<'EOF'
 Usage: workbench <target> <command>
-       workbench aws-logout   End this laptop's AWS role session so the next AWS command needs MFA
+       workbench aws-logout   End this laptop's AWS SSO session so the next AWS command needs a new sign-in
 
 Targets:
   ec2   Persistent workbench instance
@@ -695,9 +695,8 @@ case "${1:-}" in
     esac
     ;;
   aws-logout)
-    # The CLI keeps MFA role sessions here for up to an hour.
-    rm -rf "$HOME/.aws/cli/cache"
-    echo "Logged out of AWS on this laptop. The next AWS command asks for an MFA code."
+    aws sso logout
+    echo "Logged out of AWS on this laptop. Sign in again with: aws sso login"
     ;;
   *)
     usage

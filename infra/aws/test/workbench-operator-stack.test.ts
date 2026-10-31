@@ -16,11 +16,10 @@ const stack = new WorkbenchOperatorStack(app, "Operator", {
   env: { account: "111111111111", region: "us-west-2" },
 });
 const template = Template.fromStack(stack);
+const [operatorPolicy] = Object.values(template.findResources("AWS::IAM::ManagedPolicy"));
 
 function policyStatements(): Statement[] {
-  return Object.values(template.findResources("AWS::IAM::Policy")).flatMap(
-    (policy) => policy.Properties.PolicyDocument.Statement as Statement[],
-  );
+  return operatorPolicy.Properties.PolicyDocument.Statement as Statement[];
 }
 
 function actionsOf(statement: Statement): string[] {
@@ -31,20 +30,13 @@ function statementsAllowing(action: string): Statement[] {
   return policyStatements().filter((statement) => actionsOf(statement).includes(action));
 }
 
-test("the operator's access keys alone cannot do anything but ask for the role", () => {
-  const userPolicies = Object.values(template.findResources("AWS::IAM::Policy")).filter(
-    (policy) => policy.Properties.Users,
-  );
-  const userActions = userPolicies.flatMap((policy) =>
-    (policy.Properties.PolicyDocument.Statement as Statement[]).flatMap(actionsOf),
-  );
-  assert.deepEqual(userActions, ["sts:AssumeRole"]);
+test("the SSO permission set can find the operator policy by its name", () => {
+  assert.equal(operatorPolicy.Properties.ManagedPolicyName, "agent-workbench-operator");
 });
 
-test("the operator role can only be taken with an MFA code", () => {
-  const [role] = Object.values(template.findResources("AWS::IAM::Role"));
-  const [trust] = role.Properties.AssumeRolePolicyDocument.Statement;
-  assert.deepEqual(trust.Condition, { Bool: { "aws:MultiFactorAuthPresent": "true" } });
+test("no IAM users or access keys are created", () => {
+  template.resourceCountIs("AWS::IAM::User", 0);
+  template.resourceCountIs("AWS::IAM::AccessKey", 0);
 });
 
 test("only the workbench box can be started or stopped", () => {
