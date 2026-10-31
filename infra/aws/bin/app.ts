@@ -42,5 +42,5 @@ new WorkbenchLlmStack(app, "AgentWorkbenchLlmStack", {
 
 new WorkbenchOperatorStack(app, "AgentWorkbenchOperatorStack", {
   env,
-  description: "Limited IAM user and role for operating the workbench.",
+  description: "Limited policy that the SSO permission set uses to operate the workbench.",
 });

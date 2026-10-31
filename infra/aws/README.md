@@ -60,31 +60,23 @@ The instance boots with no inbound ports and joins the tailnet with the auth key
 
 ## Limited operator profile
 
-`AgentWorkbenchOperatorStack` makes an IAM user, `agent-workbench-operator`, whose access keys can only assume the `agent-workbench-operator` role, and only with an MFA code. The role can start, stop, reach, update, and deploy the workbench. Deploy it once with an admin profile:
+Sign in with IAM Identity Center (SSO), so no access keys live on your laptop. `AgentWorkbenchOperatorStack` makes the `agent-workbench-operator` policy, which can start, stop, reach, update, and deploy the workbench. Deploy it once with an admin profile:
 
 ```shell
-npx cdk deploy AgentWorkbenchOperatorStack --profile <admin-profile>
+npm run deploy:operator -- --profile <admin-profile>
 ```
 
-In the IAM console, open the user, assign an MFA device, and create an access key for the CLI. Then on your laptop, save the key under its own profile name:
+Then in the AWS console:
 
-```shell
-aws configure --profile agent-workbench-keys
-```
+1. IAM Identity Center: **Enable**, with AWS Organizations. This makes an organization with your account as its management account.
+2. Settings, Authentication: require MFA every time a user signs in. Optionally shorten the session duration from 8 hours.
+3. Users: add yourself. Accept the email invite, set a password, and register an MFA device.
+4. Permission sets: create a custom set named `AgentWorkbenchOperator`. Attach the customer managed policy `agent-workbench-operator` and set the session duration to 1 hour.
+5. AWS accounts: select your account and assign your user with `AgentWorkbenchOperator`.
 
-Make the role your default profile in `~/.aws/config`, so `aws`, `cdk`, and `workbench` use it without `--profile` or `AWS_PROFILE`:
+On your laptop, run `aws configure sso`. Use the AWS access portal URL from the Identity Center dashboard, pick `AgentWorkbenchOperator`, and name the profile `default`.
 
-```ini
-[default]
-role_arn = arn:aws:iam::<account-id>:role/agent-workbench-operator
-source_profile = agent-workbench-keys
-mfa_serial = arn:aws:iam::<account-id>:mfa/<mfa-device-name>
-region = <region>
-```
-
-The CLI asks for an MFA code and keeps the role session for up to one hour in `~/.aws/cli/cache`. Run `workbench aws-logout` when you finish to end it early.
-
-The role cannot write Parameter Store. Store or rotate the Tailscale auth keys as admin.
+Sign in with `aws sso login` and sign out with `workbench aws-logout`.
 
 ## Maintenance
 

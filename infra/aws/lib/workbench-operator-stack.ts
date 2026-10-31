@@ -2,35 +2,26 @@ import * as cdk from "aws-cdk-lib/core";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
-const OPERATOR_NAME = "agent-workbench-operator";
+const OPERATOR_POLICY_NAME = "agent-workbench-operator";
 const WORKBENCH_INSTANCE_NAME = "agent-workbench-ec2";
 const LLM_INSTANCE_NAME = "agent-workbench-gpu-llm";
 const CDK_BOOTSTRAP_QUALIFIER = "hnb659fds";
 
-// A user whose access keys can do nothing alone. With an MFA code they can
-// assume a role that only runs, updates, and deploys the workbench.
+// The IAM Identity Center permission set refers to this policy by name, so
+// signing in through SSO only runs, updates, and deploys the workbench.
 export class WorkbenchOperatorStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const user = new iam.User(this, "OperatorUser", { userName: OPERATOR_NAME });
-
-    const role = new iam.Role(this, "OperatorRole", {
-      roleName: OPERATOR_NAME,
+    const policy = new iam.ManagedPolicy(this, "OperatorPolicy", {
+      managedPolicyName: OPERATOR_POLICY_NAME,
       description: "Runs, updates, and deploys the agent workbench.",
-      assumedBy: new iam.ArnPrincipal(user.userArn).withConditions({
-        Bool: { "aws:MultiFactorAuthPresent": "true" },
-      }),
-      maxSessionDuration: cdk.Duration.hours(1),
+      statements: this.operatorStatements(),
     });
-    role.grantAssumeRole(user);
 
-    for (const statement of this.operatorStatements()) {
-      role.addToPolicy(statement);
-    }
-
-    new cdk.CfnOutput(this, "OperatorRoleArn", { value: role.roleArn });
-    new cdk.CfnOutput(this, "OperatorUserName", { value: user.userName });
+    new cdk.CfnOutput(this, "OperatorPolicyName", {
+      value: policy.managedPolicyName,
+    });
   }
 
   private operatorStatements(): iam.PolicyStatement[] {
