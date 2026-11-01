@@ -134,6 +134,12 @@ tailnet lock blocks the box, it prints the sign command to run on your laptop.
 
 ### Connect and run
 
+Sign in to AWS first. The session lasts 1 hour, so sign in again when it expires:
+
+```shell
+aws sso login
+```
+
 Connect to the instance:
 
 ```shell
