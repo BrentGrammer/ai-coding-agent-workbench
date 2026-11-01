@@ -8,8 +8,6 @@ Optional skills and tools are opt-in. Do not assume they are installed unless th
 
 ## Tools
 
-- If `gh-axi` is installed, use it instead of `gh` for GitHub operations.
-- If `npm-axi` is installed, use it for npm registry lookups.
 - If an optional tool is unavailable, say so instead of installing it implicitly.
 
 ## Agent Documentation

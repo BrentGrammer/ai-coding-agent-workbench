@@ -188,8 +188,8 @@ NOTE: `--clone`, `--local-model`, and `--gpu-box` are not skill or tool flags, s
 # every optional skill and tool
 start-claude
 
-# gh and npm-axi only
-start-codex --gh --npm-axi
+# gh and PStack skills only
+start-codex --gh --pstack-skills
 
 # gh only (Herdr uses the same rule)
 start-herdr claude --gh
@@ -201,11 +201,9 @@ start-herdr claude --gh
 | `--pstack-skills`      | PStack skills (unslop)                                    |
 | `--pi-web-search`      | pi-web-access web search, Pi only (uses Exa's search API) |
 | `--gh`                 | `gh` plus the login reminder                              |
-| `--gh-axi`             | gh-axi CLI and skill (also installs `gh`)                 |
-| `--npm-axi`            | npm-axi CLI and skill                                     |
 | `--full`               | every item in this table                                  |
 
-`--gh`, `--gh-axi`, and `--npm-axi` need `gh auth login` once in each new sandbox. Choose HTTPS.
+`--gh` needs `gh auth login` once in each new sandbox. Choose HTTPS.
 
 On the EC2 box, `gh` needs no login. It gets a fresh one-hour GitHub App token for the current repository on each call. The GitHub App needs the Issues and Pull requests permissions from [Cloud one-time setup](docs/cloud-onetime-setup.md#2-github-app).
 

@@ -2,8 +2,6 @@
 set -euo pipefail
 
 GH_VERSION=2.103.3
-GH_AXI_VERSION=0.1.44
-NPM_AXI_VERSION=0.1.1
 SKILLS_CLI_VERSION=1.7.4
 
 export NPM_CONFIG_PREFIX="$HOME/.local/npm"
@@ -11,13 +9,7 @@ export PATH="$HOME/.local/npm/bin:$HOME/.local/bin:$HOME/.grok/bin:$HOME/.antigr
 
 mkdir -p "$HOME/.local/lib" "$HOME/.agents/skills"
 
-npm install -g --ignore-scripts \
-  "gh-axi@${GH_AXI_VERSION}" \
-  "npm-axi@${NPM_AXI_VERSION}"
-gh-axi --version
-npm-axi --version
-
-# gh-axi needs gh. The wrapper takes the gh name and hands the real binary a
+# The wrapper takes the gh name and hands the real binary a
 # fresh GitHub App token per call, so no login is stored.
 gh_dir="$HOME/.local/lib/gh"
 if ! "$gh_dir/bin/gh" --version 2>/dev/null | grep -q "gh version $GH_VERSION "; then
@@ -59,27 +51,9 @@ if ! (
   echo "WARN: Could not install Matt Pocock skills for Codex, OpenCode, or Cursor." >&2
 fi
 
-echo "Installing gh-axi, npm-axi, and PStack skills..."
+echo "Installing PStack skills..."
 if ! (
   cd "$HOME"
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add kunchenguid/gh-axi \
-    --skill gh-axi \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
-  npx --yes "skills@${SKILLS_CLI_VERSION}" add SSBrouhard/npm-axi \
-    --skill npm-axi \
-    --agent claude-code \
-    --agent codex \
-    --agent opencode \
-    --agent cursor \
-    --global \
-    --yes \
-    --copy
   npx --yes "skills@${SKILLS_CLI_VERSION}" add cursor/plugins/pstack \
     --skill unslop \
     --agent claude-code \
@@ -90,12 +64,8 @@ if ! (
     --yes \
     --copy
 ) </dev/null; then
-  echo "WARN: Could not install gh-axi, npm-axi, or PStack skills." >&2
+  echo "WARN: Could not install PStack skills." >&2
 fi
-
-echo "Setting up gh-axi and npm-axi session hooks..."
-gh-axi setup hooks </dev/null || echo "WARN: Could not set up gh-axi session hooks." >&2
-npm-axi setup hooks </dev/null || echo "WARN: Could not set up npm-axi session hooks." >&2
 
 for skill_dir in "$HOME/.codex/skills"/*; do
   [ -d "$skill_dir" ] || continue

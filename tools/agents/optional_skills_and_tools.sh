@@ -5,13 +5,11 @@ INSTALL_MATT_POCOCK_SKILLS="${INSTALL_MATT_POCOCK_SKILLS:-false}"
 INSTALL_PSTACK_SKILLS="${INSTALL_PSTACK_SKILLS:-false}"
 INSTALL_PI_WEB_SEARCH="${INSTALL_PI_WEB_SEARCH:-false}"
 INSTALL_GH="${INSTALL_GH:-false}"
-INSTALL_GH_AXI="${INSTALL_GH_AXI:-false}"
-INSTALL_NPM_AXI="${INSTALL_NPM_AXI:-false}"
 OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED=false
 PROMPT_INSTRUCTION_COPY=false
 
 optional_skill_and_tool_flags_for_usage() {
-  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--pstack-skills] [--pi-web-search] [--gh] [--gh-axi] [--npm-axi] [--full]"
+  printf '%s' " [--prompt-instruction-copy] [--matt-pocock-skills] [--pstack-skills] [--pi-web-search] [--gh] [--full]"
 }
 
 turn_on_all_optional_skills_and_tools() {
@@ -19,8 +17,6 @@ turn_on_all_optional_skills_and_tools() {
   INSTALL_PSTACK_SKILLS=true
   INSTALL_PI_WEB_SEARCH=true
   INSTALL_GH=true
-  INSTALL_GH_AXI=true
-  INSTALL_NPM_AXI=true
 }
 
 turn_on_optional_skill_or_tool() {
@@ -36,28 +32,20 @@ turn_on_optional_skill_or_tool() {
     --pstack-skills) INSTALL_PSTACK_SKILLS=true ;;
     --pi-web-search) INSTALL_PI_WEB_SEARCH=true ;;
     --gh) INSTALL_GH=true ;;
-    --gh-axi) INSTALL_GH=true; INSTALL_GH_AXI=true ;;
-    --npm-axi) INSTALL_NPM_AXI=true ;;
     --full) turn_on_all_optional_skills_and_tools ;;
     *) return 1 ;;
   esac
   return 0
 }
 
-remember_if_any_skill_or_gh_tool_is_on() {
+remember_selected_skills_and_tools() {
   if [ "$OPTIONAL_SKILL_OR_TOOL_FLAG_WAS_PASSED" != true ]; then
     turn_on_all_optional_skills_and_tools
   fi
-  if [ "$INSTALL_MATT_POCOCK_SKILLS" = true ] || [ "$INSTALL_PSTACK_SKILLS" = true ] ||
-    [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then
+  if [ "$INSTALL_MATT_POCOCK_SKILLS" = true ] || [ "$INSTALL_PSTACK_SKILLS" = true ]; then
     INSTALL_ANY_SKILL=true
   else
     INSTALL_ANY_SKILL=false
-  fi
-  if [ "$INSTALL_GH" = true ] || [ "$INSTALL_GH_AXI" = true ] || [ "$INSTALL_NPM_AXI" = true ]; then
-    INSTALL_ANY_GH_TOOL=true
-  else
-    INSTALL_ANY_GH_TOOL=false
   fi
 }
 
@@ -263,23 +251,14 @@ npx --yes skills@1.7.4 add cursor/plugins/pstack \
   fi
 }
 
-install_github_tools() {
-  [ "$INSTALL_ANY_GH_TOOL" = true ] || return 0
-  local workspace_dir="$1"
-  shift
-  local agent_flags=()
-  local agent_slug
-  for agent_slug in "$@"; do
-    agent_flags+=(--agent "$agent_slug")
-  done
-
-  if [ "$INSTALL_GH" = true ]; then
-    echo "Installing gh for: $*"
-    sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
-    sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
-    sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
-    sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
-    sbx exec "$SANDBOX_NAME" bash -lc '
+install_gh() {
+  [ "$INSTALL_GH" = true ] || return 0
+  echo "Installing gh..."
+  sbx policy allow network --sandbox "$SANDBOX_NAME" github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" api.github.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" objects.githubusercontent.com:443
+  sbx policy allow network --sandbox "$SANDBOX_NAME" release-assets.githubusercontent.com:443
+  sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 source /etc/sandbox-persistent.sh 2>/dev/null || true
 gh_version=2.103.3
@@ -299,55 +278,12 @@ if ! gh --version 2>/dev/null | grep -q "gh version $gh_version"; then
 fi
 gh --version
 '
-  fi
-
-  if [ "$INSTALL_GH_AXI" = true ]; then
-    echo "Installing gh-axi for: $*"
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts gh-axi@0.1.44'
-  fi
-  if [ "$INSTALL_NPM_AXI" = true ]; then
-    echo "Installing npm-axi for: $*"
-    sbx exec "$SANDBOX_NAME" bash -lc 'npm install -g --ignore-scripts npm-axi@0.1.1'
-  fi
-  if [ "$INSTALL_GH_AXI" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-npx --yes skills@1.7.4 add kunchenguid/gh-axi \
-  --skill gh-axi \
-  ${agent_flags[*]} \
-  --global \
-  --yes \
-  --copy
-" || echo "WARN: Could not install the gh-axi skill for: $*" >&2
-  fi
-  if [ "$INSTALL_NPM_AXI" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc "
-set -euo pipefail
-cd '$workspace_dir'
-npx --yes skills@1.7.4 add SSBrouhard/npm-axi \
-  --skill npm-axi \
-  ${agent_flags[*]} \
-  --global \
-  --yes \
-  --copy
-" || echo "WARN: Could not install the npm-axi skill for: $*" >&2
-  fi
-  if [ "$INSTALL_GH_AXI" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc \
-      'gh-axi setup hooks </dev/null >/dev/null 2>&1 || echo "WARN: Could not set up gh-axi session hooks." >&2'
-  fi
-  if [ "$INSTALL_NPM_AXI" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc \
-      'npm-axi setup hooks </dev/null >/dev/null 2>&1 || echo "WARN: Could not set up npm-axi session hooks." >&2'
-  fi
-  if [ "$INSTALL_GH" = true ]; then
-    sbx exec "$SANDBOX_NAME" bash -lc '
+  sbx exec "$SANDBOX_NAME" bash -lc '
 set -euo pipefail
 source /etc/sandbox-persistent.sh 2>/dev/null || true
 cat > "$HOME/.gh-login-reminder.sh" <<'"'"'REMINDER'"'"'
 if ! gh auth status >/dev/null 2>&1 || ! gh api user --jq .login >/dev/null 2>&1; then
-  printf "\nGitHub access is not ready. gh and gh-axi need it.\nRun once in this sandbox: gh auth login\nChoose HTTPS.\n\n"
+  printf "\nGitHub access is not ready. gh needs it.\nRun once in this sandbox: gh auth login\nChoose HTTPS.\n\n"
 fi
 REMINDER
 mkdir -p "$HOME/.local/bin"
@@ -356,10 +292,7 @@ cat > "$HOME/.local/bin/gh-workbench-check" <<'"'"'CHECK'"'"'
 set -euo pipefail
 gh auth status
 login="$(gh api user --jq .login)"
-if command -v gh-axi >/dev/null 2>&1; then
-  gh-axi issue list --limit 1 >/dev/null
-fi
-printf "GitHub access is ready for %s. gh and gh-axi can use this repository.\n" "$login"
+printf "GitHub access is ready for %s.\n" "$login"
 CHECK
 chmod 755 "$HOME/.local/bin/gh-workbench-check"
 if [ -f "$HOME/.bashrc" ]; then
@@ -377,7 +310,6 @@ if [[ $- == *i* ]] && [ -t 1 ] && [ -f "$HOME/.gh-login-reminder.sh" ]; then
 fi
 HOOK
 '
-  fi
 }
 
 install_matt_pocock_skills_plugin() {
@@ -437,7 +369,7 @@ fi
 }
 
 install_selected_skills_and_tools() {
-  remember_if_any_skill_or_gh_tool_is_on
+  remember_selected_skills_and_tools
   local slugs=()
   local slug
   while IFS= read -r slug; do
@@ -456,7 +388,7 @@ install_selected_skills_and_tools() {
   esac
   install_matt_pocock_skills "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
   install_pstack_skills "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
-  install_github_tools "$WORKSPACE_ROOT_DIR" "${slugs[@]}"
+  install_gh
   case "$SANDBOX_NAME" in
     codex-*|muse-*|herdr-*)
       if [ "$INSTALL_ANY_SKILL" = true ]; then
