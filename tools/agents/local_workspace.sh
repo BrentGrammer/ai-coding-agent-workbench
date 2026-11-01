@@ -87,8 +87,8 @@ configureLocalWorkspace() {
     SANDBOX_WORKSPACE_NAME="$SANDBOX_WORKSPACE_NAME-clone"
   fi
   # Shared with the optional-skills-tools branch so this launcher stays one file to change.
-  if type remember_if_any_skill_or_gh_tool_is_on >/dev/null 2>&1; then
-    remember_if_any_skill_or_gh_tool_is_on
+  if type remember_selected_skills_and_tools >/dev/null 2>&1; then
+    remember_selected_skills_and_tools
   fi
   if type copyMissingProjectInstructions >/dev/null 2>&1; then
     copyMissingProjectInstructions "${PROMPT_INSTRUCTION_COPY:-false}"
