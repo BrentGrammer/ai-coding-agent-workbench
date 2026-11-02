@@ -21,6 +21,14 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+echo "== Disable Multipath TCP"
+install -d -m 755 /etc/sysctl.d
+printf 'net.mptcp.enabled = 0\n' > /etc/sysctl.d/99-disable-mptcp.conf
+chmod 644 /etc/sysctl.d/99-disable-mptcp.conf
+if [ -f /proc/sys/net/mptcp/enabled ]; then
+  sysctl -p /etc/sysctl.d/99-disable-mptcp.conf
+fi
+
 if [ ! -f /etc/agent-workbench/workbench.env ]; then
   echo "WARN: /etc/agent-workbench/workbench.env is missing." >&2
   echo "WARN: Write AWS_REGION and GITHUB_APP_TOKEN_FUNCTION_NAME to it, or the token chain cannot work." >&2
