@@ -33,7 +33,7 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
         -c otel.log_user_prompt=false
       )
       ;;
-    claude)
+    claude | agy | devin | pi | cline | kilo | qwen | grok | muse)
       AGENT_ARGS=()
       ;;
     opencode)

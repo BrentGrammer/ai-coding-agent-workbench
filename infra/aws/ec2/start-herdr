@@ -7,7 +7,7 @@ for arg in "$@"; do
   case "$arg" in
     -h|--help)
       echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box]"
-      echo "Agents: claude codex opencode cursor devin pi. Default: cursor in the current directory."
+      echo "Agents: agy claude cline codex cursor devin grok kilo muse opencode pi qwen. Default: cursor in the current directory."
       echo "--gpu-box: use the GPU box from workbench.env. opencode only."
       echo "--local-model: the same thing, kept for compatibility."
       exit 0
@@ -22,6 +22,16 @@ for arg in "$@"; do
 done
 
 WORKBENCH_AGENT="${POSITIONAL[0]:-cursor}"
+case "$WORKBENCH_AGENT" in
+  antigravity) WORKBENCH_AGENT=agy ;;
+  cursor-agent) WORKBENCH_AGENT=cursor ;;
+  agy | claude | cline | codex | cursor | devin | grok | kilo | muse | opencode | pi | qwen) ;;
+  *) echo "ERROR: Unsupported agent: $WORKBENCH_AGENT. See start-herdr --help." >&2; exit 1 ;;
+esac
+if [ "${#POSITIONAL[@]}" -gt 2 ]; then
+  echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box]" >&2
+  exit 1
+fi
 WORKSPACE_DIR="$(cd "${POSITIONAL[1]:-$PWD}" && pwd)"
 
 session_suffix=""
@@ -58,4 +68,5 @@ workspace_path_hash="$(printf '%s' "$WORKSPACE_DIR" | sha256sum | cut -c1-8)"
 WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT$session_suffix}"
 export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
 
+export HERDR_CONFIG_PATH=/etc/agent-workbench/herdr-config.toml
 exec herdr-session

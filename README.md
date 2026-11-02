@@ -170,9 +170,18 @@ start-herdr cursor
 start-herdr opencode
 start-herdr devin
 start-herdr pi
+start-herdr agy
+start-herdr cline
+start-herdr grok
+start-herdr kilo
+start-herdr muse
+start-herdr qwen
 ```
 
-Herdr installs only the selected harness. It does not install Hunk or review skills.
+For local sandboxes, `start-herdr` installs only the selected harness. It does not
+install Hunk or review skills. On EC2, it uses the agents installed by the setup script.
+
+On Cloud Dev Box, optionally run `herdr` to open ordinary terminal panes without using the help launcher for default herdr behavior.
 
 ## Use a local model instead
 
