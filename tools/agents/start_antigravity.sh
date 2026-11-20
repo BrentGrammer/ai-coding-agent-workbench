@@ -4,7 +4,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/local_workspace.sh"
 source "$SCRIPT_DIR/sandbox_bootstrap.sh"
-configureLocalWorkspace "$@"
+antigravity_command="agy"
+workspace_args=()
+for arg in "$@"; do
+  if [ "$arg" = "-y" ]; then
+    antigravity_command="agy --dangerously-skip-permissions"
+  else
+    workspace_args+=("$arg")
+  fi
+done
+
+configureLocalWorkspace ${workspace_args[@]+"${workspace_args[@]}"}
 SANDBOX_NAME="antigravity-$SANDBOX_WORKSPACE_NAME"
 
 allow_antigravity_network() {
@@ -39,4 +49,4 @@ fi
 '
 }
 
-runSandboxHarness allow_antigravity_network install_antigravity false agy
+runSandboxHarness allow_antigravity_network install_antigravity false "$antigravity_command"
