@@ -92,10 +92,10 @@ case '"$WORKBENCH_AGENT"' in
     command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash
     ;;
   codex)
-    npm install -g @openai/codex@0.166.0 --ignore-scripts
+    npm install -g @openai/codex@0.171.0 --ignore-scripts
     ;;
   opencode)
-    npm install -g @opencode/cli@2.2.5 --ignore-scripts
+    npm install -g @opencode/cli@2.3.2 --ignore-scripts
     (cd "$(npm root -g)/@opencode/cli" && node postinstall.mjs)
     ;;
   cursor)
