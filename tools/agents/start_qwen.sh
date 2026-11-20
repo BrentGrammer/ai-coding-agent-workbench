@@ -27,7 +27,7 @@ allow_qwen_network() {
 install_qwen() {
   sbx exec "$SANDBOX_NAME" bash -c '
 set -euo pipefail
-sudo npm install -g --ignore-scripts @qwen-code/qwen-code@0.26.3
+sudo npm install -g --ignore-scripts @qwen-code/qwen-code@0.28.0
 qwen --version
 '
 
