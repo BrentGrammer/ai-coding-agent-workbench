@@ -33,7 +33,13 @@ if mkdir "$WORKSPACE_MARKER" 2>/dev/null; then
         -c otel.log_user_prompt=false
       )
       ;;
-    claude | agy | devin | pi | cline | kilo | qwen | grok | muse)
+    agy)
+      AGENT_ARGS=()
+      if [ "${WORKBENCH_YOLO:-false}" = true ]; then
+        AGENT_ARGS=(--dangerously-skip-permissions)
+      fi
+      ;;
+    claude | devin | pi | cline | kilo | qwen | grok | muse)
       AGENT_ARGS=()
       ;;
     opencode)

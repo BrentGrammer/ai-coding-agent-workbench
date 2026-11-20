@@ -2,17 +2,20 @@
 set -euo pipefail
 
 USE_LOCAL_MODEL=false
+WORKBENCH_YOLO=false
 POSITIONAL=()
 for arg in "$@"; do
   case "$arg" in
     -h|--help)
-      echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box]"
+      echo "Usage: start-herdr [agent] [workspace-dir] [--gpu-box] [-y]"
       echo "Agents: agy claude cline codex cursor devin grok kilo muse opencode pi qwen. Default: cursor in the current directory."
       echo "--gpu-box: use the GPU box from workbench.env. opencode only."
       echo "--local-model: the same thing, kept for compatibility."
+      echo "-y: skip permission prompts. antigravity (agy) only."
       exit 0
       ;;
     --local-model | --gpu-box) USE_LOCAL_MODEL=true ;;
+    -y) WORKBENCH_YOLO=true ;;
     -*)
       echo "ERROR: Unknown option: $arg" >&2
       exit 1
@@ -35,6 +38,13 @@ fi
 WORKSPACE_DIR="$(cd "${POSITIONAL[1]:-$PWD}" && pwd)"
 
 session_suffix=""
+if [ "$WORKBENCH_YOLO" = true ]; then
+  if [ "$WORKBENCH_AGENT" != agy ]; then
+    echo "ERROR: -y supports antigravity (agy) only, not $WORKBENCH_AGENT." >&2
+    exit 1
+  fi
+  session_suffix="${session_suffix}-yolo"
+fi
 if [ "$USE_LOCAL_MODEL" = true ]; then
   if [ "$WORKBENCH_AGENT" != opencode ]; then
     echo "ERROR: --gpu-box supports opencode only, not $WORKBENCH_AGENT." >&2
@@ -66,7 +76,7 @@ if [ -z "$workspace_name" ]; then
 fi
 workspace_path_hash="$(printf '%s' "$WORKSPACE_DIR" | sha256sum | cut -c1-8)"
 WORKBENCH_SESSION="${WORKBENCH_SESSION:-$workspace_name-$workspace_path_hash-$WORKBENCH_AGENT$session_suffix}"
-export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION
+export WORKBENCH_AGENT WORKSPACE_DIR WORKBENCH_SESSION WORKBENCH_YOLO
 
 export HERDR_CONFIG_PATH=/etc/agent-workbench/herdr-config.toml
 exec herdr-session
